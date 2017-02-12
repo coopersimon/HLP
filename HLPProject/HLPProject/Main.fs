@@ -1,6 +1,6 @@
 ﻿module Main
 
 [<EntryPoint>]
-let main argv = 
-    printfn "hello world"
+let main args =  
+    printfn "%A" (Test.TestFramework.compareList Test.Tokeniser.test_stringToToken)
     0
