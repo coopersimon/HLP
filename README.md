@@ -1,5 +1,5 @@
 
-####  Next Meeting - WEDNESDAY 15th 
+####  Next Meeting - AFTER LECTURE, TUESDAY 14th 
 
 Need to confirm time  
 Want to fully parse and interpret MOV commands by then  
