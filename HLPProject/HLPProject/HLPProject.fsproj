@@ -59,6 +59,8 @@
     <None Include="App.config" />
     <Compile Include="Tokeniser.fs" />
     <Compile Include="TokeniserTest.fs" />
+    <Compile Include="Types.fs" />
+    <Compile Include="ARMv4.fs" />
     <Compile Include="Parser.fs" />
     <Compile Include="Interpreter.fs" />
     <Compile Include="TestFramework.fs" />
