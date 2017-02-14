@@ -6,9 +6,9 @@ open Interpret
 [<EntryPoint>]
 let main args =  
     let state = initState
-    let inString = "MOV R5 #2"
+    let inString = "MOV R5, #2"
     let newState = inString |> Tokeniser.tokenise |> Parser.parser |> Interpreter.interpret state
-    printfn "%A" (state)
-    printfn "%A" (newState)
+    printfn "%A" (readReg state 5)
+    printfn "%A" (readReg newState 5)
 
     0

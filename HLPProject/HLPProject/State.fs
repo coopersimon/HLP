@@ -48,8 +48,7 @@ module State =
     let cFlag (S(_,_,_,c,_): StateHandle) = c
     
     /// Retrieve negative flag.
-    let sFlag (S(_,_,_,_,s): StateHandle) = s
-
+    let vFlag (S(_,_,_,_,v): StateHandle) = v
     
 
 
