@@ -5,9 +5,6 @@ open Interpret
 
 [<EntryPoint>]
 let main args =  
-    printfn "%A" (Test.TestFramework.compareList Test.Tokeniser.test_stringToToken)
-    printfn "%A" (Test.TestFramework.compareList Test.Tokeniser.test_tokenise)
-
     let state = initState
     let inString = "MOV R5 #2"
     let newState = inString |> Tokeniser.tokenise |> Parser.parser |> Interpreter.interpret state

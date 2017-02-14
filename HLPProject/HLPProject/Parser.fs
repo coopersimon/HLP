@@ -4,7 +4,6 @@ namespace Parse
 module Parser =
     
     open Tokeniser
-    //open Common.Types
     open Interpret.ARMv4
 
     /// Parses a list of tokens, to a list of instructions, ready to execute.
