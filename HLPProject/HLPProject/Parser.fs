@@ -12,4 +12,4 @@ module Parser =
             | T_MOV :: T_REG r :: T_INT i :: t -> (ml, mov r i) :: parseRec (ml + 4) t
             | [] -> []
             | _ -> failwithf "unhandled parse error!"
-        parseRec 0 tokLst
+        Map.ofList (parseRec 0 tokLst)

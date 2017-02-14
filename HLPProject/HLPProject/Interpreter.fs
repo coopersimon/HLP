@@ -3,9 +3,10 @@
 namespace Interpret
 module Interpreter =
     
-    open Common.Types
+    open Common.State
 
-    /// Calls functions on list of instructions.
-    let rec interpret state = function
-        | (ml, f) :: t -> interpret (f state) t
-        | [] -> state
+    /// Calls functions on map of (memloc * instructions).
+    let rec interpret state instr =
+        match Map.tryFind (readPC state) instr with
+        | Some(f) -> interpret (f (incPC state)) instr
+        | None -> state

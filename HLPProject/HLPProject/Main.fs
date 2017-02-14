@@ -1,5 +1,5 @@
 ﻿module Main
-open Common.Types
+open Common.State
 open Parse
 open Interpret
 
@@ -8,7 +8,7 @@ let main args =
     let state = initState
     let inString = "MOV R5 #2"
     let newState = inString |> Tokeniser.tokenise |> Parser.parser |> Interpreter.interpret state
-    printfn "%A" (readReg state 5)
-    printfn "%A" (readReg newState 5)
+    printfn "%A" (state)
+    printfn "%A" (newState)
 
     0

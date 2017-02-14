@@ -3,7 +3,7 @@
 
 namespace Interpret
 module ARMv4 =
-    open Common.Types
+    open Common.State
 
     let mov r i state =
         writeReg state r i
