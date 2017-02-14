@@ -37,12 +37,6 @@ module Types =
     /// Retrieve negative flag.
     let sFlag (S(_,_,_,_,s): StateHandle) = s
 
-    (*** INSTRUCTIONS ***)
-
-    /// Represents an instruction.
-    type Instruction =
-        Inst of Name:Token * RegOp:int * IntLit:int * MemLoc:int// * Cond: condtype
-
     
 
 

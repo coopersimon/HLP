@@ -7,5 +7,5 @@ module Interpreter =
 
     /// Calls functions on list of instructions.
     let rec interpret state = function
-        | f :: t -> interpret (f state) t
+        | (ml, f) :: t -> interpret (f state) t
         | [] -> state

@@ -9,9 +9,8 @@ module Parser =
 
     /// Parses a list of tokens, to a list of instructions, ready to execute.
     let parser tokLst =
-        let rec parseRec pc = function
-            //| T_MOV :: T_REG r :: T_INT i :: t -> Inst (T_MOV, r, i, pc) :: parseRec (pc + 4) t
-            | T_MOV :: T_REG r :: T_INT i :: t -> mov r i :: parseRec (pc + 4) t
+        let rec parseRec ml = function
+            | T_MOV :: T_REG r :: T_INT i :: t -> (ml, mov r i) :: parseRec (ml + 4) t
             | [] -> []
             | _ -> failwithf "unhandled parse error!"
         parseRec 0 tokLst
