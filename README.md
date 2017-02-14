@@ -25,10 +25,12 @@ Added commit.sh, with ```./commit.sh "MESSAGE"``` commits, with message of MESSA
 7. Top README.md - most important project information  
 
 #### Testing
-Have a name for each code module (e.g: name.fs)  
+* Create a separate file for your individual tests
+* Each source file should have its own test file, in namespace Test.
+* Simple tests consist of a (function * expectedValue) List. The framework then compares these with compareList.
 Final outputs should be:  
 	1. name.fs  
-	2. name_inputs.txt  
+	2. name_test.fs
 	3. name_outputs.txt  
 	4. name_log.md  
 
