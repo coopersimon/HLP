@@ -1,6 +1,8 @@
 
 ####  Next Meeting - Thursday 16th at 11am
 
+Need to confirm time  
+Want to fully parse and interpret MOV commands by then  
 Last Meeting (Friday 10th) notes in ```Documentation/Meetings_10_02.md```  
 Currently on ```dev_10_02``` branch
 

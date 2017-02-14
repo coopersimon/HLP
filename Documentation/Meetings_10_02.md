@@ -17,12 +17,12 @@ Not necessarily worrying about memory so far, but probably will be a map, possib
 	* This could be split into a Tokeniser, and Creating the tree
 	* Interface:
 					    
-			Parser: Code:String -> Instructions:List<Instruction>
+			Parser: Code:String -> Instructions:Array<Instruction>
 2. Interpreter takes in Code (string array), and State, outputting a new State
 		
 	* Interface:
 				
-			Interpreter: Code:String -> Instructions:List<Instruction> -> InputState:MachineState -> OutputState:MachineState
+			Interpreter: Code:String -> InputState:State -> Instructions:Array<Instruction> -> OutputState:State
 
 #### State
 * Both memory (or address to memory), and registers
