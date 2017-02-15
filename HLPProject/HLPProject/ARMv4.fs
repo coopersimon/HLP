@@ -6,4 +6,4 @@ module ARMv4 =
     open Common.Conditions
 
     let mov c r i state =
-        if checkCond state c then writeReg state r i else state
+        if c state then writeReg state r i else state

@@ -5,6 +5,7 @@ module Tokeniser =
     
     open System.Text.RegularExpressions
     open Common.Conditions
+    open Common.State
 
     (***CONDITIONS***)
 
@@ -13,31 +14,31 @@ module Tokeniser =
 
     /// Match input string to condition code.
     let matchCond = function
-        | "EQ" -> EQ
-        | "NE" -> NE
-        | "CS" -> CS
-        | "HS" -> CS
-        | "CC" -> CC
-        | "LO" -> CC
-        | "MI" -> MI
-        | "PL" -> PL
-        | "VS" -> VS
-        | "VC" -> VC
-        | "HI" -> HI
-        | "GE" -> GE
-        | "LT" -> LT
-        | "GT" -> GT
-        | "LE" -> LE
-        | "AL" -> AL
-        | "" -> AL
-        | _ -> AL
+        | "EQ" -> checkEQ
+        | "NE" -> checkNE
+        | "CS" -> checkCS
+        | "HS" -> checkCS
+        | "CC" -> checkCC
+        | "LO" -> checkCC
+        | "MI" -> checkMI
+        | "PL" -> checkPL
+        | "VS" -> checkVS
+        | "VC" -> checkVC
+        | "HI" -> checkHI
+        | "GE" -> checkGE
+        | "LT" -> checkLT
+        | "GT" -> checkGT
+        | "LE" -> checkLE
+        | "AL" -> checkAL
+        | "" -> checkAL
+        | _ -> checkAL
 
 
     (***TOKENS***)
     /// Add tokens here! Format: "T_x"
     type Token =
         // Instructions
-        | T_MOV of Cond
+        | T_MOV of (StateHandle -> bool)
         // Values
         | T_REG of int
         | T_INT of int
