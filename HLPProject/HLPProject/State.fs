@@ -39,16 +39,30 @@ module State =
         S(newRegs,n,z,c,s)
 
     /// Retrieve negative flag.
-    let nFlag (S(_,n,_,_,_): StateHandle) = n
+    let readNFlag (S(_,n,_,_,_): StateHandle) = n
 
-    /// Retrieve negative flag.
-    let zFlag (S(_,_,z,_,_): StateHandle) = z
+    /// Retrieve zero flag.
+    let readZFlag (S(_,_,z,_,_): StateHandle) = z
 
-    /// Retrieve negative flag.
-    let cFlag (S(_,_,_,c,_): StateHandle) = c
+    /// Retrieve carry flag.
+    let readCFlag (S(_,_,_,c,_): StateHandle) = c
     
-    /// Retrieve negative flag.
-    let vFlag (S(_,_,_,_,v): StateHandle) = v
+    /// Retrieve overflow flag.
+    let readVFlag (S(_,_,_,_,v): StateHandle) = v
     
+    /// Write negative flag.
+    let writeNFlag (S(reg,_,z,c,v): StateHandle) n =
+        S(reg,n,z,c,v)
 
+    /// Write zero flag.
+    let writeZFlag (S(reg,n,_,c,v): StateHandle) z =
+        S(reg,n,z,c,v)
+
+    /// Write carry flag.
+    let writeCFlag (S(reg,n,z,_,v): StateHandle) c =
+        S(reg,n,z,c,v)
+    
+    /// Write overflow flag.
+    let writeVFlag (S(reg,n,z,c,_): StateHandle) v =
+        S(reg,n,z,c,v)
 
