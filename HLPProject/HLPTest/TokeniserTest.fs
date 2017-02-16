@@ -27,4 +27,5 @@ module Tokeniser =
     /// Tests for the tokenise function.
     let test_tokenise =
         [(tokenise "MOV   R5 #2", [T_MOV checkAL; T_REG 5; T_INT 2]);
-        (tokenise "MOV, , R3 ,R10, ", [T_MOV checkAL; T_COMMA; T_COMMA; T_REG 3; T_COMMA; T_REG 10; T_COMMA])]
+        (tokenise "MOV, , R3 ,R10, ", [T_MOV checkAL; T_COMMA; T_COMMA; T_REG 3; T_COMMA; T_REG 10; T_COMMA]);
+        (tokenise "R3 R4, R6, ,#20", [T_REG 3; T_REG 4; T_COMMA; T_REG 6; T_COMMA; T_COMMA; T_INT 20])]

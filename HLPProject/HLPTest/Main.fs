@@ -1,8 +1,10 @@
 ﻿module Main
+open Test.TestFramework
+open Test.Tokeniser
 
 [<EntryPoint>]
 let main args =  
-    printfn "%A" (Test.TestFramework.compareList Test.Tokeniser.test_stringToToken)
-    printfn "%A" (Test.TestFramework.compareList Test.Tokeniser.test_tokenise)
+    printfn "%A" (compareList test_stringToToken)
+    printfn "%A" (compareList test_tokenise)
 
     0
