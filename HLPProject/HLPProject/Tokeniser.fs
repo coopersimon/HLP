@@ -34,10 +34,31 @@ module Tokeniser =
         | _ -> checkAL
 
 
+    
+
+    (*[<CustomEquality; NoComparison>]
+    type Cond =
+        | Cond of (StateHandle -> bool)
+
+        override x.Equals yobj =
+            let state = initState
+            match yobj with
+            | :? Cond as y -> match x,y with
+                              | Cond x, Cond y -> x state = y state
+            | _ -> false
+
+    let ch (c:Cond) state =
+        match c with
+        | Cond f -> f state*)
+
+
     (***TOKENS***)
+    // TODO: add equality to this type.
     /// Add tokens here! Format: "T_x"
+    [<CustomEquality; NoComparison>]
     type Token =
         // Instructions
+        //| T_MOV of Cond
         | T_MOV of (StateHandle -> bool)
         // Values
         | T_REG of int
@@ -45,6 +66,18 @@ module Tokeniser =
         // Others
         | T_COMMA
         | T_ERROR
+
+        override x.Equals yobj =
+            let state = initState
+            match yobj with
+            | :? Token as y -> match x,y with
+                               | T_REG ix, T_REG iy -> ix = iy
+                               | T_INT ix, T_INT iy -> ix = iy
+                               | T_COMMA, T_COMMA -> true
+                               | T_ERROR, T_ERROR -> true
+                               | T_MOV cx, T_MOV cy -> cx state = cy state
+                               | _,_ -> false
+            | _ -> false
 
 
     // Add active patterns here! Format "MT_x"
