@@ -1,16 +1,14 @@
 
-####  Next Meeting - Thursday 16th at 11am
-
-Need to confirm time  
-Want to fully parse and interpret MOV commands by then  
-Last Meeting (Friday 10th) notes in ```Documentation/Meetings_10_02.md```  
-Currently on ```dev_10_02``` branch
+####  Next Meeting - Tuesday 21st at 3pm
+ 
+Last Meeting (Friday 16th) notes in ```Documentation/Meeting_16_02.md```  
+Oxn ```dev_10_02``` branch
 
 #### Git and Branching
 
 Master Branch  
-Dev branches, title ```dev_10_02``` or similar, indicating date the branch was made  
-Each person, for each sprint, branches off dev, with title ```ravi_dev_10_02``` or similar  
+Dev branches, title ```dev_10_02```  
+Each person, for experimental changes, branches off dev, with title ```ravi_dev_10_02```   
 Added commit.sh, with ```./commit.sh "MESSAGE"``` commits, with message of MESSAGE  
 
 #### Development strategy
