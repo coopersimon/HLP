@@ -2,12 +2,12 @@
 ####  Next Meeting - Tuesday 21st at 3pm
  
 Last Meeting (Friday 16th) notes in ```Documentation/Meeting_16_02.md```  
-Oxn ```dev_10_02``` branch
 
 #### Git and Branching
 
 Master Branch  
-Dev branches, title ```dev_10_02```  
+Dev branch, titled ```dev```
+Docs branch, titles ```docs```. Make documentation changes here, and **Ravi** will periodically merge it to master.
 Each person, for experimental changes, branches off dev, with title ```ravi_dev_10_02```   
 Added commit.sh, with ```./commit.sh "MESSAGE"``` commits, with message of MESSAGE  
 
