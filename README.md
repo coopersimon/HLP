@@ -1,16 +1,14 @@
 
-####  Next Meeting - WEDNESDAY 15th 
-
-Need to confirm time  
-Want to fully parse and interpret MOV commands by then  
-Last Meeting (Friday 10th) notes in ```Documentation/Meetings_10_02.md```  
-Currently on ```dev_10_02``` branch
+####  Next Meeting - Tuesday 21st at 3pm
+ 
+Last Meeting (Friday 16th) notes in ```Documentation/Meeting_16_02.md```  
 
 #### Git and Branching
 
 Master Branch  
-Dev branches, title ```dev_10_02``` or similar, indicating date the branch was made  
-Each person, for each sprint, branches off dev, with title ```ravi_dev_10_02``` or similar  
+Dev branch, titled ```dev```
+Docs branch, titles ```docs```. Make documentation changes here, and **Ravi** will periodically merge it to master.
+Each person, for experimental changes, branches off dev, with title ```ravi_dev_10_02```   
 Added commit.sh, with ```./commit.sh "MESSAGE"``` commits, with message of MESSAGE  
 
 #### Development strategy
@@ -24,11 +22,46 @@ Added commit.sh, with ```./commit.sh "MESSAGE"``` commits, with message of MESSA
 	* Todos of current sprint shown
 7. Top README.md - most important project information  
 
-#### Testing
-Have a name for each code module (e.g: name.fs)  
-Final outputs should be:  
-	1. name.fs  
-	2. name_inputs.txt  
-	3. name_outputs.txt  
-	4. name_log.md  
+#### File Structure
+
+```
+| commit.sh
+| README.md (Top README)
+| TODO.md (Todo List)
+> Documentation
+	| (Markdown files, with notes from meetings of different dates)
+> HLPProject
+	> HLPProject
+		> bin 
+			| (All binaries)
+		> obj 
+			| (All object files)
+		| App.config
+		| HLPProject.fsproj
+		| App.config
+		> src
+			| (All source files, names of form name.fs)
+		> tests
+			| (All test files, names of form name_test.fs)
+		> codedocs
+			| (Documentation for specific source files where needed, of form name.md)
+```
+
+#### Testing Steps
+
+1. Have a name for each code module (e.g: ```name.fs```)  
+2. Create a test file (Filename of the form ```name_test.fs```)
+3. Add ```namespace Test``` to the first line of ```name_test.fs```
+4. Add ```module <name>``` to both ```name.fs``` and to the second line of ```name_test.fs```
+5. Create a list of tuples, where the first element of the tuple is a call to the test function, and the second element is the expected output. 
+		* NB: The type of both elements of the tuple must be the same
+6. In main (See ```Main.fs``` )
+7. Printout the test result, of the form
+		```printfn "%A" (Test.TestFramework.compareList Test.Tokeniser.<test list name```
+	
+	This has a more verbose output
+		```printfn "%A" (Test.TestFramework.compareList Test.Tokeniser.<test list name```
+		
+
+
 
