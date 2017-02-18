@@ -4,7 +4,7 @@ open Test.Tokeniser
 
 [<EntryPoint>]
 let main args =  
-    printfn "%A" (compareList test_stringToToken)
-    printfn "%A" (compareList test_tokenise)
+    printfn "stringToToken = %s" (testList test_stringToToken)
+    printfn "tokenise = %s" (testList test_tokenise)
 
     0

@@ -18,3 +18,9 @@ module TestFramework =
             | (a,b) :: t -> sprintf "%d: Got %A; Expected %A" testNum a b :: checkElement t (testNum+1)
             | [] -> []
         checkElement lst 0
+
+    // runs a test based on the list.
+    let testList lst =
+        match compareListVerbose lst with
+        | [] -> "passed."
+        | err -> sprintf "failed: %A" err
