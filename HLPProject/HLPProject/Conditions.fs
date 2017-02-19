@@ -12,56 +12,56 @@ module Conditions =
 
     /// Equal condition.
     let checkEQ state =
-        zFlag state
+        readZFlag state
 
     /// Not equal condition.
     let checkNE state =
-        not (zFlag state)
+        not (readZFlag state)
 
     /// Carry set condition.
     let checkCS state =
-        cFlag state
+        readCFlag state
 
     /// Carry clear condition.
     let checkCC state =
-        not (cFlag state)
+        not (readCFlag state)
 
     /// Minus condition.
     let checkMI state =
-        nFlag state
+        readNFlag state
 
     /// Plus condition.
     let checkPL state =
-        not (nFlag state)
+        not (readNFlag state)
 
     /// Overflow set condition
     let checkVS state =
-        vFlag state
+        readVFlag state
 
     /// Overflow clear condition
     let checkVC state =
-        not (vFlag state)
+        not (readVFlag state)
 
     /// HI condition.
     let checkHI state =
-        (cFlag state) && (not (zFlag state))
+        (readCFlag state) && (not (readZFlag state))
 
     /// LS condition.
     let checkLS state =
-        (not (cFlag state)) || (zFlag state)
+        (not (readCFlag state)) || (readZFlag state)
 
     /// Greater than or equal condition.
     let checkGE state =
-        (nFlag state) = (vFlag state)
+        (readNFlag state) = (readVFlag state)
 
     /// Less than condition.
     let checkLT state =
-        (nFlag state) <> (vFlag state)
+        (readNFlag state) <> (readVFlag state)
 
     /// Greater than condition.
     let checkGT state =
-        (not (zFlag state)) && ((nFlag state) = (vFlag state))
+        (not (readZFlag state)) && ((readNFlag state) = (readVFlag state))
 
     /// Less than or equal condition.
     let checkLE state =
-        (zFlag state) && ((nFlag state) <> (vFlag state))
+        (readZFlag state) && ((readNFlag state) <> (readVFlag state))
