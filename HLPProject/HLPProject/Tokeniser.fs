@@ -35,14 +35,24 @@ module Tokeniser =
 
 
     (***TOKENS***)
+    // To add token:
+        // Add to discriminated union
+        // Add to equals override
+        // Add to stringToToken function
+
+
     /// Add tokens here! Format: "T_x"
     [<CustomEquality; NoComparison>]
     type Token =
         // Instructions
         | T_MOV of (StateHandle -> bool)
+        | T_MVN of (StateHandle -> bool)
+        | T_MRS of (StateHandle -> bool)
+        | T_MSR of (StateHandle -> bool)
         // Values
         | T_REG of int
         | T_INT of int
+        | T_LABEL of string
         // Others
         | T_COMMA
         | T_ERROR
@@ -56,41 +66,56 @@ module Tokeniser =
                                | T_COMMA, T_COMMA -> true
                                | T_ERROR, T_ERROR -> true
                                | T_MOV cx, T_MOV cy -> cx state = cy state
+                               | T_MVN cx, T_MVN cy -> cx state = cy state
+                               | T_MRS cx, T_MRS cy -> cx state = cy state
+                               | T_MSR cx, T_MSR cy -> cx state = cy state
                                | _,_ -> false
             | _ -> false
 
 
-    // Add active patterns here! Format "MT_x"
-    let (|MT_MOV|_|) str =
-        let m = Regex.Match(str, @"^MOV"+cond)
+    // active patterns for matching strings
+    let (|INSTR_MATCH|_|) pattern str =
+        let m = Regex.Match(str, pattern+cond)
         if m.Success then Some(matchCond m.Groups.[1].Value) else None
 
-    let (|MT_REG|_|) str =
+    let (|REG_MATCH|_|) str =
         let m = Regex.Match(str, @"^R([0-9]|1[0-5])$")
         if m.Success then Some(int m.Groups.[1].Value) else None
 
-    let (|MT_COMMA|_|) str =
+    let (|COMMA_MATCH|_|) str =
         let m = Regex.Match(str, @"^,$")
         if m.Success then Some() else None
 
-    let (|MT_DEC_LIT|_|) str =
+    let (|LABEL_MATCH|_|) str =
+        let m = Regex.Match(str, @"^([a-zA-Z][a-zA-Z0-9]*):$")
+        if m.Success then Some(m.Groups.[1].Value) else None
+
+    let (|DEC_LIT_MATCH|_|) str =
         let m = Regex.Match(str, @"^#?([0-9]+)$")
         if m.Success then Some(int m.Groups.[1].Value) else None
 
-    let (|MT_HEX_LIT|_|) str =
+    let (|HEX_LIT_MATCH|_|) str =
         let m = Regex.Match(str, @"^#?(0x[0-9a-fA-F]+)$")
         if m.Success then Some(System.Convert.ToInt32 (m.Groups.[1].Value, 16)) else None
+
+    let (|TOKEN_MATCH|_|) pattern str =
+        let m = Regex.Match(str, pattern)
+        if m.Success then Some(m.Groups.[1].Value) else None
 
 
     (***TOKENISER***)
 
-    /// Link the tokens and patterns. Format "MT_x -> T_x"
+    /// Match input string to token.
     let stringToToken = function
-        | MT_MOV c -> T_MOV c
-        | MT_REG i -> T_REG i
-        | MT_COMMA -> T_COMMA
-        | MT_DEC_LIT i -> T_INT i
-        | MT_HEX_LIT i -> T_INT i
+        | INSTR_MATCH @"^MOV" c -> T_MOV c
+        | INSTR_MATCH @"^MVN" c -> T_MVN c
+        | INSTR_MATCH @"^MRS" c -> T_MRS c
+        | INSTR_MATCH @"^MSR" c -> T_MSR c
+        | REG_MATCH i -> T_REG i
+        | COMMA_MATCH -> T_COMMA
+        | LABEL_MATCH s -> T_LABEL s
+        | DEC_LIT_MATCH i -> T_INT i
+        | HEX_LIT_MATCH i -> T_INT i
         | _ -> T_ERROR
 
 
@@ -101,5 +126,5 @@ module Tokeniser =
         let sC = rgx.Replace(s, " , ")
         sC.Split([|' '; '\t'; '\n'; '\r'; '\f'|])
         |> Array.toList
-        |> List.filter (fun s -> String.length s > 0)
+        |> List.filter (fun s -> s <> "")
         |> List.map stringToToken
