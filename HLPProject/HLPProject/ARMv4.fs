@@ -7,10 +7,10 @@ module ARMv4 =
 
     let movI c r i state =
         if c state
-        then writeReg state r i
+        then writeReg r i state
         else state
 
     let movR c r1 r2 state =
         if c state
-        then writeReg state r1 (readReg state r2)
+        then writeReg r1 (readReg r2 state) state
         else state
