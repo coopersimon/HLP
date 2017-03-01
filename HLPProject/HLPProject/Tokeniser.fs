@@ -49,6 +49,37 @@ module Tokeniser =
         | T_MVN of (StateHandle -> bool)
         | T_MRS of (StateHandle -> bool)
         | T_MSR of (StateHandle -> bool)
+        | T_ADD of (StateHandle -> bool)
+        | T_ADC of (StateHandle -> bool)
+        | T_SUB of (StateHandle -> bool)
+        | T_SBC of (StateHandle -> bool)
+        | T_RSB of (StateHandle -> bool)
+        | T_RSC of (StateHandle -> bool)
+        | T_MUL of (StateHandle -> bool)
+        | T_MLA of (StateHandle -> bool)
+        | T_UMULL of (StateHandle -> bool)
+        | T_UMLAL of (StateHandle -> bool)
+        | T_SMULL of (StateHandle -> bool)
+        | T_SMLAL of (StateHandle -> bool)
+        | T_AND of (StateHandle -> bool)
+        | T_ORR of (StateHandle -> bool)
+        | T_EOR of (StateHandle -> bool)
+        | T_BIC of (StateHandle -> bool)
+        | T_CMP of (StateHandle -> bool)
+        | T_CMN of (StateHandle -> bool)
+        | T_TST of (StateHandle -> bool)
+        | T_TEQ of (StateHandle -> bool)
+        | T_B of (StateHandle -> bool)
+        | T_BL of (StateHandle -> bool)
+        | T_BX of (StateHandle -> bool)
+        | T_LDR of (StateHandle -> bool)
+        | T_LDM of (StateHandle -> bool)
+        | T_STR of (StateHandle -> bool)
+        | T_STM of (StateHandle -> bool)
+        | T_ADR of (StateHandle -> bool)
+        | T_SWP of (StateHandle -> bool)
+        | T_SWI of (StateHandle -> bool)
+        | T_NOP of (StateHandle -> bool)
         // Values
         | T_REG of int
         | T_INT of int
@@ -107,15 +138,21 @@ module Tokeniser =
 
     /// Match input string to token.
     let stringToToken = function
-        | INSTR_MATCH @"^MOV" c -> T_MOV c
-        | INSTR_MATCH @"^MVN" c -> T_MVN c
-        | INSTR_MATCH @"^MRS" c -> T_MRS c
-        | INSTR_MATCH @"^MSR" c -> T_MSR c
         | REG_MATCH i -> T_REG i
         | COMMA_MATCH -> T_COMMA
         | LABEL_MATCH s -> T_LABEL s
         | DEC_LIT_MATCH i -> T_INT i
         | HEX_LIT_MATCH i -> T_INT i
+        | INSTR_MATCH @"^MOV" c -> T_MOV c
+        | INSTR_MATCH @"^MVN" c -> T_MVN c
+        | INSTR_MATCH @"^MRS" c -> T_MRS c
+        | INSTR_MATCH @"^MSR" c -> T_MSR c
+        | INSTR_MATCH @"^ADD" c -> T_ADD c
+        | INSTR_MATCH @"^ADC" c -> T_ADC c
+        | INSTR_MATCH @"^SUB" c -> T_SUB c
+        | INSTR_MATCH @"^SBC" c -> T_SBC c
+        | INSTR_MATCH @"^RSB" c -> T_RSB c
+        | INSTR_MATCH @"^RSC" c -> T_RSC c
         | _ -> T_ERROR
 
 
