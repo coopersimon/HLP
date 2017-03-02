@@ -151,7 +151,7 @@ module Tokeniser =
         let m = Regex.Match(str, @"^#?(0x[0-9a-fA-F]+)$")
         if m.Success then Some(System.Convert.ToInt32 (m.Groups.[1].Value, 16)) else None
 
-
+    
     /// Match input string to token.
     let stringToToken = function
         // registers & aliases

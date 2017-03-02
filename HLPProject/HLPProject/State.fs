@@ -57,19 +57,19 @@ module State =
     let readVFlag (S(_,_,_,_,v,_): StateHandle) = v
     
     /// Write negative flag.
-    let writeNFlag (S(reg,_,z,c,v,mem): StateHandle) n =
+    let writeNFlag n (S(reg,_,z,c,v,mem): StateHandle) =
         S(reg,n,z,c,v,mem)
 
     /// Write zero flag.
-    let writeZFlag (S(reg,n,_,c,v,mem): StateHandle) z =
+    let writeZFlag z (S(reg,n,_,c,v,mem): StateHandle) =
         S(reg,n,z,c,v,mem)
 
     /// Write carry flag.
-    let writeCFlag (S(reg,n,z,_,v,mem): StateHandle) c =
+    let writeCFlag c (S(reg,n,z,_,v,mem): StateHandle) =
         S(reg,n,z,c,v,mem)
     
     /// Write overflow flag.
-    let writeVFlag (S(reg,n,z,c,_,mem): StateHandle) v =
+    let writeVFlag v (S(reg,n,z,c,_,mem): StateHandle) =
         S(reg,n,z,c,v,mem)
 
     /// Read from a memory address.

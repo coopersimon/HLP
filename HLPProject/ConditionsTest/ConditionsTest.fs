@@ -12,10 +12,10 @@ module Conditions =
 
     // create test states
     let stateA = initState
-    let stateB = writeNFlag (writeCFlag initState true) true
-    let stateC = writeZFlag (writeCFlag (writeVFlag initState true) true) true
-    let stateD = writeVFlag initState true
-    let stateE = writeVFlag (writeNFlag initState true) true
+    let stateB = initState |> writeNFlag true |> writeCFlag true
+    let stateC = initState |> writeZFlag true |> writeCFlag true |> writeVFlag true
+    let stateD = initState |> writeVFlag true
+    let stateE = initState |> writeVFlag true |> writeNFlag true
 
     // init test states
 
