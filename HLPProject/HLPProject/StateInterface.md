@@ -1,7 +1,7 @@
 ﻿# State
 The StateHandle is an abstract object that is used as input and output to the interpreter & instructions.
 
-DO NOT MODIFY THE STATEHANDLE MANUALLY. Only interface with using the following API:
+DO NOT MODIFY THE STATEHANDLE MANUALLY. Only interface with it using the following API:
 
 ## Interface
 Note that of all the following instructions that take in a StateHandle as input, the input state is the LAST input argument. This allows for pipelining of state through the functions (for example, in a branch and link instruction).
@@ -51,10 +51,10 @@ in_data: bool -> in_state: StateHandle -> out_state: StateHandle
 Writes a new value to the flag.
 
 ### Data Memory
-Note that instruction memory is not respresented in the state.
+Note that instruction memory is not represented in the state.
 
 #### readMem
-address: int -> in_state: StateHandle -> out_state: StateHandle
+address: int -> in_state: StateHandle -> data: int
 
 Reads the value in the inputted memory address. If nothing has been written yet it returns 0.
 

@@ -14,3 +14,7 @@ module ARMv4 =
         if c state
         then writeReg r1 (readReg r2 state) state
         else state
+
+// Placeholder
+    let b c dest state =
+        state
