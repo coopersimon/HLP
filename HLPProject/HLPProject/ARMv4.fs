@@ -15,10 +15,16 @@ module ARMv4 =
 //MOV and MVN (need to account for shift and rotate)
 
     //write op2 to r
-    let movI c r i state =
+    (*let movI c s r i state =
         if c state
         then writeReg r i state
-        else state
+        else state*)
+
+    let movI c s r i state =
+        match (c state, s) with
+        | (true, true) -> writeReg r i state // writeRegFlags(?)
+        | (true, false) -> writeReg r i state
+        | _ -> state
 
     let movR c r1 r2 state =
         if c state

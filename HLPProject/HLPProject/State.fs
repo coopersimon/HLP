@@ -24,6 +24,12 @@ module State =
         let newRegs = Array.mapi (fun i x -> if r = i then v else x) reg
         S(newRegs,n,z,c,s,mem)
 
+    /// Write a value to a register in the state and update status flags.
+    (*let writeRegFlags r v r1 r2 (S(reg,n,z,c,s,mem): StateHandle) =
+        let newRegs = Array.mapi (fun i x -> if r = i then v else x) reg
+        match v with
+        | x when (x < r1) && (x < r2) ->  *)
+
     /// Read the value in the Program Counter.
     let readPC (S(reg,_,_,_,_,_): StateHandle) =
         reg.[15]

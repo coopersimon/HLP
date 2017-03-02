@@ -65,6 +65,7 @@
     <Compile Include="Interpreter.fs" />
     <Compile Include="Main.fs" />
     <None Include="StateInterface.md" />
+    <None Include="Tokeniser.md" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="FSharp.Data.TypeProviders" />

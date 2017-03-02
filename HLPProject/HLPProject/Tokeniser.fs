@@ -7,12 +7,7 @@ module Tokeniser =
     open Common.Conditions
     open Common.State
 
-    (***CONDITIONS***)
-
-    /// Instruction condition codes.
-    let cond = @"(|EQ|NE|CS|HS|CC|LO|MI|PL|VS|VC|HI|LS|GE|LT|GT|LE|AL)$"
-
-
+    
     (***TOKENS***)
     // To add token:
         // Add to discriminated union
@@ -23,27 +18,28 @@ module Tokeniser =
     /// Add tokens here! Format: "T_x"
     [<CustomEquality; NoComparison>]
     type Token =
-        // Instructions
-        | T_MOV of (StateHandle -> bool)
-        | T_MVN of (StateHandle -> bool)
+        // Instructions:
+            // All of these have a condition function, some have 'S' bool
+        | T_MOV of (StateHandle -> bool)*bool
+        | T_MVN of (StateHandle -> bool)*bool
         | T_MRS of (StateHandle -> bool)
         | T_MSR of (StateHandle -> bool)
-        | T_ADD of (StateHandle -> bool)
-        | T_ADC of (StateHandle -> bool)
-        | T_SUB of (StateHandle -> bool)
-        | T_SBC of (StateHandle -> bool)
-        | T_RSB of (StateHandle -> bool)
-        | T_RSC of (StateHandle -> bool)
-        | T_MUL of (StateHandle -> bool)
-        | T_MLA of (StateHandle -> bool)
-        | T_UMULL of (StateHandle -> bool)
-        | T_UMLAL of (StateHandle -> bool)
-        | T_SMULL of (StateHandle -> bool)
-        | T_SMLAL of (StateHandle -> bool)
-        | T_AND of (StateHandle -> bool)
-        | T_ORR of (StateHandle -> bool)
-        | T_EOR of (StateHandle -> bool)
-        | T_BIC of (StateHandle -> bool)
+        | T_ADD of (StateHandle -> bool)*bool
+        | T_ADC of (StateHandle -> bool)*bool
+        | T_SUB of (StateHandle -> bool)*bool
+        | T_SBC of (StateHandle -> bool)*bool
+        | T_RSB of (StateHandle -> bool)*bool
+        | T_RSC of (StateHandle -> bool)*bool
+        | T_MUL of (StateHandle -> bool)*bool
+        | T_MLA of (StateHandle -> bool)*bool
+        | T_UMULL of (StateHandle -> bool)*bool
+        | T_UMLAL of (StateHandle -> bool)*bool
+        | T_SMULL of (StateHandle -> bool)*bool
+        | T_SMLAL of (StateHandle -> bool)*bool
+        | T_AND of (StateHandle -> bool)*bool
+        | T_ORR of (StateHandle -> bool)*bool
+        | T_EOR of (StateHandle -> bool)*bool
+        | T_BIC of (StateHandle -> bool)*bool
         | T_CMP of (StateHandle -> bool)
         | T_CMN of (StateHandle -> bool)
         | T_TST of (StateHandle -> bool)
@@ -75,16 +71,26 @@ module Tokeniser =
                                | T_INT ix, T_INT iy -> ix = iy
                                | T_COMMA, T_COMMA -> true
                                | T_ERROR, T_ERROR -> true
-                               | T_MOV cx, T_MOV cy -> cx state = cy state
-                               | T_MVN cx, T_MVN cy -> cx state = cy state
+                               | T_MOV (cx,sx), T_MOV (cy,sy) -> cx state = cy state && sx = sy
+                               | T_MVN (cx,sx), T_MVN (cy,sy) -> cx state = cy state && sx = sy
                                | T_MRS cx, T_MRS cy -> cx state = cy state
                                | T_MSR cx, T_MSR cy -> cx state = cy state
                                | _,_ -> false
             | _ -> false
 
+    (***SUFFIXES***)
+
+    /// Instruction condition codes.
+    let cond = @"(|EQ|NE|CS|HS|CC|LO|MI|PL|VS|VC|HI|LS|GE|LT|GT|LE|AL)"
+
+    /// S suffix, for setting flags.
+    let setFlags = @"(|S)"
+
+    (***TOKENISER***)
 
     // active patterns for matching strings
 
+    // match generic token with no output.
     let (|TOKEN_MATCH|_|) pattern str =
         let m = Regex.Match(str, pattern, RegexOptions.IgnoreCase)
         if m.Success then Some() else None
@@ -109,10 +115,22 @@ module Tokeniser =
         | TOKEN_MATCH "AL" -> checkAL
         | _ -> checkAL
 
+    /// Match 'S' suffix to bool.
+    let matchS = function
+        | TOKEN_MATCH "S" -> true
+        | _ -> false
+
+    // match an instruction (with condition code)
     let (|INSTR_MATCH|_|) pattern str =
-        let m = Regex.Match(str, pattern+cond, RegexOptions.IgnoreCase)
+        let m = Regex.Match(str, pattern+cond+"$", RegexOptions.IgnoreCase)
         if m.Success then Some(matchCond m.Groups.[1].Value) else None
 
+    // match an instruction with condition code AND 's' suffix (for setting flags)
+    let (|INSTR_S_MATCH|_|) pattern str =
+        let m = Regex.Match(str, pattern+cond+setFlags+"$", RegexOptions.IgnoreCase)
+        if m.Success then Some(matchCond m.Groups.[1].Value, matchS m.Groups.[2].Value) else None
+
+    // match a valid register
     let (|REG_MATCH|_|) str =
         let m = Regex.Match(str, @"^R([0-9]|1[0-5])$", RegexOptions.IgnoreCase)
         if m.Success then Some(int m.Groups.[1].Value) else None
@@ -133,8 +151,6 @@ module Tokeniser =
         let m = Regex.Match(str, @"^#?(0x[0-9a-fA-F]+)$")
         if m.Success then Some(System.Convert.ToInt32 (m.Groups.[1].Value, 16)) else None
 
-
-    (***TOKENISER***)
 
     /// Match input string to token.
     let stringToToken = function
@@ -164,16 +180,16 @@ module Tokeniser =
         | DEC_LIT_MATCH i -> T_INT i
         | HEX_LIT_MATCH i -> T_INT i
         // instructions
-        | INSTR_MATCH @"^MOV" c -> T_MOV c
-        | INSTR_MATCH @"^MVN" c -> T_MVN c
+        | INSTR_S_MATCH @"^MOV" cs -> T_MOV cs
+        | INSTR_S_MATCH @"^MVN" cs -> T_MVN cs
         | INSTR_MATCH @"^MRS" c -> T_MRS c
         | INSTR_MATCH @"^MSR" c -> T_MSR c
-        | INSTR_MATCH @"^ADD" c -> T_ADD c
-        | INSTR_MATCH @"^ADC" c -> T_ADC c
-        | INSTR_MATCH @"^SUB" c -> T_SUB c
-        | INSTR_MATCH @"^SBC" c -> T_SBC c
-        | INSTR_MATCH @"^RSB" c -> T_RSB c
-        | INSTR_MATCH @"^RSC" c -> T_RSC c
+        | INSTR_S_MATCH @"^ADD" cs -> T_ADD cs
+        | INSTR_S_MATCH @"^ADC" cs -> T_ADC cs
+        | INSTR_S_MATCH @"^SUB" cs -> T_SUB cs
+        | INSTR_S_MATCH @"^SBC" cs -> T_SBC cs
+        | INSTR_S_MATCH @"^RSB" cs -> T_RSB cs
+        | INSTR_S_MATCH @"^RSC" cs -> T_RSC cs
         // labels
         | LABEL_MATCH s -> T_LABEL s
         | _ -> T_ERROR
