@@ -2,14 +2,19 @@
 ####  Next Meeting - Tuesday 7th at 2:15pm
  
 Last Meeting (Thursday 2nd) notes in ```Documentation/Meeting_02_03.md```
+
 Next meeting with Tom Clarke  on 7th March - **will have short group catchup beforehand**
 
 #### Git and Branching
 
 Master Branch  
+
 Dev branch, titled ```dev```
+
 Docs branch, titles ```docs```. Make documentation changes here, and **Ravi** will periodically merge it to master.
+
 Each person, for experimental changes, branches off dev, with title ```ravi_dev_10_02```   
+
 Added commit.sh, with ```./commit.sh "MESSAGE"``` commits, with message of MESSAGE  
 
 #### Development strategy
