@@ -1,4 +1,4 @@
-﻿namespace HLPTest.AssemblyInfo
+﻿namespace TokeniserTest.AssemblyInfo
 
 open System.Reflection
 open System.Runtime.CompilerServices
