@@ -61,6 +61,9 @@ module Tokeniser =
         | T_LABEL of string
         // Others
         | T_COMMA
+        | T_L_BRAC
+        | T_R_BRAC
+        | T_EXCL
         | T_ERROR
 
         override x.Equals yobj =
@@ -135,10 +138,6 @@ module Tokeniser =
         let m = Regex.Match(str, @"^R([0-9]|1[0-5])$", RegexOptions.IgnoreCase)
         if m.Success then Some(int m.Groups.[1].Value) else None
 
-    let (|COMMA_MATCH|_|) str =
-        let m = Regex.Match(str, @"^,$")
-        if m.Success then Some() else None
-
     let (|LABEL_MATCH|_|) str =
         let m = Regex.Match(str, @"^([a-zA-Z]+)$")
         if m.Success then Some(m.Groups.[1].Value) else None
@@ -176,7 +175,10 @@ module Tokeniser =
         | TOKEN_MATCH @"^lr$" -> T_REG 14
         | TOKEN_MATCH @"^pc$" -> T_REG 15
         // other
-        | COMMA_MATCH -> T_COMMA
+        | "," -> T_COMMA
+        | "[" -> T_L_BRAC
+        | "]" -> T_R_BRAC
+        | "!" -> T_EXCL
         | DEC_LIT_MATCH i -> T_INT i
         | HEX_LIT_MATCH i -> T_INT i
         // instructions
@@ -196,11 +198,8 @@ module Tokeniser =
 
 
     /// Take in string and output list of tokens.
-    let tokenise (s: string) =
-        // TODO: look into different ways of splitting (regex)
-        let rgx = new Regex(",")
-        let sC = rgx.Replace(s, " , ")
-        sC.Split([|' '; '\t'; '\n'; '\r'; '\f'|])
+    let tokenise (source: string) =
+        Regex.Split(source, @"([,\[\]!])|[ \t\n\r\f]")
         |> Array.toList
         |> List.filter (fun s -> s <> "")
         |> List.map stringToToken

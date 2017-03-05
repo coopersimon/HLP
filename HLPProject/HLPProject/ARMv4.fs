@@ -22,7 +22,9 @@ module ARMv4 =
 
     let movI c s r i state =
         match (c state, s) with
-        | (true, true) -> writeReg r i state // writeRegFlags(?)
+        | (true, true) -> state |> writeReg r i
+                          |> if r = 0 then writeZFlag true else writeZFlag false
+                          |> if r < 0 then writeNFlag true else writeNFlag false
         | (true, false) -> writeReg r i state
         | _ -> state
 

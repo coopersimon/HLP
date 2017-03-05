@@ -24,6 +24,7 @@ module Parser =
         let rec parseRec mem labels outLst = function
             | T_MOV (c,s) :: T_REG r :: T_COMMA :: T_INT i :: t -> parseRec (mem+4) labels (outLst@[(mem, Instr(movI c s r i))]) t
             | T_B c :: T_LABEL s :: t -> parseRec (mem+4) labels (outLst@[(mem, Branch(branchTo c s))]) t
+            | T_LABEL s :: t -> parseRec mem (Map.add s mem labels) outLst t
             | [] -> resolveLabels labels (outLst@[(mem, Terminate)])
             | _ -> failwithf "unhandled parse error"
         Map.ofList (parseRec 0 Map.empty [] tokLst)
