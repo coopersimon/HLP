@@ -1,7 +1,8 @@
 
-####  Next Meeting - Tuesday 21st at 3pm
+####  Next Meeting - Tuesday 7th at 2:15pm
  
-Last Meeting (Friday 16th) notes in ```Documentation/Meeting_16_02.md```  
+Last Meeting (Thursday 2nd) notes in ```Documentation/Meeting_02_03.md```
+Next meeting with Tom Clarke  on 7th March - **will have short group catchup beforehand**
 
 #### Git and Branching
 
