@@ -1,6 +1,11 @@
 ﻿# Parser
 The parser converts an input list of tokens to an output map. The map's keys are memory locations and the values are "Instructions" (a DU).
 
+## Dependencies
+Exists in the namespace **Parse**.
+
+This module depends on **Parse.Tokeniser** and **Interpret.ARMv4**.
+
 ## Instruction
 The Instruction DU is a wrapper for the output of the parser. There are a few types of instruction:
 

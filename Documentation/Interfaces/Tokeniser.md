@@ -1,6 +1,11 @@
 ﻿# Tokeniser
 The tokeniser converts the initial input string to a list of tokens - abstract elements of a DU which can be fed into the parser.
 
+## Dependencies
+This module exists in the namespace **Parse**.
+
+This module depends on **Common.State** and **Common.Conditions**.
+
 ## Tokens
 The tokens are a DU which feature every existing word or punctuator in the assembly language. They contain information about the data they represent.
 

@@ -1,6 +1,11 @@
 ﻿# ARMv4
 This contains the functions that represent the ARM v4 instruction set.
 
+## Dependencies
+Exists in namespace **Interpret**.
+
+This module depends on **Common.State**.
+
 ## General Interface
 All instructions should take in multiple arguments. It varies by instruction. The **final** argument should always be a *StateHandle*. The output type should also always be a *StateHandle*.
 

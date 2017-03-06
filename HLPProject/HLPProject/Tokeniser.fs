@@ -194,6 +194,7 @@ module Tokeniser =
         | INSTR_S_MATCH @"^RSC" cs -> T_RSC cs
         // labels
         | LABEL_MATCH s -> T_LABEL s
+        //| t -> failwithf "Invalid token %A" t
         | _ -> T_ERROR
 
 

@@ -1,6 +1,11 @@
 ﻿# Interpreter
 The interpreter represents the runtime of the assembler. It executes the functions in the correct order, and modifies state.
 
+## Dependencies
+Exists in the namespace **Interpret**.
+
+This module depends on **Parse.Parser** and **Common.State**.
+
 ## Interface
 **interpret** = input_state: *StateHandle* -> instruction_memory: *Map<int, Instruction>* -> output_state: *StateHandle*
 

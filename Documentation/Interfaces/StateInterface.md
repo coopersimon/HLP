@@ -1,6 +1,11 @@
 ﻿# State
 The StateHandle is an abstract object that is used as input and output to the interpreter & instructions.
 
+## Dependencies
+Exists in the namespace **Common**.
+
+This module has no dependencies (however an awful lot depends on it).
+
 DO NOT MODIFY THE STATEHANDLE MANUALLY. Only interface with it using the following API:
 
 ## Interface

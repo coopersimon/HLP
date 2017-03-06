@@ -3,7 +3,6 @@
 namespace Interpret
 module ARMv4 =
     open Common.State
-    open Common.Conditions
 
 //flexible second operand
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHBEAGE.html

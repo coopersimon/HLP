@@ -14,7 +14,9 @@ module Parser =
     let parser tokLst =
         /// Function that resolves branch.
         let branchTo c s (labels:Map<string,int>) =
-            Instr(b c labels.[s])
+            match Map.tryFind s labels with
+            | Some(memLoc) -> Instr(b c memLoc)
+            | None -> failwithf "branch label doesn't exist!"
         /// Replaces placeholder branch instructions with correct instructions.
         let rec resolveLabels labels = function
             | (m, Branch(x))::t -> (m, x labels) :: resolveLabels labels t
