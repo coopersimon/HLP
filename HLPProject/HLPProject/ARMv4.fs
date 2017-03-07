@@ -38,7 +38,7 @@ module ARMv4 =
         |"NIL" -> ri //this is the default
         
 
-    let rsfuncR s inst ri r state = 
+    let rsfuncR s inst ri r state = //can use parser to make sure only rsfuncI is needed
         rsfuncI s inst ri (readReg r state) state
         
 
