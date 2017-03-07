@@ -13,6 +13,12 @@ module Tokeniser =
         // Add to discriminated union
         // Add to equals override
         // Add to stringToToken function
+    type shiftOp =
+        | T_ASR
+        | T_LSL
+        | T_LSR
+        | T_ROR
+        | T_RRX
 
 
     /// Add tokens here! Format: "T_x"
@@ -55,6 +61,8 @@ module Tokeniser =
         | T_SWP of (StateHandle -> bool)
         | T_SWI of (StateHandle -> bool)
         | T_NOP of (StateHandle -> bool)
+        // shift operands
+        | T_SHIFT of shiftOp
         // Values
         | T_REG of int
         | T_INT of int
@@ -192,6 +200,12 @@ module Tokeniser =
         | INSTR_S_MATCH @"^SBC" cs -> T_SBC cs
         | INSTR_S_MATCH @"^RSB" cs -> T_RSB cs
         | INSTR_S_MATCH @"^RSC" cs -> T_RSC cs
+        // shift operands
+        | TOKEN_MATCH @"^ASR$" -> T_SHIFT T_ASR
+        | TOKEN_MATCH @"^LSL$" -> T_SHIFT T_LSL
+        | TOKEN_MATCH @"^LSR$" -> T_SHIFT T_LSR
+        | TOKEN_MATCH @"^ROR$" -> T_SHIFT T_ROR
+        | TOKEN_MATCH @"^RRX$" -> T_SHIFT T_RRX
         // labels
         | LABEL_MATCH s -> T_LABEL s
         //| t -> failwithf "Invalid token %A" t
