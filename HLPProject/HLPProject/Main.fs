@@ -10,5 +10,4 @@ let main args =
     let newState = inString |> Tokeniser.tokenise |> Parser.parser |> Interpreter.interpret state
     printfn "%A" (readReg 5 state)
     printfn "%A" (readReg 5 newState)
-
     0
