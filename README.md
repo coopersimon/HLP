@@ -1,9 +1,9 @@
 
 ####  Next Meeting - Tuesday 7th at 2:15pm
  
-Last Meeting (Thursday 2nd) notes in ```Documentation/Meeting_02_03.md```
+Last Meeting (Thursday 5th) notes in ```Documentation/TC_Meeting_05_03.md```
 
-Next meeting with Tom Clarke  on 7th March - **will have short group catchup beforehand**
+Next group meeting on the 10th of March
 
 #### Git and Branching
 
@@ -21,12 +21,11 @@ Added commit.sh, with ```./commit.sh "MESSAGE"``` commits, with message of MESSA
 1. Weekly meeting twice a week - one 3pm Tuesday
 2. Meeting defines what we want to get done, and stubs/interfaces of the code we need to write
 3.	MD file for each meeting
-4. MD file for each code module
-5. **Comment your code**
-6. TODO.md - with todo list 
+4. **Comment your code**
+5. TODO.md - with todo list 
 	* Old Todos commented out
 	* Todos of current sprint shown
-7. Top README.md - most important project information  
+6. Top README.md - most important project information  
 
 #### File Structure
 
@@ -48,9 +47,7 @@ Added commit.sh, with ```./commit.sh "MESSAGE"``` commits, with message of MESSA
 		> src
 			| (All source files, names of form name.fs)
 		> tests
-			| (All test files, names of form name_test.fs)
-		> codedocs
-			| (Documentation for specific source files where needed, of form name.md)
+			| (All test files, names of form name_test.fs)z
 ```
 
 #### Testing Steps
