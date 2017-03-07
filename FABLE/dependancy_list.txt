@@ -1,7 +1,0 @@
-    <Compile Include="fs/State.fs" />
-    <Compile Include="fs/Conditions.fs" />
-    <Compile Include="fs/Tokeniser.fs" />
-    <Compile Include="fs/Interpreter.fs" />
-    <Compile Include="fs/Parser.fs" />
-    <Compile Include="fs/ARMv4.fs" />
-    <Compile Include="fs/Main.fs" />

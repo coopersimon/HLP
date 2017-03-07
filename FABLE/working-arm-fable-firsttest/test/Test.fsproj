@@ -23,8 +23,14 @@
    !  File order is important in F#. Files cannot depend on anything below them.
    !-->
   <ItemGroup>
-    <Compile Include="Util.fs" />
-    <Compile Include="fs/Message.fs" />
+    <Compile Include="fs/TestFramework.fs" />
+    <Compile Include="fs/State.fs" />
+    <Compile Include="fs/Conditions.fs" />
+    <Compile Include="fs/ARMv4.fs" />
+    <Compile Include="fs/Tokeniser.fs" />
+    <Compile Include="fs/Parser.fs" />
+    <Compile Include="fs/Interpreter.fs" />
+    <Compile Include="fs/Main.fs" />
   </ItemGroup>
 
   <!-- DO NOT EDIT BELOW THIS POINT UNLESS YOU KNOW WHAT YOU'RE DOING -->
