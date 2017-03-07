@@ -9,7 +9,6 @@ module ARMv4 =
 //still need to account for when op2 is shifted***
 //need to account for flag writing*** {S} only applies to move, arithmetic and logical instructions
 //note that instructions work with int32
-//B, BL and BLX are still a little dubious (label), need to work on returning from branch???
 
 //Rotate and shift function
     let rsfuncI s inst ri i state = 
@@ -25,7 +24,7 @@ module ARMv4 =
                                      writeCFlag (ri%2<>0) state
                     |(true, false) -> ri/2
                                       writeCFlag (ri%2<>0) state
-        |"lsl" -> if (i>=0)&&(i<=31) then ri<<<i else ri 
+        |"lsl" -> if (i>=0)&&(i<=31) then ri<<<i else ri //or can use parser to just return capped strings, discuss with team mate.
         |"lsr" -> if (i>=1)&&(i<=32) then int((uint32 ri)/(uint32 (2.0**(float i)))) else ri
         |"asr" -> if (i>=1)&&(i<=32) then ri/(int (2.0**(float i))) else ri
         |"ror" -> if (i>=1)&&(i<=31) then ri>>>i else ri
