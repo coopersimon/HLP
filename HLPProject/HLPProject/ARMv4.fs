@@ -12,12 +12,15 @@ module ARMv4 =
 
 //Rotate and shift function
     let rsfuncI s inst ri i state = //make sure interpretter only gives capped strings for inst
-        match inst with //figure out how to do error, if error here or somewhere else (for else and last case)
-        |"LSL" -> if (i>=0)&&(i<=31) then ri<<<i else ri 
+        match inst with 
+        |"LSL" -> if (i>=0)&&(i<=31) then ri<<<i 
+                                     else failwith "Invalid i."
         |"LSR" -> if (i>=1)&&(i<=32) then (if i=32 then 0 else int((uint32 ri)/(uint32 (2.0**(float i))))) 
-                                     else ri
-        |"ASR" -> if (i>=1)&&(i<=32) then ri/(int (2.0**(float i))) else ri
-        |"ROR" -> if (i>=1)&&(i<=31) then ri>>>i else ri
+                                     else failwith "Invalid i."
+        |"ASR" -> if (i>=1)&&(i<=32) then ri/(int (2.0**(float i))) 
+                                     else failwith "Invalid i."
+        |"ROR" -> if (i>=1)&&(i<=31) then ri>>>i 
+                                     else failwith "Invalid i."
         |"RRX" -> match s, (readCFlag state) with
                     |(false, true) -> ri/2 + 1<<<31
                     |(false, false) -> ri/2
@@ -26,7 +29,7 @@ module ARMv4 =
                     |(true, false) -> ri/2
                                       writeCFlag (ri%2<>0) state
         |"NIL" -> ri //this is the default
-        |_ -> ri //return error here!!!
+        |_ -> then failwith "Invalid inst."
         
 
     let rsfuncR s inst ri r state = //can use parser or interpreter to make sure only rsfuncI is needed
