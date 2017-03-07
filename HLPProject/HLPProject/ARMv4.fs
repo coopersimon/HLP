@@ -11,39 +11,72 @@ module ARMv4 =
 //note that instructions work with int32
 //B, BL and BLX are still a little dubious (label), need to work on returning from branch???
 
-//MOV and MVN (need to account for shift and rotate)
+//Rotate and shift function
+    let rsfuncI s inst ri i state = 
+        match inst with
+        |"LSL" -> if (i>=0)&&(i<=31) then ri<<<i else ri //figure out how to do error, if error here or somewhere else???
+        |"LSR" -> if (i>=1)&&(i<=32) then int((uint32 ri)>>>i) else ri
+        |"ASR" -> if (i>=1)&&(i<=32) then ri>>>i else ri
+        |"ROR" -> if (i>=1)&&(i<=31) then ri>>>i + ri<<<(32-i) else ri
+        |"RRX" -> match s, (readCFlag state) with
+                    |(false, true) -> ri>>>1 + 1<<<31
+                    |(false, false) -> ri>>>1
+                    |(true, true) -> ri>>>1 + 1<<<31
+                                     writeCFlag (ri%2<>0) state
+                    |(true, false) -> ri>>>1
+                                      writeCFlag (ri%2<>0) state
+        |"lsl" -> if (i>=0)&&(i<=31) then ri<<<i else ri
+        |"lsr" -> if (i>=1)&&(i<=32) then int((uint32 ri)>>>i) else ri
+        |"asr" -> if (i>=1)&&(i<=32) then ri>>>i else ri
+        |"ror" -> if (i>=1)&&(i<=31) then ri>>>i + ri<<<(32-i) else ri
+        |"rrx" -> match s, (readCFlag state) with
+                    |(false, true) -> ri>>>1 + 1<<<31
+                    |(false, false) -> ri>>>1
+                    |(true, true) -> ri>>>1 + 1<<<31
+                                     writeCFlag (ri%2<>0) state
+                    |(true, false) -> ri>>>1
+                                      writeCFlag (ri%2<>0) state
+        |"NIL" -> ri //this is the default
+        
+
+    let rsfuncR s inst ri r state = 
+        rsfuncI s inst ri (readReg r state) state
+        
+
+//functions to set flags
+    //set N and Z flags for all cases
+    let setNZ result state =
+        writeNFlag (result<0) state
+        writeZFlag (result=0) state
+
+    let setC in1 in2 state =  //incomplete default clear flag
+        writeCFlag (false) state
+
+    //set V for arithmetic ADD, SUB etc cases
+    let setV in1 in2 state =    //incomplete default clear flag
+        writeVFlag (false) state
+
+//MOV and MVN (DONE)
 
     //write op2 to r
-    (*let movI c s r i state =
-        if c state
-        then writeReg r i state
-        else state*)
-
     let movI c s r i state =
         match (c state, s) with
         | (true, true) -> state |> writeReg r i
-                          |> if r = 0 then writeZFlag true else writeZFlag false
-                          |> if r < 0 then writeNFlag true else writeNFlag false
+                          |> setNZ i //sets N and Z flags
         | (true, false) -> writeReg r i state
         | _ -> state
 
-    let movR c r1 r2 state =
-        if c state
-        then writeReg r1 (readReg r2 state) state
-        else state
+    let movR c s r1 r2 rsinst rsi state =
+        movI c s r1 (rsfuncI s rsinst (readReg r2 state) rsi state) state //sets N, Z and C flags
 
     //write bitwise not of op2 to r
-    let mvnI c r i state =
-        if c state
-        then writeReg r (~~~i) state
-        else state
+    let mvnI c s r i state =
+        movI c s r -i state //sets N and Z flags
 
-    let mvnR c r1 r2 state =
-        if c state
-        then writeReg r1 (~~~(readReg r2 state)) state
-        else state
+    let mvnR c s r1 r2 rsinst rsi state =
+        mvnI c s r1 (rsfuncI s rsinst (readReg r2 state) rsi state) state //sets N, Z and C flags
 
-//ADD, ADC, SUB, SBC, RSB and RSC (need to account for shift and rotate)
+//ADD, ADC, SUB, SBC, RSB and RSC (need to account for shift and rotate & setting flags)
 
     //write r2+op2 to r1
     let addI c r1 r2 i state =
@@ -129,7 +162,7 @@ module ARMv4 =
             else writeReg r1 ((readReg r3 state)-(readReg r2 state)-1) state
         else state
 
-//MUL and MLA
+//MUL and MLA (need to account for setting flags)
     
     //write r2*r3 to r1
     let mulR c r1 r2 r3 state =
@@ -143,7 +176,7 @@ module ARMv4 =
         then writeReg r1 ((readReg r2 state)*(readReg r3 state)+(readReg r4 state)) state
         else state
 
-//AND, ORR, EOR, and BIC
+//AND, ORR, EOR, and BIC (need to account for setting flags)
     //write bitwise AND of r2 and op2 to r1
     let andI c r1 r2 i state =
         if c state
