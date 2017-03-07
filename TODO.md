@@ -1,15 +1,8 @@
-# TODOs (for Tuesday 7th)
-- [ ] Document all interfaces clearly **Simon**
-- [ ] Implement basic GUI using Codemirror **Ravi**
-
----
-# TODOs - After Tuesday 7th
-- [ ] Tokenise instructions (As much as possible) **Simon**
-- [ ] Write instructions (As much as possible) **Yumeng**
+# TODOs
+- [ ] Use FsCheck to run tests **Piotr**
+- [ ] Write more verbose error messaging **Ravi**
 - [ ] Add flags (NCSV)
 - [ ] Static UI for front-end **Ravi**
-- [ ] Write more verbose error messaging **Piotr**
-- [ ] Use FsCheck to run tests **Piotr**
 
 ---
 # Done
@@ -20,6 +13,7 @@
 - [X] Go through code examples for FABLE **Ravi**
 - [X] Set flag instructions (ie ADDS vs ADD)
 - [X] Main memory (ie LDR, STR)
-
+- [X] Document all interfaces clearly **Simon**
+- [X] Implement basic GUI using Codemirror **Ravi**
 
 
