@@ -15,26 +15,26 @@ module ARMv4 =
     let rsfuncI s inst ri i state = 
         match inst with
         |"LSL" -> if (i>=0)&&(i<=31) then ri<<<i else ri //figure out how to do error, if error here or somewhere else???
-        |"LSR" -> if (i>=1)&&(i<=32) then int((uint32 ri)>>>i) else ri
-        |"ASR" -> if (i>=1)&&(i<=32) then ri>>>i else ri
-        |"ROR" -> if (i>=1)&&(i<=31) then ri>>>i + ri<<<(32-i) else ri
+        |"LSR" -> if (i>=1)&&(i<=32) then int((uint32 ri)/(uint32 (2.0**(float i)))) else ri
+        |"ASR" -> if (i>=1)&&(i<=32) then ri/(int (2.0**(float i))) else ri
+        |"ROR" -> if (i>=1)&&(i<=31) then ri>>>i else ri
         |"RRX" -> match s, (readCFlag state) with
-                    |(false, true) -> ri>>>1 + 1<<<31
-                    |(false, false) -> ri>>>1
-                    |(true, true) -> ri>>>1 + 1<<<31
+                    |(false, true) -> ri/2 + 1<<<31
+                    |(false, false) -> ri/2
+                    |(true, true) -> ri/2 + 1<<<31
                                      writeCFlag (ri%2<>0) state
-                    |(true, false) -> ri>>>1
+                    |(true, false) -> ri/2
                                       writeCFlag (ri%2<>0) state
-        |"lsl" -> if (i>=0)&&(i<=31) then ri<<<i else ri
-        |"lsr" -> if (i>=1)&&(i<=32) then int((uint32 ri)>>>i) else ri
-        |"asr" -> if (i>=1)&&(i<=32) then ri>>>i else ri
-        |"ror" -> if (i>=1)&&(i<=31) then ri>>>i + ri<<<(32-i) else ri
+        |"lsl" -> if (i>=0)&&(i<=31) then ri<<<i else ri 
+        |"lsr" -> if (i>=1)&&(i<=32) then int((uint32 ri)/(uint32 (2.0**(float i)))) else ri
+        |"asr" -> if (i>=1)&&(i<=32) then ri/(int (2.0**(float i))) else ri
+        |"ror" -> if (i>=1)&&(i<=31) then ri>>>i else ri
         |"rrx" -> match s, (readCFlag state) with
-                    |(false, true) -> ri>>>1 + 1<<<31
-                    |(false, false) -> ri>>>1
-                    |(true, true) -> ri>>>1 + 1<<<31
+                    |(false, true) -> ri/2 + 1<<<31
+                    |(false, false) -> ri/2
+                    |(true, true) -> ri/2 + 1<<<31
                                      writeCFlag (ri%2<>0) state
-                    |(true, false) -> ri>>>1
+                    |(true, false) -> ri/2
                                       writeCFlag (ri%2<>0) state
         |"NIL" -> ri //this is the default
         
