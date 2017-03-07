@@ -11,10 +11,11 @@ module ARMv4 =
 //note that instructions work with int32
 
 //Rotate and shift function
-    let rsfuncI s inst ri i state = 
-        match inst with
-        |"LSL" -> if (i>=0)&&(i<=31) then ri<<<i else ri //figure out how to do error, if error here or somewhere else???
-        |"LSR" -> if (i>=1)&&(i<=32) then int((uint32 ri)/(uint32 (2.0**(float i)))) else ri
+    let rsfuncI s inst ri i state = //make sure interpretter only gives capped strings for inst
+        match inst with //figure out how to do error, if error here or somewhere else (for else and last case)
+        |"LSL" -> if (i>=0)&&(i<=31) then ri<<<i else ri 
+        |"LSR" -> if (i>=1)&&(i<=32) then (if i=32 then 0 else int((uint32 ri)/(uint32 (2.0**(float i))))) 
+                                     else ri
         |"ASR" -> if (i>=1)&&(i<=32) then ri/(int (2.0**(float i))) else ri
         |"ROR" -> if (i>=1)&&(i<=31) then ri>>>i else ri
         |"RRX" -> match s, (readCFlag state) with
@@ -24,21 +25,11 @@ module ARMv4 =
                                      writeCFlag (ri%2<>0) state
                     |(true, false) -> ri/2
                                       writeCFlag (ri%2<>0) state
-        |"lsl" -> if (i>=0)&&(i<=31) then ri<<<i else ri //or can use parser to just return capped strings, discuss with team mate.
-        |"lsr" -> if (i>=1)&&(i<=32) then int((uint32 ri)/(uint32 (2.0**(float i)))) else ri
-        |"asr" -> if (i>=1)&&(i<=32) then ri/(int (2.0**(float i))) else ri
-        |"ror" -> if (i>=1)&&(i<=31) then ri>>>i else ri
-        |"rrx" -> match s, (readCFlag state) with
-                    |(false, true) -> ri/2 + 1<<<31
-                    |(false, false) -> ri/2
-                    |(true, true) -> ri/2 + 1<<<31
-                                     writeCFlag (ri%2<>0) state
-                    |(true, false) -> ri/2
-                                      writeCFlag (ri%2<>0) state
         |"NIL" -> ri //this is the default
+        |_ -> ri //return error here!!!
         
 
-    let rsfuncR s inst ri r state = //can use parser to make sure only rsfuncI is needed
+    let rsfuncR s inst ri r state = //can use parser or interpreter to make sure only rsfuncI is needed
         rsfuncI s inst ri (readReg r state) state
         
 
