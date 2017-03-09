@@ -10,31 +10,7 @@ module ARMv4 =
 //need to account for flag writing*** {S} only applies to move, arithmetic and logical instructions
 //note that instructions work with int32
 
-//Rotate and shift function
-    let rsfuncI s inst ri i state = //make sure interpretter only gives capped strings for inst
-        match inst with 
-        |"LSL" -> if (i>=0)&&(i<=31) then ri<<<i 
-                                     else failwith "Invalid i."
-        |"LSR" -> if (i>=1)&&(i<=32) then (if i=32 then 0 else int((uint32 ri)/(uint32 (2.0**(float i))))) 
-                                     else failwith "Invalid i."
-        |"ASR" -> if (i>=1)&&(i<=32) then ri/(int (2.0**(float i))) 
-                                     else failwith "Invalid i."
-        |"ROR" -> if (i>=1)&&(i<=31) then ri>>>i 
-                                     else failwith "Invalid i."
-        |"RRX" -> match s, (readCFlag state) with
-                    |(false, true) -> ri/2 + 1<<<31
-                    |(false, false) -> ri/2
-                    |(true, true) -> ri/2 + 1<<<31
-                                     writeCFlag (ri%2<>0) state
-                    |(true, false) -> ri/2
-                                      writeCFlag (ri%2<>0) state
-        |"NIL" -> ri //this is the default
-        |_ -> then failwith "Invalid inst."
-        
-
-    let rsfuncR s inst ri r state = //can use parser or interpreter to make sure only rsfuncI is needed
-        rsfuncI s inst ri (readReg r state) state
-        
+//Rotate and shift function for flexible 2nd operand see parser.fs
 
 //functions to set flags
     //set N and Z flags for all cases
@@ -42,8 +18,9 @@ module ARMv4 =
         writeNFlag (result<0) state
         writeZFlag (result=0) state
 
-    let setC in1 in2 state =  //incomplete default clear flag
-        writeCFlag (false) state
+    //set C for arithmetic ADD, SUB etc cases
+    let setC in1 in2 state = 
+        writeCFlag ((((int64 in1)+(int64 in2)) >>> 32)%2L<>0L) state
 
     //set V for arithmetic ADD, SUB etc cases
     let setV in1 in2 state =    //incomplete default clear flag
