@@ -24,7 +24,9 @@ module ARMv4 =
 
     //set V for arithmetic ADD, SUB etc cases
     let setV in1 in2 state =    //incomplete default clear flag
-        writeVFlag (false) state
+        let cin = (((int64 in1*2)+(int64 in2*2)) >>> 32)%2L
+        let cout = (((int64 in1)+(int64 in2)) >>> 32)%2L
+        writeVFlag not(cin=cout) state
 
 //MOV and MVN (DONE)
 
