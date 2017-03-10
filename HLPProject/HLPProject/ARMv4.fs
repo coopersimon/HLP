@@ -372,7 +372,43 @@ module ARMv4 =
             | _ -> readReg rm state
         cmnI c rn op2 state        
 
-//TST and TEQ (need to account for shift and rotate)
+//TST and TEQ (DONE)
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHCDEHH.html
 
+    //same as ANDS but discards results
+    let tstI c rn i state = //sets N and Z flags only
+        match c state with 
+        | true -> setNZ ((readReg rn state)&&&i) state
+        | false -> state
 
+    let tstR c rn rm rsinst nORrn rstype state = //sets N, Z (and C) flags only
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        if s&&((rsinst=T_ROR)||(rsinst=T_RRX)) 
+        then match rstype with
+             |'i' -> shiftSetCI s rsinst rm nORrn state
+             |'r' -> shiftSetCR s rsinst rm nORrn state
+             | _ -> state
+        tstI c rn op2 state
+        
+    //same as EORS but discards results
+    let teqI c rn i state = //sets N and Z flags only
+        match c state with 
+        | true -> setNZ ((readReg rn state)^^^i) state
+        | false -> state
+
+    let teqR c rn rm rsinst nORrn rstype state = //sets N, Z (and C) flags only
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        if s&&((rsinst=T_ROR)||(rsinst=T_RRX)) 
+        then match rstype with
+             |'i' -> shiftSetCI s rsinst rm nORrn state
+             |'r' -> shiftSetCR s rsinst rm nORrn state
+             | _ -> state
+        teqI c rn op2 state  
