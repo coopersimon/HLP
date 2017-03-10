@@ -6,11 +6,10 @@ module ARMv4 =
 
 //flexible second operand
     //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHBEAGE.html
-    //still need to account for when op2 is shifted*** (in progress)
+    //need to account for when op2 is shifted*** (in progress)
     //need to account for flag writing*** {S} only applies to move (DONE), arithmetic (DONE) and logical instructions
+    //Rotate and shift function for flexible 2nd operand see parser.fs
 //note that instructions work with int32
-
-//Rotate and shift function for flexible 2nd operand see parser.fs
 
 //functions to set flags
     //set N and Z flags for all cases
@@ -32,16 +31,17 @@ module ARMv4 =
      let conv64 i = int64 (uint32 i)
 
 //MOV and MVN (DONE)
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHCDBCA.html
 
     //write op2 to r
-    let movI c s rd i state = //if s: sets N and Z flags
+    let movI c s rd i state = //if s: sets N and Z flags only
         match (c state, s) with
         | (true, true) -> writeReg rd i state
                           setNZ i state
         | (true, false) -> writeReg rd i state
         | _ -> state
 
-    let movR c s rd rm rsinst nORrn rstype state = //if s: sets N, Z and C flags
+    let movR c s rd rm rsinst nORrn rstype state = //if s: sets N, Z (and C) flags only
         let op2 =
             match rstype with
             |'i' -> shiftI rsinst rm nORrn state
@@ -56,10 +56,10 @@ module ARMv4 =
         movI c s rd op2 state 
 
     //write bitwise not of op2 to r
-    let mvnI c s r i state = //if s: sets N and Z flags
+    let mvnI c s r i state = //if s: sets N and Z flags only
         movI c s r -i state 
 
-    let mvnR c s rd rm rsinst nORrn rstype state = //if s: sets N, Z and C flags
+    let mvnR c s rd rm rsinst nORrn rstype state = //if s: sets N, Z (and C) flags only
         let op2 =
             match rstype with
             |'i' -> shiftI rsinst rm nORrn state
@@ -74,6 +74,7 @@ module ARMv4 =
         mvnI c s rd op2 state 
 
 //ADD, ADC, SUB, SBC, RSB and RSC (DONE)
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHCJFJG.html
 
     //write rn+op2 to rd
     let addI c s rd rn i state = //if s: sets N, Z, C, V flags
@@ -192,19 +193,26 @@ module ARMv4 =
             | _ -> readReg rm state
         rscI c s rd rn op2 state
 
-//MUL and MLA (need to account for setting flags)
+//MUL and MLA (DONE)
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHIHGGJ.html
     
-    //write rn*rm to rd
-    let mulR c rd rn rm state =
-        if c state
-        then writeReg rd ((readReg rn state)*(readReg rm state)) state
-        else state
+    //write rm*rs to rd
+    let mulR c s rd rm rs state = //if s: sets N and Z flags only
+        let res = (readReg rm state)*(readReg rs state)
+        match (c state, s) with 
+        | (true, true) -> writeReg rd res state
+                          setNZ res state
+        | (true, false) -> writeReg rd res state
+        | _ -> state    
     
-    //write rn*r3+r4 to rd
-    let mulRA c rd rn r3 r4 state =
-        if c state
-        then writeReg rd ((readReg rn state)*(readReg r3 state)+(readReg r4 state)) state
-        else state
+    //write rm*rs+rn to rd
+    let mulRA c rd rm rs rn state = //if s: sets N and Z flags only
+        let res = (readReg rm state)*(readReg rs state)+(readReg rn state)
+        match (c state, s) with 
+        | (true, true) -> writeReg rd res state
+                          setNZ res state
+        | (true, false) -> writeReg rd res state
+        | _ -> state        
 
 //AND, ORR, EOR, and BIC (need to account for setting flags)
     //write bitwise AND of rn and op2 to rd
