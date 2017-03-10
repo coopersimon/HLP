@@ -447,14 +447,14 @@ module ARMv4 =
     //branch to address stored in rm
     let bx c rm state =
         if c state
-        then writePC ((readReg rm state)/2) state //Bit 0 of Rm is not used as part of the address
+        then writePC ((readReg rm state)/2) state //Bit 0 of Rm is not used as part of the address?
         else state
 
     //store address of next instruction in r14, branch to address indicated by op2
     let blxR c rm state = 
         if c state
         then writeReg 14 ((readPC state)+4) state
-             writePC ((readReg rm state)/2) state //Bit 0 of Rm is not used as part of the address
+             writePC ((readReg rm state)/2) state //Bit 0 of Rm is not used as part of the address?
         else state
 
     let blxL label state = //only if no condition follows
@@ -462,14 +462,27 @@ module ARMv4 =
         writePC label state
 
 //ADR, LDR and STR
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0041c/Babcjaii.html
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/Bcfihdhj.html (in progress)
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/Chdbifed.html (in progress)
+
+    //writes the address corresponding to label into rd
+    let adr c rd label =
+        if c state
+        then writeReg rd label state //rmb 
+        else state
 
 //LDM and STM
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHCADDA.html
 
 //DCD, EQU and FILL
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0041c/Babbfcga.html
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489h/Caccddic.html
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489f/Babchded.html
 
 //END (DONE)
     //stop emulation
-    let end c state finalInstAdd = 
+    let end c finalInstAdd state = 
         if c state
         then writePC (finalInstAdd+4) state 
         else state
