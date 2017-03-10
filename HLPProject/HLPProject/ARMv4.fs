@@ -365,6 +365,17 @@ module ARMv4 =
              |'r' -> shiftSetCR s rsinst rm nORrn state
              | _ -> state
         teqI c rn op2 state  
+
+//CLZ (DONE)
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHJGJED.html
+
+    //counts the number of leading zeroes in the value in Rm and returns the result in Rd
+    let clzR c rd rm state = 
+        let rec loop m c = match m with
+                           | 0  -> 32
+                           | m when m < 0 -> c
+                           | _  -> loop (m <<< 1) (c + 1)
+        writeReg rd (loop (readReg rm state) 0) state
         
 //LSL, LSR, ASR, ROR, RRX (DONE)
 
