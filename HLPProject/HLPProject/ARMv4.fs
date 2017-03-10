@@ -31,22 +31,40 @@ module ARMv4 =
 //MOV and MVN (DONE)
 
     //write op2 to r
-    let movI c s r i state =
+    let movI c s r i state = //if s sets N and Z flags
         match (c state, s) with
         | (true, true) -> state |> writeReg r i
-                          |> setNZ i //sets N and Z flags
+                          |> setNZ i 
         | (true, false) -> writeReg r i state
         | _ -> state
 
-    let movR c s r1 r2 rsinst rsi state =
-        movI c s r1 (rsfuncI s rsinst (readReg r2 state) rsi state) state //sets N, Z and C flags
+    let movR c s r1 r2 rsinst nORrn rstype state = //if s sets N, Z and C flags
+        match rstype with
+        |'i' -> let op2 = sinftI rsinst r2 nORrn state
+        |'r' -> let op2 = sinftR rsinst r2 nORrn state
+        | _ -> let op2 = readReg r2 state
+        if s&&((rsinst=T_ROR)||(rsinst=T_RRX)) 
+        then match rstype with
+             |'i' -> shiftSetCI s rsinst r2 nORrn state
+             |'r' -> shiftSetCR s rsinst r2 nORrn state
+             | _ -> state
+        movI c s r1 op2 state 
 
     //write bitwise not of op2 to r
-    let mvnI c s r i state =
-        movI c s r -i state //sets N and Z flags
+    let mvnI c s r i state = //if s sets N and Z flags
+        movI c s r -i state 
 
-    let mvnR c s r1 r2 rsinst rsi state =
-        mvnI c s r1 (rsfuncI s rsinst (readReg r2 state) rsi state) state //sets N, Z and C flags
+    let mvnR c s r1 r2 rsinst nORrn rstype state = //if s sets N, Z and C flags
+        match rstype with
+        |'i' -> let op2 = sinftI rsinst r2 nORrn state
+        |'r' -> let op2 = sinftR rsinst r2 nORrn state
+        | _ -> let op2 = readReg r2 state
+        if s&&((rsinst=T_ROR)||(rsinst=T_RRX)) 
+        then match rstype with
+             |'i' -> shiftSetCI s rsinst r2 nORrn state
+             |'r' -> shiftSetCR s rsinst r2 nORrn state
+             | _ -> state        
+        mvnI c s r1 op2 state 
 
 //ADD, ADC, SUB, SBC, RSB and RSC (need to account for shift and rotate & setting flags)
 
