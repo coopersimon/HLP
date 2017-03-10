@@ -337,18 +337,42 @@ module ARMv4 =
             writePC label
         else state
 
-//CMP and CMN (need to account for shift and rotate)
-    //update the N, Z, C and V flags according to the result
+//CMP and CMN (DONE)
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHIDDID.html
 
     //same as SUBS but discards results
-    let cmpI c r1 i state =
-        if c state
-        then state // placeholder so it compiles
-        else state
+    let cmpI c rn i state = //sets N, Z, C, V flags
+        match c state with 
+        | true -> setNZ ((readReg rn state)-i) state
+                  setC (conv64 (readReg rn state)) (conv64 -i) state
+                  setV (conv64 (readReg rn state)) (conv64 -i) state
+        | false -> state
 
-    let cmpR c r1 r2 state =
-        if c state
-        then state // placeholder so it compiles
-        else state
+    let cmpR c rn rm rsinst nORrn rstype state = //sets N, Z, C, V flags
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        cmpI c rn op2 state
+        
+    //same as ADDS but discards results
+    let cmnI c rn i state = //sets N, Z, C, V flags
+        match c state with 
+        | true -> setNZ ((readReg rn state)+i) state
+                  setC (conv64 (readReg rn state)) (conv64 i) state
+                  setV (conv64 (readReg rn state)) (conv64 i) state
+        | false -> state
+
+    let cmnR c rn rm rsinst nORrn rstype state = //sets N, Z, C, V flags
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        cmnI c rn op2 state        
 
 //TST and TEQ (need to account for shift and rotate)
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHCDEHH.html
+
+
