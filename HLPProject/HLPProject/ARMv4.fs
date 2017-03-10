@@ -297,45 +297,40 @@ module ARMv4 =
              | _ -> state
         bicI c s rd rn op2 state
 
-//B, BL and BX
+//B, BL, BX, BLX (DONE)
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHFDDAF.html
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHDGEAI.html
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHFJFDG.html
 
-    //branch to label
+    //branch to address corresponding to label
     let b c label state =
         if c state
         then writePC label state
         else state
 
-    //store next instruction in r14, branch to label
+    //store address of next instruction in r14, branch to address corresponding to label
     let bl c label state =
         if c state
-        then 
-            state |>
-            writeReg 14 ((readPC state)+4) |>
-            writePC label
+        then writeReg 14 ((readPC state)+4) state
+             writePC label state
         else state
 
-    //branch to r
-    let bx c r state =
+    //branch to address stored in rm
+    let bx c rm state =
         if c state
-        then writePC (readReg r state) state
+        then writePC ((readReg rm state)/2) state //Bit 0 of Rm is not used as part of the address
         else state
 
-    //store next instruction in r14, branch to op2 (some link with thumb here...?)
-    let blxR c r state = //only if condition follows
+    //store address of next instruction in r14, branch to address indicated by op2
+    let blxR c rm state = 
         if c state
-        then 
-            state |>
-            writeReg 14 ((readPC state)+4) |>
-            writePC (readReg r state)
+        then writeReg 14 ((readPC state)+4) state
+             writePC ((readReg rm state)/2) state //Bit 0 of Rm is not used as part of the address
         else state
 
-    let blxL c label state = //only if no condition follows
-        if c state
-        then 
-            state |>
-            writeReg 14 ((readPC state)+4) |>
-            writePC label
-        else state
+    let blxL label state = //only if no condition follows
+        writeReg 14 ((readPC state)+4) state
+        writePC label state
 
 //CMP and CMN (DONE)
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHIDDID.html
