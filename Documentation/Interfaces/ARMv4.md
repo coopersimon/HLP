@@ -64,7 +64,7 @@ Copies the value of *Operand2* into *rd*
 Takes the value of *Operand2*, performs a bitwise logical NOT operation on the value, and places the result into *rd*.
 
 **Condition flags** - 
-If *s* is true, these functions update the N and Z flags according to the result, can update the C flag during the calculation of Operand2 and do not affect the V flag.
+If *s* is true, these functions update the N and Z flags according to the result, can update the C flag during the calculation of *Operand2* and do not affect the V flag.
 
 #### ADD, ADC, SUB, SBC, RSB and RSC
 
@@ -102,10 +102,10 @@ c:*StateHandle->bool* -> rn:*int* -> i:*int* -> state:*StateHandle* -> output:*S
 **R version** - 
 c:*StateHandle->bool* -> rn:*int* -> rm:*int* -> rsinst:*Token* -> nORrn:*int* -> rstype:*char* -> state:*StateHandle* -> output:*StateHandle*
 
-**[I|R]** - 
+**cmp[I|R]** - 
 Subtracts the value of *Operand2* from the value in *rn*. This is the same as a SUBS instruction, except that the result is discarded.
 
-**[I|R]** - 
+**cmn[I|R]** - 
 Adds the value of *Operand2* to the value in *rn*. This is the same as an ADDS instruction, except that the result is discarded.
 
 **Condition flags** - 
@@ -115,16 +115,16 @@ These functions update the N, Z, C and V flags according to the result.
 
 c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> rm:*int* -> rs:*int* -> state:*StateHandle* -> output:*StateHandle*
 
-##### mulR
-
+**mulR** - 
 c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> rm:*int* -> rs:*int* -> state:*StateHandle* -> output:*StateHandle*
 
+**mulR** - 
 Multiplies the values from *rm* and *rs*, and places the least significant 32 bits of the result in *rd*.
 
-##### mlaR 
-
+**mlaR** - 
 c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> rm:*int* -> rs:*int* -> rm:*int* -> state:*StateHandle* -> output:*StateHandle*
 
+**mlaR** - 
 Multiplies the values from *rm* and *rs*, adds the value from *rn*, and places the least significant 32 bits of the result in *rd*.
 
 **Condition flags** - 
@@ -132,23 +132,53 @@ If *s* is true, these functions update the N and Z flags according to the result
 
 #### AND, ORR, EOR and BIC
 
-**[I|R]** - 
+**I version** - 
+c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> rn:*int* -> i:*int* -> state:*StateHandle* -> output:*StateHandle*
 
-**[I|R]** - 
+**R version** - 
+c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> rn:*int* -> rm:*int* -> rsinst:*Token* -> nORrn:*int* -> rstype:*char* -> state:*StateHandle* -> output:*StateHandle*
 
-**[I|R]** - 
+**and[I|R]** - 
+Performs bitwise AND on the values in *rn* and *Operand2*
 
-**[I|R]** - 
+**orr[I|R]** - 
+Performs bitwise OR on the values in *rn* and *Operand2*
+
+**eor[I|R]** - 
+Performs bitwise XOR on the values in *rn* and *Operand2*
+
+**bic[I|R]** - 
+Performs an AND operation on the bits in *rn* with the complements of the corresponding bits in the value of *Operand2*.
+
+**Condition flags** - 
+If *s* is true, these functions update the N and Z flags according to the result, can update the C flag during the calculation of *Operand2* and do not affect the V flag.
 
 #### TST and TEQ
 
-**[I|R]** - 
+**I version** - 
+c:*StateHandle->bool* -> rn:*int* -> i:*int* -> state:*StateHandle* -> output:*StateHandle*
 
-**[I|R]** - 
+**R version** - 
+c:*StateHandle->bool* -> rn:*int* -> rm:*int* -> rsinst:*Token* -> nORrn:*int* -> rstype:*char* -> state:*StateHandle* -> output:*StateHandle*
+
+**tst[I|R]** - 
+Performs a bitwise AND operation on the value in *rn* and the value of *Operand2*. This is the same as a ANDS instruction, except that the result is discarded.
+
+**teq[I|R]** - 
+Performs a bitwise Exclusive OR operation on the value in *rn* and the value of *Operand2*. This is the same as a EORS instruction, except that the result is discarded.
+
+**Condition flags** - 
+These functions update the N and Z flags according to the result, can update the C flag during the calculation of *Operand2* and do not affect the V flag.
 
 #### CLZ
 
-**[I|R]** - 
+c:*StateHandle->bool* -> rd:*int* -> rm:*int* -> state:*StateHandle* -> output:*StateHandle*
+
+**clzR** - 
+Counts the number of leading zeroes in the value in *rm* and returns the result in *rd*. 
+
+**Condition flags** - 
+This instruction does not affect the flags.
 
 #### LSL, LSR, ASR, ROR and RRX
 
