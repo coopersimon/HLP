@@ -4,9 +4,6 @@ namespace Interpret
 module ARMv4 =
     open Common.State
     open Parse.Tokeniser
-    open Parse.Parser
-
-
 
     let shiftI inst r n state =
         //let rsfuncI s inst ri i state = //make sure interpretter only gives capped strings for inst
