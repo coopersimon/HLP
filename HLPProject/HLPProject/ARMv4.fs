@@ -6,7 +6,6 @@ module ARMv4 =
     open Parse.Tokeniser
 
     let shiftI inst r n state =
-        //let rsfuncI s inst ri i state = //make sure interpretter only gives capped strings for inst
         match inst with 
         |T_LSL -> if (n>=0)&&(n<=31) then (readReg r state)<<<n
                                      else failwith "Invalid n."
