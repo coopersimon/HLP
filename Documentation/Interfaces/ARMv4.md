@@ -57,9 +57,14 @@ c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> i:*int* -> state:*StateHandle* 
 **R version** - 
 c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> rm:*int* -> rsinst:*Token* -> nORrn:*int* -> rstype:*char* -> state:*StateHandle* -> output:*StateHandle*
 
-**mov[I|R]** - Copies the value of *Operand2* into *rd*
+**mov[I|R]** - 
+Copies the value of *Operand2* into *rd*
 
-**mvn[I|R]** - Takes the value of *Operand2*, performs a bitwise logical NOT operation on the value, and places the result into *rd*.
+**mvn[I|R]** - 
+Takes the value of *Operand2*, performs a bitwise logical NOT operation on the value, and places the result into *rd*.
+
+**Condition flags** - 
+If *s* is true, these functions update the N and Z flags according to the result, can update the C flag during the calculation of Operand2 and do not affect the V flag.
 
 #### ADD, ADC, SUB, SBC, RSB and RSC
 
@@ -69,23 +74,42 @@ c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> rn:*int* -> i:*int* -> state:*S
 **R version** - 
 c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> rn:*int* -> rm:*int* -> rsinst:*Token* -> nORrn:*int* -> rstype:*char* -> state:*StateHandle* -> output:*StateHandle*
 
-**add[I|R]** - Adds the values in *rn* and *Operand2*.
+**add[I|R]** - 
+Adds the values in *rn* and *Operand2*.
 
-**sub[I|R]** - Subtracts the value of *Operand2* from the value in *rn*.
+**sub[I|R]** - 
+Subtracts the value of *Operand2* from the value in *rn*.
 
-**rsb[I|R]** - Subtracts the value in *rn* from the value of *Operand2*. 
+**rsb[I|R]** - 
+Subtracts the value in *rn* from the value of *Operand2*. 
 
-**adc[I|R]** - Adds the values in *rn* and *Operand2*, together with the carry flag.
+**adc[I|R]** - 
+Adds the values in *rn* and *Operand2*, together with the carry flag.
 
-**sbc[I|R]** - Subtracts the value of *Operand2* from the value in *rn*. If the carry flag is clear, the result is reduced by one.
+**sbc[I|R]** - 
+Subtracts the value of *Operand2* from the value in *rn*. If the carry flag is clear, the result is reduced by one.
 
 **rsc[I|R]** - Subtracts the value in *rn* from the value of *Operand2*. If the carry flag is clear, the result is reduced by one.
 
+**Condition flags** - 
+If *s* is true, these functions update the N, Z, C and V flags according to the result.
+
 #### CMP and CMN
 
-**[I|R]** - 
+**I version** - 
+c:*StateHandle->bool* -> s:*bool* -> rn:*int* -> i:*int* -> state:*StateHandle* -> output:*StateHandle*
+
+**R version** - 
+c:*StateHandle->bool* -> s:*bool* -> rn:*int* -> rm:*int* -> rsinst:*Token* -> nORrn:*int* -> rstype:*char* -> state:*StateHandle* -> output:*StateHandle*
 
 **[I|R]** - 
+Subtracts the value of *Operand2* from the value in *rn*. This is the same as a SUBS instruction, except that the result is discarded.
+
+**[I|R]** - 
+Adds the value of *Operand2* to the value in *rn*. This is the same as an ADDS instruction, except that the result is discarded.
+
+**Condition flags** - 
+These functions update the N, Z, C and V flags according to the result.
 
 #### MUL and MLA
 
