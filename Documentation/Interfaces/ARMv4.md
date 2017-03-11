@@ -113,8 +113,6 @@ These functions update the N, Z, C and V flags according to the result.
 
 #### MUL and MLA
 
-c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> rm:*int* -> rs:*int* -> state:*StateHandle* -> output:*StateHandle*
-
 **mulR** - 
 c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> rm:*int* -> rs:*int* -> state:*StateHandle* -> output:*StateHandle*
 
@@ -182,15 +180,23 @@ This instruction does not affect the flags.
 
 #### LSL, LSR, ASR, ROR and RRX
 
-**[I|R]** - 
+c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> rm:*int* -> rn:*int* -> state:*StateHandle* -> output:*StateHandle*
 
-**[I|R]** - 
+Where n is value in *rn*:
 
-**[I|R]** - 
+**lslR** - Logical shift left by n bits multiplies the value contained in *rm* by 2n, if the contents are regarded as an unsigned integer. Overflow may occur without warning. The right-hand n bits of the register are set to 0.
 
-**[I|R]** - 
+**lsrR** - Logical shift right by n bits divides the value contained in *rm* by 2^n, if the contents are regarded as an unsigned integer. The left-hand n bits of the register are set to 0.
 
-**[I|R]** - 
+**asrR** - Arithmetic shift right by n bits divides the value contained in *rm* by 2^n, if the contents are regarded as a two’s complement signed integer. The original bit[31] is copied into the left-hand n bits of the register.
+
+**rorR** - Rotate right by n bits moves the right-hand n bits of the register into the left-hand n bits of the result. At the same time, all other bits are moved right by n bits.
+
+**rrxR** - Rotate right with extend shifts the contents of *rm* right by one bit. The carry flag is copied into bit[31] of Rm.
+
+**Condition flags** - 
+If *s* is true, these functions update the N, Z and C flags according to the result and do not affect the V flag.
+The carry flag is updated to the last bit shifted out of *rm*.
 
 #### B, BL, BX, BLX
 
