@@ -113,9 +113,22 @@ These functions update the N, Z, C and V flags according to the result.
 
 #### MUL and MLA
 
-**[I|R]** - 
+c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> rm:*int* -> rs:*int* -> state:*StateHandle* -> output:*StateHandle*
 
-**[I|R]** - 
+##### mulR
+
+c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> rm:*int* -> rs:*int* -> state:*StateHandle* -> output:*StateHandle*
+
+Multiplies the values from *rm* and *rs*, and places the least significant 32 bits of the result in *rd*.
+
+##### mlaR 
+
+c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> rm:*int* -> rs:*int* -> rm:*int* -> state:*StateHandle* -> output:*StateHandle*
+
+Multiplies the values from *rm* and *rs*, adds the value from *rn*, and places the least significant 32 bits of the result in *rd*.
+
+**Condition flags** - 
+If *s* is true, these functions update the N and Z flags according to the result, and do not affect the C and V flags.
 
 #### AND, ORR, EOR and BIC
 
