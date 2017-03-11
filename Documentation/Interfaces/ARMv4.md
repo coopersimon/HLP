@@ -49,7 +49,15 @@ Modifies flag [C|V] depending on *in1* and *in2*. Used for arithmetic ADD, ADC, 
 
 #### MOV and MVN
 
-mov[I|R] - Moves literal *i* or 
+I version:
+c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> i:*int* -> state:*StateHandle* -> output:*StateHandle*
+
+R version
+c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> rm:*int* -> rsinst:*Token* -> nORrn:*int* -> rstype:*char* -> state:*StateHandle* -> output:*StateHandle*
+
+mov[I|R] - Moves op2 (literal *i* or value in register *rm* after shift or rotate) into register rd.
+
+mvn[I|R] - Moves negative of op2 (literal *i* or value in register *rm* after shift or rotate) into register rd.
 
 #### ADD, ADC, SUB, SBC, RSB and RSC
 
