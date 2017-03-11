@@ -74,8 +74,8 @@ module ARMv4 =
         
 
     //write bitwise not of op2 to r
-    let mvnI c s r i state = //if s: sets N and Z flags only
-        movI c s r -i state 
+    let mvnI c s rd i state = //if s: sets N and Z flags only
+        movI c s rd -i state 
 
     let mvnR c s rd rm rsinst nORrn rstype state = //if s: sets N, Z (and C) flags only
         let op2 =
