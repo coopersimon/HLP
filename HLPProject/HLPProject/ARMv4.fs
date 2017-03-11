@@ -68,11 +68,11 @@ module ARMv4 =
             | _ -> readReg rm state
         if s&&((rsinst=T_ROR)||(rsinst=T_RRX)) 
         then match rstype with
-             |'i' -> shiftSetCI s rsinst rm nORrn state
-             |'r' -> shiftSetCR s rsinst rm nORrn state
-             | _ -> state
-        else state
-        movI c s rd op2 state 
+             |'i' -> shiftSetCI s rsinst rm nORrn state |> movI c s rd op2
+             |'r' -> shiftSetCR s rsinst rm nORrn state |> movI c s rd op2
+             | _ -> movI c s rd op2 state 
+        else movI c s rd op2 state 
+        
 
     //write bitwise not of op2 to r
     let mvnI c s r i state = //if s: sets N and Z flags only
@@ -86,11 +86,10 @@ module ARMv4 =
             | _ -> readReg rm state
         if s&&((rsinst=T_ROR)||(rsinst=T_RRX)) 
         then match rstype with
-             |'i' -> shiftSetCI s rsinst rm nORrn state
-             |'r' -> shiftSetCR s rsinst rm nORrn state
-             | _ -> state
-        else state      
-        mvnI c s rd op2 state 
+             |'i' -> shiftSetCI s rsinst rm nORrn state |> mvnI c s rd op2 
+             |'r' -> shiftSetCR s rsinst rm nORrn state |> mvnI c s rd op2 
+             | _ -> mvnI c s rd op2 state 
+        else mvnI c s rd op2 state       
 
 //ADD, ADC, SUB, SBC, RSB and RSC (DONE)
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHCJFJG.html
@@ -99,9 +98,9 @@ module ARMv4 =
     let addI c s rd rn i state = //if s: sets N, Z, C, V flags
         match (c state, s) with 
         | (true, true) -> writeReg rd ((readReg rn state)+i) state
-                          setNZ ((readReg rn state)+i) state
-                          setC (conv64 (readReg rn state)) (conv64 i) state
-                          setV (conv64 (readReg rn state)) (conv64 i) state
+                          |> setNZ ((readReg rn state)+i) 
+                          |> setC (conv64 (readReg rn state)) (conv64 i)
+                          |> setV (conv64 (readReg rn state)) (conv64 i) 
         | (true, false) -> writeReg rd ((readReg rn state)+i) state
         | _ -> state
     
@@ -117,13 +116,13 @@ module ARMv4 =
     let adcI c s rd rn i state = //if s: sets N, Z, C, V flags
         match (c state, s, readCFlag state) with 
         | (true, true, false) -> writeReg rd ((readReg rn state)+i) state
-                                 setNZ ((readReg rn state)+i) state
-                                 setC (conv64 (readReg rn state)) (conv64 i) state
-                                 setV (conv64 (readReg rn state)) (conv64 i) state
+                                 |> setNZ ((readReg rn state)+i) 
+                                 |> setC (conv64 (readReg rn state)) (conv64 i)
+                                 |> setV (conv64 (readReg rn state)) (conv64 i) 
         | (true, true, true) ->  writeReg rd ((readReg rn state)+i+1) state
-                                 setNZ ((readReg rn state)+i+1) state
-                                 setC (conv64 (readReg rn state)) ((conv64 i)+1L) state 
-                                 setV (conv64 (readReg rn state)) ((conv64 i)+1L) state
+                                 |> setNZ ((readReg rn state)+i+1) 
+                                 |> setC (conv64 (readReg rn state)) ((conv64 i)+1L)
+                                 |> setV (conv64 (readReg rn state)) ((conv64 i)+1L) 
         | (true, false, false) -> writeReg rd ((readReg rn state)+i) state
         | (true, false, true) -> writeReg rd ((readReg rn state)+i+1) state
         | _ -> state
@@ -152,13 +151,13 @@ module ARMv4 =
     let sbcI c s rd rn i state = //if s: sets N, Z, C, V flags
         match (c state, s, readCFlag state) with 
         | (true, true, true) -> writeReg rd ((readReg rn state)-i) state
-                                 setNZ ((readReg rn state)-i) state
-                                 setC (conv64 (readReg rn state)) (conv64 -i) state
-                                 setV (conv64 (readReg rn state)) (conv64 -i) state
+                                |> setNZ ((readReg rn state)-i)
+                                |> setC (conv64 (readReg rn state)) (conv64 -i) 
+                                |> setV (conv64 (readReg rn state)) (conv64 -i)
         | (true, true, false) -> writeReg rd ((readReg rn state)-i-1) state
-                                setNZ ((readReg rn state)-i-1) state
-                                setC (conv64 (readReg rn state)) ((conv64 -i)-1L) state
-                                setV (conv64 (readReg rn state)) ((conv64 -i)-1L) state
+                                |> setNZ ((readReg rn state)-i-1) 
+                                |> setC (conv64 (readReg rn state)) ((conv64 -i)-1L) 
+                                |> setV (conv64 (readReg rn state)) ((conv64 -i)-1L) 
         | (true, false, true) -> writeReg rd ((readReg rn state)-i) state
         | (true, false, false) -> writeReg rd ((readReg rn state)-i-1) state
         | _ -> state
@@ -175,9 +174,9 @@ module ARMv4 =
     let rsbI c s rd rn i state = //if s: sets N, Z, C, V flags
         match (c state, s) with 
         | (true, true) -> writeReg rd (i-(readReg rn state)) state
-                          setNZ (i-(readReg rn state)) state
-                          setC (conv64 -(readReg rn state)) (conv64 i) state
-                          setV (conv64 -(readReg rn state)) (conv64 i) state
+                          |> setNZ (i-(readReg rn state))
+                          |> setC (conv64 -(readReg rn state)) (conv64 i) 
+                          |> setV (conv64 -(readReg rn state)) (conv64 i) 
         | (true, false) -> writeReg rd (i-(readReg rn state)) state
         | _ -> state
     
@@ -193,13 +192,13 @@ module ARMv4 =
     let rscI c s  rn i state = //if s: sets N, Z, C, V flags
         match (c state, s, readCFlag state) with 
         | (true, true, true) -> writeReg rd (i-(readReg rn state)) state
-                                 setNZ (i-(readReg rn state)) state
-                                 setC (conv64 -(readReg rn state)) (conv64 i) state
-                                 setV (conv64 -(readReg rn state)) (conv64 i) state
+                                |> setNZ (i-(readReg rn state)) 
+                                |> setC (conv64 -(readReg rn state)) (conv64 i) 
+                                |> setV (conv64 -(readReg rn state)) (conv64 i) 
         | (true, true, false) -> writeReg rd (i-(readReg rn state)-1) state
-                                setNZ (i-(readReg rn state)-1) state
-                                setC (conv64 -(readReg rn state)) ((conv64 i)-1L) state
-                                setV (conv64 -(readReg rn state)) ((conv64 i)-1L) state
+                                |> setNZ (i-(readReg rn state)-1) 
+                                |> setC (conv64 -(readReg rn state)) ((conv64 i)-1L) 
+                                |> setV (conv64 -(readReg rn state)) ((conv64 i)-1L)
         | (true, false, true) -> writeReg rd (i-(readReg rn state)) state
         | (true, false, false) -> writeReg rd (i-(readReg rn state)-1) state
         | _ -> state
@@ -219,8 +218,8 @@ module ARMv4 =
     let cmpI c rn i state = //sets N, Z, C, V flags
         match c state with 
         | true -> setNZ ((readReg rn state)-i) state
-                  setC (conv64 (readReg rn state)) (conv64 -i) state
-                  setV (conv64 (readReg rn state)) (conv64 -i) state
+                  |> setC (conv64 (readReg rn state)) (conv64 -i) 
+                  |> setV (conv64 (readReg rn state)) (conv64 -i) 
         | false -> state
 
     let cmpR c rn rm rsinst nORrn rstype state = //sets N, Z, C, V flags
@@ -235,8 +234,8 @@ module ARMv4 =
     let cmnI c rn i state = //sets N, Z, C, V flags
         match c state with 
         | true -> setNZ ((readReg rn state)+i) state
-                  setC (conv64 (readReg rn state)) (conv64 i) state
-                  setV (conv64 (readReg rn state)) (conv64 i) state
+                  |> setC (conv64 (readReg rn state)) (conv64 i)
+                  |> setV (conv64 (readReg rn state)) (conv64 i)
         | false -> state
 
     let cmnR c rn rm rsinst nORrn rstype state = //sets N, Z, C, V flags
@@ -255,7 +254,7 @@ module ARMv4 =
         let res = (readReg rm state)*(readReg rs state)
         match (c state, s) with 
         | (true, true) -> writeReg rd res state
-                          setNZ res state
+                          |> setNZ res 
         | (true, false) -> writeReg rd res state
         | _ -> state    
     
@@ -264,7 +263,7 @@ module ARMv4 =
         let res = (readReg rm state)*(readReg rs state)+(readReg rn state)
         match (c state, s) with 
         | (true, true) -> writeReg rd res state
-                          setNZ res state
+                          |> setNZ res 
         | (true, false) -> writeReg rd res state
         | _ -> state        
 
@@ -275,7 +274,7 @@ module ARMv4 =
     let andI c s rd rn i state = //if s: sets N and Z flags only
         match (c state, s) with 
         | (true, true) -> writeReg rd ((readReg rn state)&&&i) state
-                          setNZ ((readReg rn state)&&&i) state
+                          |> setNZ ((readReg rn state)&&&i) 
         | (true, false) -> writeReg rd ((readReg rn state)&&&i) state
         | _ -> state
     
@@ -287,16 +286,16 @@ module ARMv4 =
             | _ -> readReg rm state
         if s&&((rsinst=T_ROR)||(rsinst=T_RRX)) 
         then match rstype with
-             |'i' -> shiftSetCI s rsinst rm nORrn state
-             |'r' -> shiftSetCR s rsinst rm nORrn state
-             | _ -> state
-        andI c s rd rn op2 state
+             |'i' -> shiftSetCI s rsinst rm nORrn state |> andI c s rd rn op2
+             |'r' -> shiftSetCR s rsinst rm nORrn state |> andI c s rd rn op2
+             | _ -> andI c s rd rn op2 state
+        else andI c s rd rn op2 state
 
     //write bitwise OR of rn and op2 to rd
     let orrI c s rd rn i state = //if s: sets N and Z flags only
         match (c state, s) with 
         | (true, true) -> writeReg rd ((readReg rn state)|||i) state
-                          setNZ ((readReg rn state)|||i) state
+                          |> setNZ ((readReg rn state)|||i) 
         | (true, false) -> writeReg rd ((readReg rn state)|||i) state
         | _ -> state
 
@@ -308,16 +307,16 @@ module ARMv4 =
             | _ -> readReg rm state
         if s&&((rsinst=T_ROR)||(rsinst=T_RRX)) 
         then match rstype with
-             |'i' -> shiftSetCI s rsinst rm nORrn state
-             |'r' -> shiftSetCR s rsinst rm nORrn state
-             | _ -> state
-        orrI c s rd rn op2 state
+             |'i' -> shiftSetCI s rsinst rm nORrn state |> orrI c s rd rn op2
+             |'r' -> shiftSetCR s rsinst rm nORrn state |> orrI c s rd rn op2
+             | _ -> orrI c s rd rn op2 state
+        else orrI c s rd rn op2 state
 
     //write bitwise XOR of rn and op2 to rd
     let eorI c s rd rn i state = //if s: sets N and Z flags only
         match (c state, s) with 
         | (true, true) -> writeReg rd ((readReg rn state)^^^i) state
-                          setNZ ((readReg rn state)^^^i) state
+                          |> setNZ ((readReg rn state)^^^i)
         | (true, false) -> writeReg rd ((readReg rn state)^^^i) state
         | _ -> state
     
@@ -329,10 +328,10 @@ module ARMv4 =
             | _ -> readReg rm state
         if s&&((rsinst=T_ROR)||(rsinst=T_RRX)) 
         then match rstype with
-             |'i' -> shiftSetCI s rsinst rm nORrn state
-             |'r' -> shiftSetCR s rsinst rm nORrn state
-             | _ -> state
-        eorI c s rd rn op2 state
+             |'i' -> shiftSetCI s rsinst rm nORrn state |> eorI c s rd rn op2
+             |'r' -> shiftSetCR s rsinst rm nORrn state |> eorI c s rd rn op2
+             | _ -> eorI c s rd rn op2 state
+        else eorI c s rd rn op2 state
 
     //write bitwise AND of rn and NOT(op2) to rd
     let bicI c s rd rn i state = //if s: sets N and Z flags only
@@ -346,10 +345,10 @@ module ARMv4 =
             | _ -> readReg rm state
         if s&&((rsinst=T_ROR)||(rsinst=T_RRX)) 
         then match rstype with
-             |'i' -> shiftSetCI s rsinst rm nORrn state
-             |'r' -> shiftSetCR s rsinst rm nORrn state
-             | _ -> state
-        bicI c s rd rn op2 state
+             |'i' -> shiftSetCI s rsinst rm nORrn state |> bicI c s rd rn op2
+             |'r' -> shiftSetCR s rsinst rm nORrn state |> bicI c s rd rn op2
+             | _ -> bicI c s rd rn op2 state
+        else bicI c s rd rn op2 state
 
 //TST and TEQ (DONE)
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHCDEHH.html
@@ -368,10 +367,10 @@ module ARMv4 =
             | _ -> readReg rm state
         if s&&((rsinst=T_ROR)||(rsinst=T_RRX)) 
         then match rstype with
-             |'i' -> shiftSetCI s rsinst rm nORrn state
-             |'r' -> shiftSetCR s rsinst rm nORrn state
-             | _ -> state
-        tstI c rn op2 state
+             |'i' -> shiftSetCI s rsinst rm nORrn state |> tstI c rn op2
+             |'r' -> shiftSetCR s rsinst rm nORrn state |> tstI c rn op2
+             | _ -> tstI c rn op2 state
+        else tstI c rn op2 state
         
     //same as EORS but discards results
     let teqI c rn i state = //sets N and Z flags only
@@ -387,10 +386,10 @@ module ARMv4 =
             | _ -> readReg rm state
         if s&&((rsinst=T_ROR)||(rsinst=T_RRX)) 
         then match rstype with
-             |'i' -> shiftSetCI s rsinst rm nORrn state
-             |'r' -> shiftSetCR s rsinst rm nORrn state
-             | _ -> state
-        teqI c rn op2 state  
+             |'i' -> shiftSetCI s rsinst rm nORrn state |> teqI c rn op2
+             |'r' -> shiftSetCR s rsinst rm nORrn state |> teqI c rn op2
+             | _ -> teqI c rn op2 state
+        else teqI c rn op2 state  
 
 //CLZ (DONE)
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHJGJED.html
@@ -410,7 +409,7 @@ module ARMv4 =
         let op2 = shiftR (T_LSL) rm rn state
         match (c state, s) with
         | (true, true) -> writeReg rd op2 state
-                          setNZ op2 state
+                          |> setNZ op2
         | (true, false) -> writeReg rd op2 state
         | _ -> state        
 
@@ -419,7 +418,7 @@ module ARMv4 =
         let op2 = shiftR (T_LSR) rm rn state
         match (c state, s) with
         | (true, true) -> writeReg rd op2 state
-                          setNZ op2 state
+                          |> setNZ op2
         | (true, false) -> writeReg rd op2 state
         | _ -> state       
         
@@ -428,7 +427,7 @@ module ARMv4 =
         let op2 = shiftR (T_ASR) rm rn state
         match (c state, s) with
         | (true, true) -> writeReg rd op2 state
-                          setNZ op2 state
+                         |> setNZ op2
         | (true, false) -> writeReg rd op2 state
         | _ -> state        
      
@@ -437,8 +436,8 @@ module ARMv4 =
         let op2 = shiftR (T_ROR) rm rn state
         match (c state, s) with
         | (true, true) -> writeReg rd op2 state
-                          setNZ op2 state
-                          shiftSetCR s (T_ROR) rm rn state
+                          |> setNZ op2 
+                          |> shiftSetCR s (T_ROR) rm rn 
         | (true, false) -> writeReg rd op2 state
         | _ -> state             
         
@@ -447,8 +446,8 @@ module ARMv4 =
         let op2 = shiftR (T_RRX) rm (1) state
         match (c state, s) with
         | (true, true) -> writeReg rd op2 state
-                          setNZ op2 state
-                          shiftSetCR s (T_RRX) rm (1) state
+                          |> setNZ op2 
+                          |> shiftSetCR s (T_RRX) rm (1) 
         | (true, false) -> writeReg rd op2 state
         | _ -> state              
 
@@ -467,7 +466,7 @@ module ARMv4 =
     let bl c label state =
         if c state
         then writeReg 14 ((readPC state)+4) state
-             writePC label state
+             |> writePC label 
         else state
 
     //branch to address stored in rm
@@ -480,12 +479,12 @@ module ARMv4 =
     let blxR c rm state = 
         if c state
         then writeReg 14 ((readPC state)+4) state
-             writePC ((readReg rm state)/2) state //Bit 0 of Rm is not used as part of the address?
+             |> writePC ((readReg rm state)/2) //Bit 0 of Rm is not used as part of the address?
         else state
 
     let blxL label state = //only if no condition follows
         writeReg 14 ((readPC state)+4) state
-        writePC label state
+        |> writePC label 
 
 //ADR, LDR and STR
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0041c/Babcjaii.html
@@ -495,7 +494,7 @@ module ARMv4 =
     //writes the address corresponding to label into rd
     let adr c rd label =
         if c state
-        then writeReg rd label state //rmb 
+        then writeReg rd label state  
         else state
 
 //LDM and STM
