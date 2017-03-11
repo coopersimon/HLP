@@ -3,12 +3,39 @@
 namespace Interpret
 module ARMv4 =
     open Common.State
+    open Parse.Tokeniser
+
+
+
+    let shiftI inst r n state =
+        //let rsfuncI s inst ri i state = //make sure interpretter only gives capped strings for inst
+        match inst with 
+        |T_LSL -> if (n>=0)&&(n<=31) then (readReg r state)<<<n
+                                     else failwith "Invalid n."
+        |T_LSR -> if (n>=1)&&(n<=32) then (if n=32 then 0 else int((uint32 (readReg r state))/(uint32 (2.0**(float n))))) 
+                                     else failwith "Invalid n."
+        |T_ASR -> if (n>=1)&&(n<=32) then (readReg r state)/(int (2.0**(float n))) 
+                                     else failwith "Invalid n."
+        |T_ROR -> if (n>=1)&&(n<=31) then (readReg r state)>>>n 
+                                     else failwith "Invalid n."
+        |T_RRX -> match (readCFlag state) with
+                    |true -> (readReg r state)/2 + 1<<<31
+                    |false -> (readReg r state)/2
+
+    let shiftR inst r rn state =
+        shiftI inst r (readReg rn state) state
+
+    let shiftSetCI s inst r n state =
+        |T_ROR -> if s then writeCFlag (((readReg r state)>>>(n-1))%2<>0) state else state 
+        |T_RRX -> if s then writeCFlag ((readReg r state)%2<>0) state else state
+
+    let shiftSetCR s inst r rn state = 
+        shiftSetCI s inst r (readReg rn state) state
 
 //functions to set flags
     //set N and Z flags for all cases
     let setNZ result state =
-        writeNFlag (result<0) state
-        writeZFlag (result=0) state
+        state |> writeNFlag (result<0) |> writeZFlag (result=0)
 
     //set C for arithmetic ADD, ADC, SUB, SBC, RSB and RSC cases (Note: in1 and in2 are int64)
     let setC in1 in2 state = 
@@ -18,10 +45,10 @@ module ARMv4 =
     let setV in1 in2 state =   
         let cin = (((in1*2L)+(in2*2L)) >>> 32)%2L
         let cout = ((in1+in2)>>>32)%2L
-        writeVFlag not(cin=cout) state
+        writeVFlag (cin<>cout) state
      
      //this function converts an int32 to an int64 without signed extension.
-     let conv64 i = int64 (uint32 i)
+    let conv64 i = int64 (uint32 i)
 
 //MOV and MVN (DONE)
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHCDBCA.html
@@ -29,8 +56,7 @@ module ARMv4 =
     //write op2 to r
     let movI c s rd i state = //if s: sets N and Z flags only
         match (c state, s) with
-        | (true, true) -> writeReg rd i state
-                          setNZ i state
+        | (true, true) -> state |> writeReg rd i |> setNZ i
         | (true, false) -> writeReg rd i state
         | _ -> state
 

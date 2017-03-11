@@ -12,30 +12,7 @@ module Parser =
         | Instr of (Common.State.StateHandle -> Common.State.StateHandle)
         | Terminate
 
-    let shiftI inst r n state =
-        //let rsfuncI s inst ri i state = //make sure interpretter only gives capped strings for inst
-        match inst with 
-        |T_LSL -> if (n>=0)&&(n<=31) then (readReg r state)<<<n
-                                     else failwith "Invalid n."
-        |T_LSR -> if (n>=1)&&(n<=32) then (if n=32 then 0 else int((uint32 (readReg r state))/(uint32 (2.0**(float n))))) 
-                                     else failwith "Invalid n."
-        |T_ASR -> if (n>=1)&&(n<=32) then (readReg r state)/(int (2.0**(float n))) 
-                                     else failwith "Invalid n."
-        |T_ROR -> if (n>=1)&&(n<=31) then (readReg r state)>>>n 
-                                     else failwith "Invalid n."
-        |T_RRX -> match (readCFlag state) with
-                    |true -> (readReg r state)/2 + 1<<<31
-                    |false -> (readReg r state)/2
 
-    let shiftR inst r rn state =
-        shiftI inst r (readReg rn state) state
-
-    let shiftSetCI s inst r n state =
-        |T_ROR -> if s then writeCFlag (((readReg r state)>>>(n-1))%2<>0) state else state 
-        |T_RRX -> if s then writeCFlag ((readReg r state)%2<>0) state else state
-
-    let shiftSetCR s inst r rn state = 
-        shiftSetCI s inst r (readReg rn state) state
 
     let parser tokLst =
         /// Function that resolves branch.
