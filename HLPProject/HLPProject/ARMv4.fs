@@ -23,8 +23,10 @@ module ARMv4 =
         shiftI inst r (readReg rn state) state
 
     let shiftSetCI s inst r n state =
+        match inst with
         |T_ROR -> if s then writeCFlag (((readReg r state)>>>(n-1))%2<>0) state else state 
         |T_RRX -> if s then writeCFlag ((readReg r state)%2<>0) state else state
+        |_ -> state
 
     let shiftSetCR s inst r rn state = 
         shiftSetCI s inst r (readReg rn state) state
