@@ -18,7 +18,7 @@ module ARMv4 =
         |T_RRX -> match (readCFlag state) with
                     |true -> (readReg r state)/2 + 1<<<31
                     |false -> (readReg r state)/2
-        |_ -> state
+        |T_NIL -> readReg r state
 
     let shiftR inst r rn state =
         shiftI inst r (readReg rn state) state
@@ -30,7 +30,7 @@ module ARMv4 =
         |T_ASR -> if s then writeCFlag (((readReg r state)>>>(n-1))%2<>0) state else state 
         |T_ROR -> if s then writeCFlag (((readReg r state)>>>(n-1))%2<>0) state else state 
         |T_RRX -> if s then writeCFlag ((readReg r state)%2<>0) state else state
-        |_ -> state
+        |T_NIL -> state
 
     let shiftSetCR s inst r rn state = 
         shiftSetCI s inst r (readReg rn state) state

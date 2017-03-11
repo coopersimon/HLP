@@ -19,7 +19,7 @@ module Tokeniser =
         | T_LSR
         | T_ROR
         | T_RRX
-
+        | T_NIL // Ideally this shouldn't exist.
 
     /// Add tokens here! Format: "T_x"
     [<CustomEquality; NoComparison>]
