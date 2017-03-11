@@ -184,11 +184,11 @@ c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> rm:*int* -> rn:*int* -> state:*
 
 Where n is value in *rn*:
 
-**lslR** - Logical shift left by n bits multiplies the value contained in *rm* by 2n, if the contents are regarded as an unsigned integer. Overflow may occur without warning. The right-hand n bits of the register are set to 0.
+**lslR** - Logical shift left by n bits multiplies the value contained in *rm* by 2^n^, if the contents are regarded as an unsigned integer. Overflow may occur without warning. The right-hand n bits of the register are set to 0.
 
-**lsrR** - Logical shift right by n bits divides the value contained in *rm* by 2^n, if the contents are regarded as an unsigned integer. The left-hand n bits of the register are set to 0.
+**lsrR** - Logical shift right by n bits divides the value contained in *rm* by 2^n^, if the contents are regarded as an unsigned integer. The left-hand n bits of the register are set to 0.
 
-**asrR** - Arithmetic shift right by n bits divides the value contained in *rm* by 2^n, if the contents are regarded as a two’s complement signed integer. The original bit[31] is copied into the left-hand n bits of the register.
+**asrR** - Arithmetic shift right by n bits divides the value contained in *rm* by 2^n^, if the contents are regarded as a two’s complement signed integer. The original bit[31] is copied into the left-hand n bits of the register.
 
 **rorR** - Rotate right by n bits moves the right-hand n bits of the register into the left-hand n bits of the result. At the same time, all other bits are moved right by n bits.
 
