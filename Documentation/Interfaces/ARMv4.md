@@ -19,21 +19,37 @@ The remaining arguments should include a condition, of type *(StateHandle -> boo
 
 ### Flexible Operand 2
 
-#### shiftI and shiftR
+#### shift[I|R]
 
-#### shiftSetCI and shiftSetCR
+inst:*Token* -> r:*int* -> [(n:*int*)|(rn:*int*)] -> state:*StateHandle* -> output:*int*
+
+Evaluates final value of operand 2 after *n* or value in register *rn* is shifted or rotated depending on *inst*. 
+
+#### shiftSetC[I|R]
+
+s:*bool* -> inst:*Token* -> r:*int* -> (n:*int*) OR (rn:*int*) -> state:*StateHandle* -> output:*StateHandle*
+
+Modifies flag C when evaluating operand 2 (depends on *inst*). 
 
 ### Updating Flags
 
 #### setNZ
 
-#### setC
+result:*int* -> state:*StateHandle* -> output:*StateHandle*
 
-#### setV
+Modifies flags N and Z depending on *result*. 
+
+#### set[C|V]
+
+in1:*int64* -> in2:*int64* -> state:*StateHandle* -> output:*StateHandle*
+
+Modifies flag [C|V] depending on *in1* and *in2*. Used for arithmetic ADD, ADC, SUB, SBC, RSB and RSC instructions. 
 
 ### Instructions
 
 #### MOV and MVN
+
+mov[I|R] - Moves literal *i* or 
 
 #### ADD, ADC, SUB, SBC, RSB and RSC
 
@@ -57,8 +73,7 @@ The remaining arguments should include a condition, of type *(StateHandle -> boo
 
 #### DCD, EQU and FILL
 
-#### END
+#### end
 
-Function: end
-Operation: if condition is true, stop emulation
+If condition is true, stop emulation (by modifying PC). Output type is *StateHandle*.
 
