@@ -4,6 +4,7 @@ namespace Interpret
 module ARMv4 =
     open Common.State
     open Parse.Tokeniser
+    open Parse.Parser
 
 
 
