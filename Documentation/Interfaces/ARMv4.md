@@ -97,10 +97,10 @@ If *s* is true, these functions update the N, Z, C and V flags according to the 
 #### CMP and CMN
 
 **I version** - 
-c:*StateHandle->bool* -> s:*bool* -> rn:*int* -> i:*int* -> state:*StateHandle* -> output:*StateHandle*
+c:*StateHandle->bool* -> rn:*int* -> i:*int* -> state:*StateHandle* -> output:*StateHandle*
 
 **R version** - 
-c:*StateHandle->bool* -> s:*bool* -> rn:*int* -> rm:*int* -> rsinst:*Token* -> nORrn:*int* -> rstype:*char* -> state:*StateHandle* -> output:*StateHandle*
+c:*StateHandle->bool* -> rn:*int* -> rm:*int* -> rsinst:*Token* -> nORrn:*int* -> rstype:*char* -> state:*StateHandle* -> output:*StateHandle*
 
 **[I|R]** - 
 Subtracts the value of *Operand2* from the value in *rn*. This is the same as a SUBS instruction, except that the result is discarded.
