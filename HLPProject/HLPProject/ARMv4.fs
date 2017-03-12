@@ -192,7 +192,7 @@ module ARMv4 =
         rsbI c s rd rn op2 state
 
     //write op2-rn-!carry to rd
-    let rscI c s  rn i state = //if s: sets N, Z, C, V flags
+    let rscI c s rd rn i state = //if s: sets N, Z, C, V flags
         match (c state, s, readCFlag state) with 
         | (true, true, true) -> writeReg rd (i-(readReg rn state)) state
                                 |> setNZ (i-(readReg rn state)) 
@@ -262,7 +262,7 @@ module ARMv4 =
         | _ -> state    
     
     //write rm*rs+rn to rd
-    let mlaR c rd rm rs rn state = //if s: sets N and Z flags only
+    let mlaR c s rd rm rs rn state = //if s: sets N and Z flags only
         let res = (readReg rm state)*(readReg rs state)+(readReg rn state)
         match (c state, s) with 
         | (true, true) -> writeReg rd res state
@@ -368,12 +368,13 @@ module ARMv4 =
             |'i' -> shiftI rsinst rm nORrn state
             |'r' -> shiftR rsinst rm nORrn state
             | _ -> readReg rm state
-        if s
+        tstI c rn op2 state
+        (*if s
         then match rstype with
              |'i' -> shiftSetCI s rsinst rm nORrn state |> tstI c rn op2
              |'r' -> shiftSetCR s rsinst rm nORrn state |> tstI c rn op2
              | _ -> tstI c rn op2 state
-        else tstI c rn op2 state
+        else tstI c rn op2 state*)
         
     //same as EORS but discards results
     let teqI c rn i state = //sets N and Z flags only
@@ -387,12 +388,13 @@ module ARMv4 =
             |'i' -> shiftI rsinst rm nORrn state
             |'r' -> shiftR rsinst rm nORrn state
             | _ -> readReg rm state
-        if s
+        teqI c rn op2 state
+        (*if s
         then match rstype with
              |'i' -> shiftSetCI s rsinst rm nORrn state |> teqI c rn op2
              |'r' -> shiftSetCR s rsinst rm nORrn state |> teqI c rn op2
              | _ -> teqI c rn op2 state
-        else teqI c rn op2 state  
+        else teqI c rn op2 state  *)
 
 //CLZ (DONE)
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHJGJED.html
@@ -498,7 +500,7 @@ module ARMv4 =
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/Chdbifed.html (in progress)
 
     //writes the address corresponding to label into rd
-    let adr c rd label =
+    let adr c rd label state =
         if c state
         then writeReg rd label state  
         else state
@@ -513,7 +515,7 @@ module ARMv4 =
 
 //END (DONE)
     //stop emulation
-    let end c finalInstAdd state = 
+    let iend c finalInstAdd state = 
         if c state
         then writePC (finalInstAdd+4) state 
         else state
