@@ -67,6 +67,9 @@ module Parser =
             | T_SUB (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(subR c s rd rn rm T_NIL 0 'i'))]) t
 
+            | T_MUL (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rs :: t ->
+                parseRec (mem+4) labels (outLst@[(mem, Instr(mulR c s rd rn rs))]) t
+
             | T_B c :: T_LABEL s :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Branch(branchTo c s b))]) t
             | T_BL c :: T_LABEL s :: t ->
