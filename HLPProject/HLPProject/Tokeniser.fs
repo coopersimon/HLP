@@ -6,6 +6,7 @@ module Tokeniser =
     open System.Text.RegularExpressions
     open Common.Conditions
     open Common.State
+    //open Common.Error
 
     
     (***TOKENS***)
@@ -72,7 +73,8 @@ module Tokeniser =
         | T_L_BRAC
         | T_R_BRAC
         | T_EXCL
-        | T_ERROR
+        | T_END
+        | T_ERROR of string
 
         override x.Equals yobj =
             let state = initState
@@ -81,7 +83,7 @@ module Tokeniser =
                                | T_REG ix, T_REG iy -> ix = iy
                                | T_INT ix, T_INT iy -> ix = iy
                                | T_COMMA, T_COMMA -> true
-                               | T_ERROR, T_ERROR -> true
+                               | T_ERROR tx, T_ERROR ty -> tx = ty
                                | T_MOV (cx,sx), T_MOV (cy,sy) -> cx state = cy state && sx = sy
                                | T_MVN (cx,sx), T_MVN (cy,sy) -> cx state = cy state && sx = sy
                                | T_MRS cx, T_MRS cy -> cx state = cy state
@@ -200,6 +202,32 @@ module Tokeniser =
         | INSTR_S_MATCH @"^SBC" cs -> T_SBC cs
         | INSTR_S_MATCH @"^RSB" cs -> T_RSB cs
         | INSTR_S_MATCH @"^RSC" cs -> T_RSC cs
+        | INSTR_S_MATCH @"^MUL" cs -> T_MUL cs
+        | INSTR_S_MATCH @"^MLA" cs -> T_MLA cs
+        | INSTR_S_MATCH @"^UMULL" cs -> T_UMULL cs
+        | INSTR_S_MATCH @"^UMLAL" cs -> T_UMLAL cs
+        | INSTR_S_MATCH @"^SMULL" cs -> T_SMULL cs
+        | INSTR_S_MATCH @"^SMLAL" cs -> T_SMLAL cs
+        | INSTR_S_MATCH @"^AND" cs -> T_AND cs
+        | INSTR_S_MATCH @"^ORR" cs -> T_ORR cs
+        | INSTR_S_MATCH @"^EOR" cs -> T_EOR cs
+        | INSTR_S_MATCH @"^BIC" cs -> T_BIC cs
+        | INSTR_MATCH @"^CMP" c -> T_CMP c
+        | INSTR_MATCH @"^CMN" c -> T_CMN c
+        | INSTR_MATCH @"^TST" c -> T_TST c
+        | INSTR_MATCH @"^TEQ" c -> T_TEQ c
+        | INSTR_MATCH @"^B" c -> T_B c
+        | INSTR_MATCH @"^BL" c -> T_BL c
+        | INSTR_MATCH @"^BX" c -> T_BX c
+        | INSTR_MATCH @"^LDR" c -> T_LDR c
+        | INSTR_MATCH @"^STR" c -> T_STR c
+        | INSTR_MATCH @"^LDM" c -> T_LDM c
+        | INSTR_MATCH @"^STM" c -> T_STM c
+        | INSTR_MATCH @"^SWP" c -> T_SWP c
+        | INSTR_MATCH @"^SWI" c -> T_SWI c
+        | INSTR_MATCH @"^NOP" c -> T_NOP c
+        | INSTR_MATCH @"^ADR" c -> T_ADR c 
+        | INSTR_MATCH @"^END" c -> T_END
         // shift operands
         | TOKEN_MATCH @"^ASR$" -> T_SHIFT T_ASR
         | TOKEN_MATCH @"^LSL$" -> T_SHIFT T_LSL
@@ -209,12 +237,12 @@ module Tokeniser =
         // labels
         | LABEL_MATCH s -> T_LABEL s
         //| t -> failwithf "Invalid token %A" t
-        | _ -> T_ERROR
+        | t -> T_ERROR t
 
 
     /// Take in string and output list of tokens.
     let tokenise (source: string) =
-        Regex.Split(source, @"([,\[\]!])|[ \t\n\r\f]")
+        Regex.Split(source, @"([,\[\]!])|[ \t\n\r\f]+|;.*[\n\r\f]")
         |> Array.toList
         |> List.filter (fun s -> s <> "")
         |> List.map stringToToken

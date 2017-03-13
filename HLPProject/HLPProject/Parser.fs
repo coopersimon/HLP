@@ -6,9 +6,10 @@ module Parser =
     open Tokeniser
     open Interpret.ARMv4
     open Common.State
+    open Common.Error
 
     type Instruction = 
-        | Branch of (Map<string,int> -> Instruction)
+        | Branch of (Map<string,int> -> Error<Instruction>)
         | Instr of (Common.State.StateHandle -> Common.State.StateHandle)
         | Terminate
 
@@ -18,13 +19,15 @@ module Parser =
         /// Function that resolves branch.
         let branchTo c s bInst (labels:Map<string,int>) =
             match Map.tryFind s labels with
-            | Some(memLoc) -> Instr(bInst c memLoc)
-            | None -> failwithf "branch label doesn't exist!"
+            | Some(memLoc) -> Ok(Instr(bInst c memLoc))
+            | None -> Err(sprintf "Label undefined: %s" s)
         /// Replaces placeholder branch instructions with correct instructions.
-        let rec resolveLabels labels = function
-            | (m, Branch(x))::t -> (m, x labels) :: resolveLabels labels t
-            | h::t -> h :: resolveLabels labels t
-            | [] -> []
+        let rec resolveLabels labels outLst = function
+            | (m, Branch(x))::t -> match x labels with
+                                   | Ok(h) -> resolveLabels labels (outLst@[(m, h)]) t
+                                   | Err(s) -> Err(s)
+            | h::t -> resolveLabels labels (outLst@[h]) t
+            | [] -> Ok(outLst)
         (*let secondOperand instr c s rd outLst = function
             | T_REG rn :: T_COMMA :: T_SHIFT z :: T_INT i :: t -> ((outLst@[(mem, Instr(instr c s rd rn z i 'i'))]), t)
             | *)
@@ -77,7 +80,16 @@ module Parser =
             | T_BX c :: T_REG r :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(bx c r))]) t
 
+            | T_END :: t ->
+                parseRec (mem+4) labels (outLst@[(mem, Terminate)]) t
+
             | T_LABEL s :: t -> parseRec mem (Map.add s mem labels) outLst t
-            | [] -> resolveLabels labels (outLst@[(mem, Terminate)])
-            | _ -> failwithf "unhandled parse error"
-        Map.ofList (parseRec 0 Map.empty [] tokLst)
+
+            | [] -> resolveLabels labels [] (outLst@[(mem, Terminate)])
+
+            | T_ERROR s :: t -> Err(sprintf "Invalid input string: %A" s)
+            | tok :: t -> Err(sprintf "Unexpected token: %A" tok)
+        // Convert output list to map for interpretation.
+        match parseRec 0 Map.empty [] tokLst with
+        | Ok(i) -> Ok(Map.ofList i)
+        | Err(s) -> Err(s)
