@@ -20,7 +20,7 @@ module Parser =
         let branchTo c s bInst (labels:Map<string,int>) =
             match Map.tryFind s labels with
             | Some(memLoc) -> Ok(Instr(bInst c memLoc))
-            | None -> Err(sprintf "Label undefined: %s" s)
+            | None -> Err(sprintf "Label undefined: %s." s)
         /// Replaces placeholder branch instructions with correct instructions.
         let rec resolveLabels labels outLst = function
             | (m, Branch(x))::t -> match x labels with
@@ -87,8 +87,8 @@ module Parser =
 
             | [] -> resolveLabels labels [] (outLst@[(mem, Terminate)])
 
-            | T_ERROR s :: t -> Err(sprintf "Invalid input string: %A" s)
-            | tok :: t -> Err(sprintf "Unexpected token: %A" tok)
+            | T_ERROR s :: t -> Err(sprintf "Invalid input string: %A." s)
+            | tok :: t -> Err(sprintf "Unexpected token: %A." tok)
         // Convert output list to map for interpretation.
         match parseRec 0 Map.empty [] tokLst with
         | Ok(i) -> Ok(Map.ofList i)
