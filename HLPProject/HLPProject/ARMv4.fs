@@ -515,7 +515,7 @@ module ARMv4 =
 
 //END (DONE)
     //stop emulation
-    let iend c finalInstAdd state = 
+    let endI c finalInstAddr state = 
         if c state
-        then writePC (finalInstAdd+4) state 
+        then writePC finalInstAddr state 
         else state

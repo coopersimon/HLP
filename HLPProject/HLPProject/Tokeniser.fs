@@ -62,6 +62,8 @@ module Tokeniser =
         | T_SWP of (StateHandle -> bool)
         | T_SWI of (StateHandle -> bool)
         | T_NOP of (StateHandle -> bool)
+        | T_CLZ of (StateHandle -> bool)
+        | T_END of (StateHandle -> bool)
         // shift operands
         | T_SHIFT of shiftOp
         // Values
@@ -73,7 +75,6 @@ module Tokeniser =
         | T_L_BRAC
         | T_R_BRAC
         | T_EXCL
-        | T_END
         | T_ERROR of string
 
         override x.Equals yobj =
@@ -227,7 +228,8 @@ module Tokeniser =
         | INSTR_MATCH @"^SWI" c -> T_SWI c
         | INSTR_MATCH @"^NOP" c -> T_NOP c
         | INSTR_MATCH @"^ADR" c -> T_ADR c 
-        | INSTR_MATCH @"^END" c -> T_END
+        | INSTR_MATCH @"^END" c -> T_END c
+        | INSTR_MATCH @"^CLZ" c -> T_CLZ c
         // shift operands
         | TOKEN_MATCH @"^ASR$" -> T_SHIFT T_ASR
         | TOKEN_MATCH @"^LSL$" -> T_SHIFT T_LSL
