@@ -14,6 +14,8 @@ module Tokeniser =
         // Add to discriminated union
         // Add to equals override
         // Add to stringToToken function
+
+    /// Shift tokens.
     type shiftOp =
         | T_ASR
         | T_LSL
@@ -31,33 +33,45 @@ module Tokeniser =
         | T_MVN of (StateHandle -> bool)*bool
         | T_MRS of (StateHandle -> bool)
         | T_MSR of (StateHandle -> bool)
+
         | T_ADD of (StateHandle -> bool)*bool
         | T_ADC of (StateHandle -> bool)*bool
         | T_SUB of (StateHandle -> bool)*bool
         | T_SBC of (StateHandle -> bool)*bool
         | T_RSB of (StateHandle -> bool)*bool
         | T_RSC of (StateHandle -> bool)*bool
+
         | T_MUL of (StateHandle -> bool)*bool
         | T_MLA of (StateHandle -> bool)*bool
         | T_UMULL of (StateHandle -> bool)*bool
         | T_UMLAL of (StateHandle -> bool)*bool
         | T_SMULL of (StateHandle -> bool)*bool
         | T_SMLAL of (StateHandle -> bool)*bool
+
         | T_AND of (StateHandle -> bool)*bool
         | T_ORR of (StateHandle -> bool)*bool
         | T_EOR of (StateHandle -> bool)*bool
         | T_BIC of (StateHandle -> bool)*bool
+
         | T_CMP of (StateHandle -> bool)
         | T_CMN of (StateHandle -> bool)
         | T_TST of (StateHandle -> bool)
         | T_TEQ of (StateHandle -> bool)
+
         | T_B of (StateHandle -> bool)
         | T_BL of (StateHandle -> bool)
         | T_BX of (StateHandle -> bool)
+
         | T_LDR of (StateHandle -> bool)
+        | T_LDRB of (StateHandle -> bool)
+        | T_LDRH of (StateHandle -> bool)
         | T_LDM of (StateHandle -> bool)
+
         | T_STR of (StateHandle -> bool)
+        | T_STRB of (StateHandle -> bool)
+        | T_STRH of (StateHandle -> bool)
         | T_STM of (StateHandle -> bool)
+
         | T_ADR of (StateHandle -> bool)
         | T_SWP of (StateHandle -> bool)
         | T_SWI of (StateHandle -> bool)
@@ -65,7 +79,7 @@ module Tokeniser =
         | T_CLZ of (StateHandle -> bool)
         | T_END of (StateHandle -> bool)
         // shift operands
-        | T_SHIFT of shiftOp
+        | T_SHIFT of shiftOp*((StateHandle -> bool)*bool)
         // Values
         | T_REG of int
         | T_INT of int
@@ -221,21 +235,25 @@ module Tokeniser =
         | INSTR_MATCH @"^BL" c -> T_BL c
         | INSTR_MATCH @"^BX" c -> T_BX c
         | INSTR_MATCH @"^LDR" c -> T_LDR c
-        | INSTR_MATCH @"^STR" c -> T_STR c
+        | INSTR_MATCH @"^LDRB" c -> T_LDRB c
+        | INSTR_MATCH @"^LDRH" c -> T_LDRH c
         | INSTR_MATCH @"^LDM" c -> T_LDM c
+        | INSTR_MATCH @"^STR" c -> T_STR c
+        | INSTR_MATCH @"^STRB" c -> T_STRB c
+        | INSTR_MATCH @"^STRH" c -> T_STRH c
         | INSTR_MATCH @"^STM" c -> T_STM c
         | INSTR_MATCH @"^SWP" c -> T_SWP c
         | INSTR_MATCH @"^SWI" c -> T_SWI c
         | INSTR_MATCH @"^NOP" c -> T_NOP c
-        | INSTR_MATCH @"^ADR" c -> T_ADR c 
+        | INSTR_MATCH @"^ADR" c -> T_ADR c
         | INSTR_MATCH @"^END" c -> T_END c
         | INSTR_MATCH @"^CLZ" c -> T_CLZ c
         // shift operands
-        | TOKEN_MATCH @"^ASR$" -> T_SHIFT T_ASR
-        | TOKEN_MATCH @"^LSL$" -> T_SHIFT T_LSL
-        | TOKEN_MATCH @"^LSR$" -> T_SHIFT T_LSR
-        | TOKEN_MATCH @"^ROR$" -> T_SHIFT T_ROR
-        | TOKEN_MATCH @"^RRX$" -> T_SHIFT T_RRX
+        | INSTR_S_MATCH @"^ASR" cs -> T_SHIFT (T_ASR, cs)
+        | INSTR_S_MATCH @"^LSL" cs -> T_SHIFT (T_LSL, cs)
+        | INSTR_S_MATCH @"^LSR" cs -> T_SHIFT (T_LSR, cs)
+        | INSTR_S_MATCH @"^ROR" cs -> T_SHIFT (T_ROR, cs)
+        | INSTR_S_MATCH @"^RRX" cs -> T_SHIFT (T_RRX, cs)
         // labels
         | LABEL_MATCH s -> T_LABEL s
         //| t -> failwithf "Invalid token %A" t

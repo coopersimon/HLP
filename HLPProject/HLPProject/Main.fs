@@ -13,14 +13,6 @@ let main args =
     let newState = inString |> Tokeniser.tokenise |> Parser.parser |> Interpreter.interpret state
     printfn "%A" (readReg 5 state)
     printfn "%A" (readReg 5 newState)*)
-    (*let inString = "        MOV  R0, #5 ; Set up inputs
-                            MOV  R1, #3
-                            MOV  R2, R0
-                    LOOP    ; Manual multiply
-                            ADD  R3, R3, R1
-                            SUBS R2, R2, #1
-                            BNE  LOOP
-                            MUL  R4, R0, R1 ; Instruction mult"*)
     let inString = "        MOV  R0, #5 ; setting up the inputs
                             MOV  R1, #3
                             MOV  R2, R0
