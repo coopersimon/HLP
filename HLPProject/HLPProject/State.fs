@@ -41,7 +41,7 @@ module State =
 
     /// Increment the Program Counter by 4.
     let incPC (S(reg,n,z,c,s,mem): StateHandle) =
-        let newRegs = Array.mapi (fun i x -> if i = 15 then 4 else x) reg
+        let newRegs = Array.mapi (fun i x -> if i = 15 then x+4 else x) reg
         S(newRegs,n,z,c,s,mem)
 
     /// Retrieve negative flag.
@@ -82,3 +82,7 @@ module State =
     let writeMem addr v (S(reg,n,z,c,s,mem): StateHandle) =
         let newMem = Map.add addr v mem
         S(reg,n,z,c,s,newMem)
+
+    /// Debug. Returns tuple of (Registers * Flags)
+    let readState (S(reg,n,z,c,v,_): StateHandle) =
+        (reg, [n;z;c;v])
