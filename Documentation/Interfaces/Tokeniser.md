@@ -11,7 +11,7 @@ The tokens are a DU which feature every existing word or punctuator in the assem
 
 A few tokens worth mentioning:
 * **Instructions**: *(StateHandle->bool)* - these contain their condition function, which indicates whether the instruction will run or not based on state.
-* **Instructions with suffix 'S'**: *(StateHandle->bool)\*bool* - these contain their condition function, as well as a bool which indicates whether or not the instruction will set flags.
+* **Instructions with suffix 'S'**: * (StateHandle->bool)\*bool * - these contain their condition function, as well as a bool which indicates whether or not the instruction will set flags.
 * **Register**: *int* - these contain the register number to use.
 * **Integer literal**: *int* - these contain the actual integer value to use.
 

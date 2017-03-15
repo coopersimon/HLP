@@ -64,6 +64,7 @@
     <Compile Include="ARMv4.fs" />
     <Compile Include="Parser.fs" />
     <Compile Include="Interpreter.fs" />
+    <Compile Include="GetStates.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
   <ItemGroup>
