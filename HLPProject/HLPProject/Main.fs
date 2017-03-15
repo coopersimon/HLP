@@ -1,14 +1,13 @@
 ﻿module Main
+open Execute.GetStates
 open Common.State
-open Parse
-open Interpret
 
 [<EntryPoint>]
-let main args =  
-    let state = initState
-    let inString = "MOV R5, #2"
-    let newState = inString |> Tokeniser.tokenise |> Parser.parser |> Interpreter.interpret state
-    printfn "%A" (readReg 5 state)
-    printfn "%A" (readReg 5 newState)
+let main args =
+      
+    let oState = oldState
+    let nState = newState "MOV R5, #2"
+    printfn "%A" (readReg 5 oState)
+    printfn "%A" (readReg 5 nState)
 
     0
