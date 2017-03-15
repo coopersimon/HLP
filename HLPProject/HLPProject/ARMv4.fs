@@ -473,7 +473,7 @@ module ARMv4 =
     //store address of next instruction in r14, branch to address corresponding to label
     let bl c label state =
         if c state
-        then writeReg 14 ((readPC state)+4) state
+        then writeReg 14 (readPC state) state
              |> writePC label 
         else state
 
@@ -486,12 +486,12 @@ module ARMv4 =
     //store address of next instruction in r14, branch to address indicated by op2
     let blxR c rm state = 
         if c state
-        then writeReg 14 ((readPC state)+4) state
+        then writeReg 14 (readPC state) state
              |> writePC ((readReg rm state)/2) //Bit 0 of Rm is not used as part of the address?
         else state
 
     let blxL label state = //only if no condition follows
-        writeReg 14 ((readPC state)+4) state
+        writeReg 14 (readPC state) state
         |> writePC label 
 
 //ADR, LDR and STR

@@ -20,12 +20,12 @@ module Parser =
         /// Function that resolves branch.
         let branchRef c s bInst (labels:Map<string,int>) =
             match Map.tryFind s labels with
-            | Some(memLoc) -> Ok(Instr(bInst c memLoc))
+            | Some(memLoc) -> Ok(Instr(bInst c (memLoc-4)))
             | None -> Err(sprintf "Label undefined: %s." s)
 
         /// Function that resolves end.
         let endRef c endMem =
-            Instr(endI c endMem)
+            Instr(endI c (endMem-4))
 
         /// Replaces placeholder branch and end references with correct instructions.
         let rec resolveRefs labels endMem outLst = function
@@ -222,12 +222,12 @@ module Parser =
             | T_END c :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, End(endRef c))]) t
 
-            | T_LABEL s :: t -> parseRec mem (Map.add s (mem-4) labels) outLst t
+            | T_LABEL s :: t -> parseRec mem (Map.add s (mem) labels) outLst t
 
             | [] -> resolveRefs labels mem [] (outLst@[(mem, Terminate)])
 
-            | T_ERROR s :: t -> Err(sprintf "Invalid input string: %A." s)
-            | tok :: t -> Err(sprintf "Unexpected token: %A." tok)
+            | T_ERROR s :: t -> Err(sprintf "Invalid input string: %s." s)
+            | tok :: t -> Err(sprintf "Unexpected token: %A. Followed by: %s." tok (errorList t))
         // Convert output list to map for interpretation.
         match parseRec 0 Map.empty [] tokLst with
         | Ok(i) -> Ok(Map.ofList i)

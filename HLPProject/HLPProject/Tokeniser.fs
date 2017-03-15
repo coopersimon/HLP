@@ -164,7 +164,7 @@ module Tokeniser =
         if m.Success then Some(int m.Groups.[1].Value) else None
 
     let (|LABEL_MATCH|_|) str =
-        let m = Regex.Match(str, @"^([a-zA-Z]+)$")
+        let m = Regex.Match(str, @"^([a-zA-Z_][a-zA-Z0-9_]*)$")
         if m.Success then Some(m.Groups.[1].Value) else None
 
     let (|DEC_LIT_MATCH|_|) str =
