@@ -480,14 +480,14 @@ module ARMv4 =
     //branch to address stored in rm
     let bx c rm state =
         if c state
-        then writePC ((readReg rm state)/2) state //Bit 0 of Rm is not used as part of the address?
+        then writePC ((readReg rm state)-4) state //Bit 0 of Rm is not used as part of the address? - I say we just use the whole reg
         else state
 
     //store address of next instruction in r14, branch to address indicated by op2
     let blxR c rm state = 
         if c state
         then writeReg 14 (readPC state) state
-             |> writePC ((readReg rm state)/2) //Bit 0 of Rm is not used as part of the address?
+             |> writePC ((readReg rm state)-4) //Bit 0 of Rm is not used as part of the address?
         else state
 
     let blxL label state = //only if no condition follows

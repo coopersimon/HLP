@@ -10,8 +10,8 @@ module Parser =
 
     /// Wrapper for instructions, including unresolved references.
     type Instruction = 
-        | Branch of (Map<string,int> -> Error<Instruction>)
-        | End of (int -> Instruction)
+        | LabelRef of (Map<string,int> -> Error<Instruction>)
+        | EndRef of (int -> Instruction)
         | Instr of (Common.State.StateHandle -> Common.State.StateHandle)
         | Terminate
 
@@ -23,16 +23,22 @@ module Parser =
             | Some(memLoc) -> Ok(Instr(bInst c (memLoc-4)))
             | None -> Err(sprintf "Label undefined: %s." s)
 
+        /// Function that resolves adr.
+        let adrRef c rd s (labels:Map<string,int>) =
+            match Map.tryFind s labels with
+            | Some(memLoc) -> Ok(Instr(adr c rd memLoc))
+            | None -> Err(sprintf "Label undefined: %s." s)
+
         /// Function that resolves end.
         let endRef c endMem =
             Instr(endI c (endMem-4))
 
         /// Replaces placeholder branch and end references with correct instructions.
         let rec resolveRefs labels endMem outLst = function
-            | (m, Branch(f))::t -> match f labels with
+            | (m, LabelRef(f))::t -> match f labels with
                                    | Ok(h) -> resolveRefs labels endMem (outLst@[(m, h)]) t
                                    | Err(s) -> Err(s)
-            | (m, End(f))::t -> resolveRefs labels endMem (outLst@[(m, f endMem)]) t
+            | (m, EndRef(f))::t -> resolveRefs labels endMem (outLst@[(m, f endMem)]) t
             | h::t -> resolveRefs labels endMem (outLst@[h]) t
             | [] -> Ok(outLst)
 
@@ -213,14 +219,17 @@ module Parser =
                 parseRec (mem+4) labels (outLst@[(mem, Instr(rrxR c s rd rm))]) t
 
             | T_B c :: T_LABEL s :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Branch(branchRef c s b))]) t
+                parseRec (mem+4) labels (outLst@[(mem, LabelRef(branchRef c s b))]) t
             | T_BL c :: T_LABEL s :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Branch(branchRef c s bl))]) t
+                parseRec (mem+4) labels (outLst@[(mem, LabelRef(branchRef c s bl))]) t
             | T_BX c :: T_REG r :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(bx c r))]) t
 
+            | T_ADR c :: T_REG rd :: T_COMMA :: T_LABEL s :: t ->
+                parseRec (mem+4) labels (outLst@[(mem, LabelRef(adrRef c rd s))]) t
+
             | T_END c :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, End(endRef c))]) t
+                parseRec (mem+4) labels (outLst@[(mem, EndRef(endRef c))]) t
 
             | T_LABEL s :: t -> parseRec mem (Map.add s (mem) labels) outLst t
 

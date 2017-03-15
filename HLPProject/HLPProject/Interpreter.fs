@@ -12,6 +12,6 @@ module Interpreter =
         match Map.tryFind (readPC state) instr with
         | Some(Instr(f)) -> interpret (incPC (f state)) instr
         | Some(Terminate) -> Ok(state)
-        | Some(Branch(_)) -> Err("Unresolved branch - this should have been resolved in the parser.")
-        | Some(End(_)) -> Err("Unresolved termination - this should have been resolved in the parser.")
+        | Some(LabelRef(_)) -> Err("Unresolved label (branch/adr) - this should have been resolved in the parser.")
+        | Some(EndRef(_)) -> Err("Unresolved termination - this should have been resolved in the parser.")
         | None -> Err(sprintf "Instruction does not exist at address %A." (readPC state))

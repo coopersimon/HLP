@@ -14,11 +14,9 @@ let main args =
                     MAIN
                             BL      MULT_A
                             BL      MULT_B
-                            CMP     R4, R5
-                            MOVEQ   R0, #1
-                            ENDEQ
-                            MOV     R0, R4
-                            END
+                            ADR     R10, RETURN
+                            B       FINAL
+                    RETURN  END
 
                     MULT_A
                             SUB     R3, R1, #1
@@ -30,7 +28,13 @@ let main args =
 
                     MULT_B
                             MUL     R5, R1, R2 ; instruction mult
-                            MOV     PC, LR"
+                            MOV     PC, LR
+                    
+                    FINAL
+                            CMP     R4, R5
+                            MOVEQ   R0, #1
+                            MOVNE   R0, R4
+                            BX      R10"
     let oState = oldState
     let nState = newState inString
     match nState with
