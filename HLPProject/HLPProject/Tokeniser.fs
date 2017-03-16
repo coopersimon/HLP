@@ -6,6 +6,7 @@ module Tokeniser =
     open System.Text.RegularExpressions
     open Common.Conditions
     open Common.State
+    //open Common.Error
 
     
     (***TOKENS***)
@@ -14,6 +15,14 @@ module Tokeniser =
         // Add to equals override
         // Add to stringToToken function
 
+    /// Shift tokens.
+    type shiftOp =
+        | T_ASR
+        | T_LSL
+        | T_LSR
+        | T_ROR
+        | T_RRX
+        | T_NIL // Ideally this shouldn't exist.
 
     /// Add tokens here! Format: "T_x"
     [<CustomEquality; NoComparison>]
@@ -24,37 +33,53 @@ module Tokeniser =
         | T_MVN of (StateHandle -> bool)*bool
         | T_MRS of (StateHandle -> bool)
         | T_MSR of (StateHandle -> bool)
+
         | T_ADD of (StateHandle -> bool)*bool
         | T_ADC of (StateHandle -> bool)*bool
         | T_SUB of (StateHandle -> bool)*bool
         | T_SBC of (StateHandle -> bool)*bool
         | T_RSB of (StateHandle -> bool)*bool
         | T_RSC of (StateHandle -> bool)*bool
+
         | T_MUL of (StateHandle -> bool)*bool
         | T_MLA of (StateHandle -> bool)*bool
         | T_UMULL of (StateHandle -> bool)*bool
         | T_UMLAL of (StateHandle -> bool)*bool
         | T_SMULL of (StateHandle -> bool)*bool
         | T_SMLAL of (StateHandle -> bool)*bool
+
         | T_AND of (StateHandle -> bool)*bool
         | T_ORR of (StateHandle -> bool)*bool
         | T_EOR of (StateHandle -> bool)*bool
         | T_BIC of (StateHandle -> bool)*bool
+
         | T_CMP of (StateHandle -> bool)
         | T_CMN of (StateHandle -> bool)
         | T_TST of (StateHandle -> bool)
         | T_TEQ of (StateHandle -> bool)
+
         | T_B of (StateHandle -> bool)
         | T_BL of (StateHandle -> bool)
         | T_BX of (StateHandle -> bool)
+
         | T_LDR of (StateHandle -> bool)
+        | T_LDRB of (StateHandle -> bool)
+        | T_LDRH of (StateHandle -> bool)
         | T_LDM of (StateHandle -> bool)
+
         | T_STR of (StateHandle -> bool)
+        | T_STRB of (StateHandle -> bool)
+        | T_STRH of (StateHandle -> bool)
         | T_STM of (StateHandle -> bool)
+
         | T_ADR of (StateHandle -> bool)
         | T_SWP of (StateHandle -> bool)
         | T_SWI of (StateHandle -> bool)
         | T_NOP of (StateHandle -> bool)
+        | T_CLZ of (StateHandle -> bool)
+        | T_END of (StateHandle -> bool)
+        // shift operands
+        | T_SHIFT of shiftOp*((StateHandle -> bool)*bool)
         // Values
         | T_REG of int
         | T_INT of int
@@ -64,7 +89,7 @@ module Tokeniser =
         | T_L_BRAC
         | T_R_BRAC
         | T_EXCL
-        | T_ERROR
+        | T_ERROR of string
 
         override x.Equals yobj =
             let state = initState
@@ -73,7 +98,7 @@ module Tokeniser =
                                | T_REG ix, T_REG iy -> ix = iy
                                | T_INT ix, T_INT iy -> ix = iy
                                | T_COMMA, T_COMMA -> true
-                               | T_ERROR, T_ERROR -> true
+                               | T_ERROR tx, T_ERROR ty -> tx = ty
                                | T_MOV (cx,sx), T_MOV (cy,sy) -> cx state = cy state && sx = sy
                                | T_MVN (cx,sx), T_MVN (cy,sy) -> cx state = cy state && sx = sy
                                | T_MRS cx, T_MRS cy -> cx state = cy state
@@ -139,7 +164,7 @@ module Tokeniser =
         if m.Success then Some(int m.Groups.[1].Value) else None
 
     let (|LABEL_MATCH|_|) str =
-        let m = Regex.Match(str, @"^([a-zA-Z]+)$")
+        let m = Regex.Match(str, @"^([a-zA-Z_][a-zA-Z0-9_]*)$")
         if m.Success then Some(m.Groups.[1].Value) else None
 
     let (|DEC_LIT_MATCH|_|) str =
@@ -192,14 +217,52 @@ module Tokeniser =
         | INSTR_S_MATCH @"^SBC" cs -> T_SBC cs
         | INSTR_S_MATCH @"^RSB" cs -> T_RSB cs
         | INSTR_S_MATCH @"^RSC" cs -> T_RSC cs
+        | INSTR_S_MATCH @"^MUL" cs -> T_MUL cs
+        | INSTR_S_MATCH @"^MLA" cs -> T_MLA cs
+        | INSTR_S_MATCH @"^UMULL" cs -> T_UMULL cs
+        | INSTR_S_MATCH @"^UMLAL" cs -> T_UMLAL cs
+        | INSTR_S_MATCH @"^SMULL" cs -> T_SMULL cs
+        | INSTR_S_MATCH @"^SMLAL" cs -> T_SMLAL cs
+        | INSTR_S_MATCH @"^AND" cs -> T_AND cs
+        | INSTR_S_MATCH @"^ORR" cs -> T_ORR cs
+        | INSTR_S_MATCH @"^EOR" cs -> T_EOR cs
+        | INSTR_S_MATCH @"^BIC" cs -> T_BIC cs
+        | INSTR_MATCH @"^CMP" c -> T_CMP c
+        | INSTR_MATCH @"^CMN" c -> T_CMN c
+        | INSTR_MATCH @"^TST" c -> T_TST c
+        | INSTR_MATCH @"^TEQ" c -> T_TEQ c
+        | INSTR_MATCH @"^B" c -> T_B c
+        | INSTR_MATCH @"^BL" c -> T_BL c
+        | INSTR_MATCH @"^BX" c -> T_BX c
+        | INSTR_MATCH @"^LDR" c -> T_LDR c
+        | INSTR_MATCH @"^LDRB" c -> T_LDRB c
+        | INSTR_MATCH @"^LDRH" c -> T_LDRH c
+        | INSTR_MATCH @"^LDM" c -> T_LDM c
+        | INSTR_MATCH @"^STR" c -> T_STR c
+        | INSTR_MATCH @"^STRB" c -> T_STRB c
+        | INSTR_MATCH @"^STRH" c -> T_STRH c
+        | INSTR_MATCH @"^STM" c -> T_STM c
+        | INSTR_MATCH @"^SWP" c -> T_SWP c
+        | INSTR_MATCH @"^SWI" c -> T_SWI c
+        | INSTR_MATCH @"^NOP" c -> T_NOP c
+        | INSTR_MATCH @"^ADR" c -> T_ADR c
+        | INSTR_MATCH @"^END" c -> T_END c
+        | INSTR_MATCH @"^CLZ" c -> T_CLZ c
+        // shift operands
+        | INSTR_S_MATCH @"^ASR" cs -> T_SHIFT (T_ASR, cs)
+        | INSTR_S_MATCH @"^LSL" cs -> T_SHIFT (T_LSL, cs)
+        | INSTR_S_MATCH @"^LSR" cs -> T_SHIFT (T_LSR, cs)
+        | INSTR_S_MATCH @"^ROR" cs -> T_SHIFT (T_ROR, cs)
+        | INSTR_S_MATCH @"^RRX" cs -> T_SHIFT (T_RRX, cs)
         // labels
         | LABEL_MATCH s -> T_LABEL s
-        | _ -> T_ERROR
+        //| t -> failwithf "Invalid token %A" t
+        | t -> T_ERROR t
 
 
     /// Take in string and output list of tokens.
     let tokenise (source: string) =
-        Regex.Split(source, @"([,\[\]!])|[ \t\n\r\f]")
+        Regex.Split(source, @"([,\[\]!])|[ \t\n\r\f]+|;.*")
         |> Array.toList
         |> List.filter (fun s -> s <> "")
         |> List.map stringToToken

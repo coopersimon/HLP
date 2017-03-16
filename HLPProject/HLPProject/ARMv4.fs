@@ -3,244 +3,519 @@
 namespace Interpret
 module ARMv4 =
     open Common.State
-    open Common.Conditions
+    open Parse.Tokeniser
 
-//flexible second operand
-//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHBEAGE.html
-//still need to account for when op2 is shifted***
-//need to account for flag writing*** {S} only applies to move, arithmetic and logical instructions
-//note that instructions work with int32
-//B, BL and BLX are still a little dubious (label), need to work on returning from branch???
+    let shiftI inst r n state =
+        match inst with 
+        |T_LSL -> if (n>=0)&&(n<=31) then (readReg r state)<<<n
+                                     else failwith "Invalid n."
+        |T_LSR -> if (n>=1)&&(n<=32) then (if n=32 then 0 else int((uint32 (readReg r state))/(uint32 (2.0**(float n))))) 
+                                     else failwith "Invalid n."
+        |T_ASR -> if (n>=1)&&(n<=32) then (readReg r state)/(int (2.0**(float n))) 
+                                     else failwith "Invalid n."
+        |T_ROR -> if (n>=1)&&(n<=31) then (readReg r state)>>>n 
+                                     else failwith "Invalid n."
+        |T_RRX -> match (readCFlag state) with
+                    |true -> (readReg r state)/2 + 1<<<31
+                    |false -> (readReg r state)/2
+        |T_NIL -> readReg r state
 
-//MOV and MVN (need to account for shift and rotate)
+    let shiftR inst r rn state =
+        shiftI inst r (readReg rn state) state
+
+    let shiftSetCI s inst r n state =
+        match inst with
+        |T_LSL -> if s then writeCFlag (((readReg r state)>>>(32-n))%2<>0) state else state 
+        |T_LSR -> if s then writeCFlag (((readReg r state)>>>(n-1))%2<>0) state else state 
+        |T_ASR -> if s then writeCFlag (((readReg r state)>>>(n-1))%2<>0) state else state 
+        |T_ROR -> if s then writeCFlag (((readReg r state)>>>(n-1))%2<>0) state else state 
+        |T_RRX -> if s then writeCFlag ((readReg r state)%2<>0) state else state
+        |T_NIL -> state
+
+    let shiftSetCR s inst r rn state = 
+        shiftSetCI s inst r (readReg rn state) state
+
+//functions to set flags
+    //set N and Z flags for all cases
+    let setNZ result state =
+        state |> writeNFlag (result<0) |> writeZFlag (result=0)
+
+    //set C for arithmetic ADD, ADC, SUB, SBC, RSB and RSC cases (Note: in1 and in2 are int64)
+    let setC in1 in2 state = 
+        writeCFlag (((in1+in2)>>>32)%2L<>0L) state
+
+    //set V for arithmetic ADD, ADC, SUB, SBC, RSB and RSC cases (Note: in1 and in2 are int64)
+    let setV in1 in2 state =   
+        let cin = (((in1*2L)+(in2*2L)) >>> 32)%2L
+        let cout = ((in1+in2)>>>32)%2L
+        writeVFlag (cin<>cout) state
+     
+     //this function converts an int32 to an int64 without signed extension.
+    let conv64 i = int64 (uint32 i)
+
+//MOV and MVN (DONE)
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHCDBCA.html
 
     //write op2 to r
-    (*let movI c s r i state =
-        if c state
-        then writeReg r i state
-        else state*)
-
-    let movI c s r i state =
+    let movI c s rd i state = //if s: sets N and Z flags only
         match (c state, s) with
-        | (true, true) -> state |> writeReg r i
-                          |> if r = 0 then writeZFlag true else writeZFlag false
-                          |> if r < 0 then writeNFlag true else writeNFlag false
-        | (true, false) -> writeReg r i state
+        | (true, true) -> state |> writeReg rd i |> setNZ i
+        | (true, false) -> writeReg rd i state
         | _ -> state
 
-    let movR c r1 r2 state =
-        if c state
-        then writeReg r1 (readReg r2 state) state
-        else state
+    let movR c s rd rm rsinst nORrn rstype state = //if s: sets N, Z (and C) flags only
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        if s
+        then match rstype with
+             |'i' -> shiftSetCI s rsinst rm nORrn state |> movI c s rd op2
+             |'r' -> shiftSetCR s rsinst rm nORrn state |> movI c s rd op2
+             | _ -> movI c s rd op2 state 
+        else movI c s rd op2 state 
+        
 
     //write bitwise not of op2 to r
-    let mvnI c r i state =
-        if c state
-        then writeReg r (~~~i) state
-        else state
+    let mvnI c s rd i state = //if s: sets N and Z flags only
+        movI c s rd ~~~i state 
 
-    let mvnR c r1 r2 state =
-        if c state
-        then writeReg r1 (~~~(readReg r2 state)) state
-        else state
+    let mvnR c s rd rm rsinst nORrn rstype state = //if s: sets N, Z (and C) flags only
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        if s
+        then match rstype with
+             |'i' -> shiftSetCI s rsinst rm nORrn state |> mvnI c s rd op2 
+             |'r' -> shiftSetCR s rsinst rm nORrn state |> mvnI c s rd op2 
+             | _ -> mvnI c s rd op2 state 
+        else mvnI c s rd op2 state       
 
-//ADD, ADC, SUB, SBC, RSB and RSC (need to account for shift and rotate)
+//ADD, ADC, SUB, SBC, RSB and RSC (DONE)
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHCJFJG.html
 
-    //write r2+op2 to r1
-    let addI c r1 r2 i state =
-        if c state
-        then writeReg r1 ((readReg r2 state)+i) state
-        else state
+    //write rn+op2 to rd
+    let addI c s rd rn i state = //if s: sets N, Z, C, V flags
+        match (c state, s) with 
+        | (true, true) -> writeReg rd ((readReg rn state)+i) state
+                          |> setNZ ((readReg rn state)+i) 
+                          |> setC (conv64 (readReg rn state)) (conv64 i)
+                          |> setV (conv64 (readReg rn state)) (conv64 i) 
+        | (true, false) -> writeReg rd ((readReg rn state)+i) state
+        | _ -> state
     
-    let addR c r1 r2 r3 state =
-        if c state
-        then writeReg r1 ((readReg r2 state)+(readReg r3 state)) state
-        else state
+    let addR c s rd rn rm rsinst nORrn rstype state = //if s: sets N, Z, C, V flags
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        addI c s rd rn op2 state
 
-    //write r2+op2+carry to r1
-    let adcI c r1 r2 i state =
-        if c state
-        then 
-            if readCFlag state 
-            then writeReg r1 ((readReg r2 state)+i+1) state
-            else writeReg r1 ((readReg r2 state)+i) state
-        else state
+    //write rn+op2+carry to rd
+    let adcI c s rd rn i state = //if s: sets N, Z, C, V flags
+        match (c state, s, readCFlag state) with 
+        | (true, true, false) -> writeReg rd ((readReg rn state)+i) state
+                                 |> setNZ ((readReg rn state)+i) 
+                                 |> setC (conv64 (readReg rn state)) (conv64 i)
+                                 |> setV (conv64 (readReg rn state)) (conv64 i) 
+        | (true, true, true) ->  writeReg rd ((readReg rn state)+i+1) state
+                                 |> setNZ ((readReg rn state)+i+1) 
+                                 |> setC (conv64 (readReg rn state)) ((conv64 i)+1L)
+                                 |> setV (conv64 (readReg rn state)) ((conv64 i)+1L) 
+        | (true, false, false) -> writeReg rd ((readReg rn state)+i) state
+        | (true, false, true) -> writeReg rd ((readReg rn state)+i+1) state
+        | _ -> state
     
-    let adcR c r1 r2 r3 state insr l =
-        if c state
-        then 
-            if readCFlag state
-            then writeReg r1 ((readReg r2 state)+(readReg r3 state)+1) state
-            else writeReg r1 ((readReg r2 state)+(readReg r3 state)) state
-        else state
+    let adcR c s rd rn rm rsinst nORrn rstype state = //if s: sets N, Z, C, V flags
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        adcI c s rd rn op2 state
     
-    //write r2-op2 to r1
-    let subI c r1 r2 i state =
-        if c state
-        then writeReg r1 ((readReg r2 state)-i) state
-        else state
+    //write rn-op2 to rd
+    let subI c s rd rn i state = //if s: sets N, Z, C, V flags
+        addI c s rd rn -i state
     
-    let subR c r1 r2 r3 state =
-        if c state
-        then writeReg r1 ((readReg r2 state)-(readReg r3 state)) state
-        else state
+    let subR c s rd rn rm rsinst nORrn rstype state = //if s: sets N, Z, C, V flags
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        subI c s rd rn op2 state
 
-    //write r2-op2-!carry to r1
-    let sbcI c r1 r2 i state =
-        if c state
-        then 
-            if readCFlag state 
-            then writeReg r1 ((readReg r2 state)-i) state
-            else writeReg r1 ((readReg r2 state)-i-1) state
-        else state
+    //write rn-op2-!carry to rd
+    let sbcI c s rd rn i state = //if s: sets N, Z, C, V flags
+        match (c state, s, readCFlag state) with 
+        | (true, true, true) -> writeReg rd ((readReg rn state)-i) state
+                                |> setNZ ((readReg rn state)-i)
+                                |> setC (conv64 (readReg rn state)) (conv64 -i) 
+                                |> setV (conv64 (readReg rn state)) (conv64 -i)
+        | (true, true, false) -> writeReg rd ((readReg rn state)-i-1) state
+                                |> setNZ ((readReg rn state)-i-1) 
+                                |> setC (conv64 (readReg rn state)) ((conv64 -i)-1L) 
+                                |> setV (conv64 (readReg rn state)) ((conv64 -i)-1L) 
+        | (true, false, true) -> writeReg rd ((readReg rn state)-i) state
+        | (true, false, false) -> writeReg rd ((readReg rn state)-i-1) state
+        | _ -> state
     
-    let sbcR c r1 r2 r3 state =
-        if c state
-        then 
-            if readCFlag state
-            then writeReg r1 ((readReg r2 state)-(readReg r3 state)) state
-            else writeReg r1 ((readReg r2 state)-(readReg r3 state)-1) state
-        else state
+    let sbcR c s rd rn rm rsinst nORrn rstype state = //if s: sets N, Z, C, V flags
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        sbcI c s rd rn op2 state
 
-    //write op2-r2 to r1
-    let rsbI c r1 r2 i state =
-        if c state
-        then writeReg r1 (i-(readReg r2 state)) state
-        else state
+    //write op2-rn to rd
+    let rsbI c s rd rn i state = //if s: sets N, Z, C, V flags
+        match (c state, s) with 
+        | (true, true) -> writeReg rd (i-(readReg rn state)) state
+                          |> setNZ (i-(readReg rn state))
+                          |> setC (conv64 -(readReg rn state)) (conv64 i) 
+                          |> setV (conv64 -(readReg rn state)) (conv64 i) 
+        | (true, false) -> writeReg rd (i-(readReg rn state)) state
+        | _ -> state
     
-    let rsbR c r1 r2 r3 state =
-        if c state
-        then writeReg r1 ((readReg r3 state)-(readReg r2 state)) state
-        else state
+    let rsbR c s rd rn rm rsinst nORrn rstype state = //if s: sets N, Z, C, V flags
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        rsbI c s rd rn op2 state
 
-    //write op2-r2-!carry to r1
-    let rscI c r1 r2 i state =
-        if c state
-        then 
-            if readCFlag state 
-            then writeReg r1 (i-(readReg r2 state)) state
-            else writeReg r1 (i-(readReg r2 state)-1) state
-        else state
+    //write op2-rn-!carry to rd
+    let rscI c s rd rn i state = //if s: sets N, Z, C, V flags
+        match (c state, s, readCFlag state) with 
+        | (true, true, true) -> writeReg rd (i-(readReg rn state)) state
+                                |> setNZ (i-(readReg rn state)) 
+                                |> setC (conv64 -(readReg rn state)) (conv64 i) 
+                                |> setV (conv64 -(readReg rn state)) (conv64 i) 
+        | (true, true, false) -> writeReg rd (i-(readReg rn state)-1) state
+                                |> setNZ (i-(readReg rn state)-1) 
+                                |> setC (conv64 -(readReg rn state)) ((conv64 i)-1L) 
+                                |> setV (conv64 -(readReg rn state)) ((conv64 i)-1L)
+        | (true, false, true) -> writeReg rd (i-(readReg rn state)) state
+        | (true, false, false) -> writeReg rd (i-(readReg rn state)-1) state
+        | _ -> state
     
-    let rscR c r1 r2 r3 state =
-        if c state
-        then 
-            if readCFlag state
-            then writeReg r1 ((readReg r3 state)-(readReg r2 state)) state
-            else writeReg r1 ((readReg r3 state)-(readReg r2 state)-1) state
-        else state
+    let rscR c s rd rn rm rsinst nORrn rstype state = //if s: sets N, Z, C, V flags
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        rscI c s rd rn op2 state
 
-//MUL and MLA
+//CMP and CMN (DONE)
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHIDDID.html
+
+    //same as SUBS but discards results
+    let cmpI c rn i state = //sets N, Z, C, V flags
+        match c state with 
+        | true -> setNZ ((readReg rn state)-i) state
+                  |> setC (conv64 (readReg rn state)) (conv64 -i) 
+                  |> setV (conv64 (readReg rn state)) (conv64 -i) 
+        | false -> state
+
+    let cmpR c rn rm rsinst nORrn rstype state = //sets N, Z, C, V flags
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        cmpI c rn op2 state
+        
+    //same as ADDS but discards results
+    let cmnI c rn i state = //sets N, Z, C, V flags
+        match c state with 
+        | true -> setNZ ((readReg rn state)+i) state
+                  |> setC (conv64 (readReg rn state)) (conv64 i)
+                  |> setV (conv64 (readReg rn state)) (conv64 i)
+        | false -> state
+
+    let cmnR c rn rm rsinst nORrn rstype state = //sets N, Z, C, V flags
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        cmnI c rn op2 state        
+
+//MUL and MLA (DONE)
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHIHGGJ.html
     
-    //write r2*r3 to r1
-    let mulR c r1 r2 r3 state =
-        if c state
-        then writeReg r1 ((readReg r2 state)*(readReg r3 state)) state
-        else state
+    //write rm*rs to rd
+    let mulR c s rd rm rs state = //if s: sets N and Z flags only
+        let res = (readReg rm state)*(readReg rs state)
+        match (c state, s) with 
+        | (true, true) -> writeReg rd res state
+                          |> setNZ res 
+        | (true, false) -> writeReg rd res state
+        | _ -> state    
     
-    //write r2*r3+r4 to r1
-    let mulRA c r1 r2 r3 r4 state =
-        if c state
-        then writeReg r1 ((readReg r2 state)*(readReg r3 state)+(readReg r4 state)) state
-        else state
+    //write rm*rs+rn to rd
+    let mlaR c s rd rm rs rn state = //if s: sets N and Z flags only
+        let res = (readReg rm state)*(readReg rs state)+(readReg rn state)
+        match (c state, s) with 
+        | (true, true) -> writeReg rd res state
+                          |> setNZ res 
+        | (true, false) -> writeReg rd res state
+        | _ -> state        
 
-//AND, ORR, EOR, and BIC
-    //write bitwise AND of r2 and op2 to r1
-    let andI c r1 r2 i state =
-        if c state
-        then writeReg r1 ((readReg r2 state)&&&i) state
-        else state
+//AND, ORR, EOR, and BIC (DONE)
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHDAFAI.html
+
+    //write bitwise AND of rn and op2 to rd
+    let andI c s rd rn i state = //if s: sets N and Z flags only
+        match (c state, s) with 
+        | (true, true) -> writeReg rd ((readReg rn state)&&&i) state
+                          |> setNZ ((readReg rn state)&&&i) 
+        | (true, false) -> writeReg rd ((readReg rn state)&&&i) state
+        | _ -> state
     
-    let andR c r1 r2 r3 state =
-        if c state
-        then writeReg r1 ((readReg r2 state)&&&(readReg r3 state)) state
-        else state
+    let andR c s rd rn rm rsinst nORrn rstype state = //if s: sets N, Z (and C) flags only
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        if s
+        then match rstype with
+             |'i' -> shiftSetCI s rsinst rm nORrn state |> andI c s rd rn op2
+             |'r' -> shiftSetCR s rsinst rm nORrn state |> andI c s rd rn op2
+             | _ -> andI c s rd rn op2 state
+        else andI c s rd rn op2 state
 
-    //write bitwise OR of r2 and op2 to r1
-    let orrI c r1 r2 i state =
-        if c state
-        then writeReg r1 ((readReg r2 state)|||i) state
-        else state
+    //write bitwise OR of rn and op2 to rd
+    let orrI c s rd rn i state = //if s: sets N and Z flags only
+        match (c state, s) with 
+        | (true, true) -> writeReg rd ((readReg rn state)|||i) state
+                          |> setNZ ((readReg rn state)|||i) 
+        | (true, false) -> writeReg rd ((readReg rn state)|||i) state
+        | _ -> state
+
+    let orrR c s rd rn rm rsinst nORrn rstype state = //if s: sets N, Z (and C) flags only
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        if s
+        then match rstype with
+             |'i' -> shiftSetCI s rsinst rm nORrn state |> orrI c s rd rn op2
+             |'r' -> shiftSetCR s rsinst rm nORrn state |> orrI c s rd rn op2
+             | _ -> orrI c s rd rn op2 state
+        else orrI c s rd rn op2 state
+
+    //write bitwise XOR of rn and op2 to rd
+    let eorI c s rd rn i state = //if s: sets N and Z flags only
+        match (c state, s) with 
+        | (true, true) -> writeReg rd ((readReg rn state)^^^i) state
+                          |> setNZ ((readReg rn state)^^^i)
+        | (true, false) -> writeReg rd ((readReg rn state)^^^i) state
+        | _ -> state
     
-    let orrR c r1 r2 r3 state =
-        if c state
-        then writeReg r1 ((readReg r2 state)|||(readReg r3 state)) state
-        else state
+    let eorR c s rd rn rm rsinst nORrn rstype state = //if s: sets N, Z (and C) flags only
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        if s
+        then match rstype with
+             |'i' -> shiftSetCI s rsinst rm nORrn state |> eorI c s rd rn op2
+             |'r' -> shiftSetCR s rsinst rm nORrn state |> eorI c s rd rn op2
+             | _ -> eorI c s rd rn op2 state
+        else eorI c s rd rn op2 state
 
-    //write bitwise XOR of r2 and op2 to r1
-    let eorI c r1 r2 i state =
-        if c state
-        then writeReg r1 ((readReg r2 state)^^^i) state
-        else state
+    //write bitwise AND of rn and NOT(op2) to rd
+    let bicI c s rd rn i state = //if s: sets N and Z flags only
+        andI c s rd rn (~~~i) state
     
-    let eorR c r1 r2 r3 state =
-        if c state
-        then writeReg r1 ((readReg r2 state)^^^(readReg r3 state)) state
-        else state
+    let bicR c s rd rn rm rsinst nORrn rstype state = //if s: sets N, Z (and C) flags only
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        if s
+        then match rstype with
+             |'i' -> shiftSetCI s rsinst rm nORrn state |> bicI c s rd rn op2
+             |'r' -> shiftSetCR s rsinst rm nORrn state |> bicI c s rd rn op2
+             | _ -> bicI c s rd rn op2 state
+        else bicI c s rd rn op2 state
 
-    //write bitwise AND of r2 and NOT(op2) to r1
-    let bicI c r1 r2 i state =
-        if c state
-        then writeReg r1 ((readReg r2 state)&&&(~~~i)) state
-        else state
-    
-    let bicR c r1 r2 r3 state =
-        if c state
-        then writeReg r1 ((readReg r2 state)&&&(~~~(readReg r3 state))) state
-        else state
+//TST and TEQ (DONE)
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHCDEHH.html
 
-//B, BL and BX
+    //same as ANDS but discards results
+    let tstI c rn i state = //sets N and Z flags only
+        match c state with 
+        | true -> setNZ ((readReg rn state)&&&i) state
+        | false -> state
 
-    //branch to label
+    let tstR c rn rm rsinst nORrn rstype state = //sets N, Z (and C) flags only
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        tstI c rn op2 state
+        (*if s
+        then match rstype with
+             |'i' -> shiftSetCI s rsinst rm nORrn state |> tstI c rn op2
+             |'r' -> shiftSetCR s rsinst rm nORrn state |> tstI c rn op2
+             | _ -> tstI c rn op2 state
+        else tstI c rn op2 state*)
+        
+    //same as EORS but discards results
+    let teqI c rn i state = //sets N and Z flags only
+        match c state with 
+        | true -> setNZ ((readReg rn state)^^^i) state
+        | false -> state
+
+    let teqR c rn rm rsinst nORrn rstype state = //sets N, Z (and C) flags only
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        teqI c rn op2 state
+        (*if s
+        then match rstype with
+             |'i' -> shiftSetCI s rsinst rm nORrn state |> teqI c rn op2
+             |'r' -> shiftSetCR s rsinst rm nORrn state |> teqI c rn op2
+             | _ -> teqI c rn op2 state
+        else teqI c rn op2 state  *)
+
+//CLZ (DONE)
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHJGJED.html
+
+    //counts the number of leading zeroes in the value in Rm and returns the result in Rd
+    let clzR c rd rm state = 
+        let rec loop m c = match m with
+                           | 0  -> 32
+                           | m when m < 0 -> c
+                           | _  -> loop (m <<< 1) (c + 1)
+        writeReg rd (loop (readReg rm state) 0) state
+        
+//LSL, LSR, ASR, ROR, RRX (DONE)
+
+    //logical shift left rm by rn, write into rd
+    let lslR c s rd rm rn state = //if s: set N and Z only
+        let op2 = shiftR (T_LSL) rm rn state
+        match (c state, s) with
+        | (true, true) -> writeReg rd op2 state
+                          |> setNZ op2
+                          |> shiftSetCR s (T_LSL) rm rn 
+        | (true, false) -> writeReg rd op2 state
+        | _ -> state        
+
+    //logical shift right rm by rn, write into rd
+    let lsrR c s rd rm rn state = //if s: set N and Z only
+        let op2 = shiftR (T_LSR) rm rn state
+        match (c state, s) with
+        | (true, true) -> writeReg rd op2 state
+                          |> setNZ op2
+                          |> shiftSetCR s (T_LSR) rm rn 
+        | (true, false) -> writeReg rd op2 state
+        | _ -> state       
+        
+     //arithmetic shift right rm by rn, write into rd
+    let asrR c s rd rm rn state = //if s: set N and Z only
+        let op2 = shiftR (T_ASR) rm rn state
+        match (c state, s) with
+        | (true, true) -> writeReg rd op2 state
+                         |> setNZ op2
+                         |> shiftSetCR s (T_ASR) rm rn 
+        | (true, false) -> writeReg rd op2 state
+        | _ -> state        
+     
+     //rotate right rm by rn, write into rd
+    let rorR c s rd rm rn state = //if s: set N, Z and (C) only
+        let op2 = shiftR (T_ROR) rm rn state
+        match (c state, s) with
+        | (true, true) -> writeReg rd op2 state
+                          |> setNZ op2 
+                          |> shiftSetCR s (T_ROR) rm rn 
+        | (true, false) -> writeReg rd op2 state
+        | _ -> state             
+        
+     //rotate right (and extend) rm by 1, write into rd
+    let rrxR c s rd rm state = //if s: set N, Z (and C) only
+        let op2 = shiftR (T_RRX) rm (1) state
+        match (c state, s) with
+        | (true, true) -> writeReg rd op2 state
+                          |> setNZ op2 
+                          |> shiftSetCR s (T_RRX) rm (1) 
+        | (true, false) -> writeReg rd op2 state
+        | _ -> state              
+
+//B, BL, BX, BLX (DONE)
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHFDDAF.html
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHDGEAI.html
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHFJFDG.html
+
+    //branch to address corresponding to label
     let b c label state =
         if c state
         then writePC label state
         else state
 
-    //store next instruction in r14, branch to label
+    //store address of next instruction in r14, branch to address corresponding to label
     let bl c label state =
         if c state
-        then 
-            state |>
-            writeReg 14 ((readPC state)+4) |>
-            writePC label
+        then writeReg 14 (readPC state) state
+             |> writePC label 
         else state
 
-    //branch to r
-    let bx c r state =
+    //branch to address stored in rm
+    let bx c rm state =
         if c state
-        then writePC (readReg r state) state
+        then writePC ((readReg rm state)-4) state //Bit 0 of Rm is not used as part of the address? - I say we just use the whole reg
         else state
 
-    //store next instruction in r14, branch to op2 (some link with thumb here...?)
-    let blxR c r state = //only if condition follows
+    //store address of next instruction in r14, branch to address indicated by op2
+    let blxR c rm state = 
         if c state
-        then 
-            state |>
-            writeReg 14 ((readPC state)+4) |>
-            writePC (readReg r state)
+        then writeReg 14 (readPC state) state
+             |> writePC ((readReg rm state)-4) //Bit 0 of Rm is not used as part of the address?
         else state
 
-    let blxL c label state = //only if no condition follows
+    let blxL label state = //only if no condition follows
+        writeReg 14 (readPC state) state
+        |> writePC label 
+
+//ADR, LDR and STR
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0041c/Babcjaii.html
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/Bcfihdhj.html (in progress)
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/Chdbifed.html (in progress)
+
+    //writes the address corresponding to label into rd
+    let adr c rd label state =
         if c state
-        then 
-            state |>
-            writeReg 14 ((readPC state)+4) |>
-            writePC label
+        then writeReg rd label state  
         else state
 
-//CMP and CMN (need to account for shift and rotate)
-    //update the N, Z, C and V flags according to the result
+//LDM and STM
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHCADDA.html
 
-    //same as SUBS but discards results
-    let cmpI c r i state =
+//DCD, EQU and FILL
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0041c/Babbfcga.html
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489h/Caccddic.html
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489f/Babchded.html
+
+//END (DONE)
+    //stop emulation
+    let endI c finalInstAddr state = 
         if c state
-        then state // placeholder so it compiles
+        then writePC finalInstAddr state 
         else state
-
-    let cmpR c r1 r2 state =
-        if c state
-        then state // placeholder so it compiles
-        else state
-
-//TST and TEQ (need to account for shift and rotate)

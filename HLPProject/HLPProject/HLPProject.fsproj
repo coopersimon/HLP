@@ -57,12 +57,14 @@
     <None Include="App.config" />
     <Compile Include="AssemblyInfo.fs" />
     <Compile Include="TestFramework.fs" />
+    <Compile Include="Error.fs" />
     <Compile Include="State.fs" />
     <Compile Include="Conditions.fs" />
-    <Compile Include="ARMv4.fs" />
     <Compile Include="Tokeniser.fs" />
+    <Compile Include="ARMv4.fs" />
     <Compile Include="Parser.fs" />
     <Compile Include="Interpreter.fs" />
+    <Compile Include="GetStates.fs" />
     <Compile Include="Main.fs" />
   </ItemGroup>
   <ItemGroup>
