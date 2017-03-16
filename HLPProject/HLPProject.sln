@@ -18,6 +18,8 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "ARMv4Test", "ARMv4Test\ARMv
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "TokeniserTest", "TokeniserTest\TokeniserTest.fsproj", "{AD55F068-D0BA-4D99-823B-538470F25C6C}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "visual", "..\visual\visual\visual.fsproj", "{1538C2FC-6669-42B4-A93C-2FF791C1867A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -48,6 +50,10 @@ Global
 		{AD55F068-D0BA-4D99-823B-538470F25C6C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AD55F068-D0BA-4D99-823B-538470F25C6C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AD55F068-D0BA-4D99-823B-538470F25C6C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1538C2FC-6669-42B4-A93C-2FF791C1867A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1538C2FC-6669-42B4-A93C-2FF791C1867A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1538C2FC-6669-42B4-A93C-2FF791C1867A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1538C2FC-6669-42B4-A93C-2FF791C1867A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
