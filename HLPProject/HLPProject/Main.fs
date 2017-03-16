@@ -35,9 +35,9 @@ let main args =
                             MOVEQ   R0, #1
                             MOVNE   R0, R4
                             BX      R10"
-    let oState = oldState
-    let nState = newState inString
+    let oState = initState
+    let nState = newState oState inString
     match nState with
-    | Ok(nState) -> printfn "Valid = %A" (readReg 0 nState)
+    | Ok(s) -> printfn "Valid = %A" (readReg 0 s)
     | Err(msg) -> printfn "%s" msg
     0
