@@ -707,7 +707,7 @@ module ARMv4 =
                                  |> writeReg hReg (readMem mem state)
                                  |> loop (mem+4) tailReg
             | [] -> state
-        if let startMem = readReg rn state
+        let startMem = readReg rn state
         if c state
         then if write then WriteReg rn (startMem+(reglist.length)*4) else state
              |> loop startMem reglist
@@ -720,7 +720,7 @@ module ARMv4 =
                                  |> writeReg hReg (readMem mem state)
                                  |> loop (mem+4) tailReg
             | [] -> state
-        if let startMem = readReg rn state
+        let startMem = readReg rn state
         if c state
         then if write then WriteReg rn (startMem+(reglist.length+1)*4) else state
              |> loop startMem+4 reglist
@@ -733,7 +733,7 @@ module ARMv4 =
                                  |> writeReg hReg (readMem mem state)
                                  |> loop (mem-4) tailReg
             | [] -> state
-        if let startMem = readReg rn state
+        let startMem = readReg rn state
         if c state
         then if write then WriteReg rn (startMem-(reglist.length)*4) else state
              |> loop startMem reglist
@@ -746,7 +746,7 @@ module ARMv4 =
                                  |> writeReg hReg (readMem mem state)
                                  |> loop (mem-4) tailReg
             | [] -> state
-        if let startMem = readReg rn state
+        let startMem = readReg rn state
         if c state
         then if write then WriteReg rn (startMem-(reglist.length+1)*4) else state
              |> loop startMem-4 reglist
@@ -759,7 +759,7 @@ module ARMv4 =
                                  |> writeMem mem (readReg hReg state)
                                  |> loop (mem+4) tailReg
             | [] -> state
-        if let startMem = readReg rn state
+        let startMem = readReg rn state
         if c state
         then if write then WriteReg rn (startMem+(reglist.length)*4) else state
              |> loop startMem reglist
@@ -772,7 +772,7 @@ module ARMv4 =
                                  |> writeMem mem (readReg hReg state)
                                  |> loop (mem+4) tailReg
             | [] -> state
-        if let startMem = readReg rn state
+        let startMem = readReg rn state
         if c state
         then if write then WriteReg rn (startMem+(reglist.length+1)*4) else state
              |> loop startMem+4 reglist
@@ -785,7 +785,7 @@ module ARMv4 =
                                  |> writeMem mem (readReg hReg state)
                                  |> loop (mem-4) tailReg
             | [] -> state
-        if let startMem = readReg rn state
+        let startMem = readReg rn state
         if c state
         then if write then WriteReg rn (startMem-(reglist.length)*4) else state
              |> loop startMem reglist
@@ -798,7 +798,7 @@ module ARMv4 =
                                  |> writeMem mem (readReg hReg state)
                                  |> loop (mem-4) tailReg
             | [] -> state
-        if let startMem = readReg rn state
+        let startMem = readReg rn state
         if c state
         then if write then WriteReg rn (startMem-(reglist.length+1)*4) else state
              |> loop startMem-4 reglist
@@ -809,9 +809,39 @@ module ARMv4 =
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489h/Caccddic.html
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489f/Babchded.html
 
+    let dcd label valList state = 
+        let loop mem vlist state = 
+            match ilist with
+            | (i,'i') :: tailReg -> state
+                                    |> writeMem mem i
+                                    |> loop (mem+4) tailList
+            | (m,'m') :: tailReg -> state
+                                    |> writeMem mem (readMem m)
+                                    |> loop (mem+4) tailList
+            | [] -> state
+            | _ -> failwith "Invalid data type."
+        if c state
+        then loop label vallist state
+        else state
+    
+    let equ name val state = 
+        match val with
+        | (i,'i') :: tailReg -> state
+                                |> writeMem name i
+        | (m,'m') :: tailReg -> state
+                                |> writeMem name (readMem m)
+        | _ -> failwith "Invalid data type."
+    
+    let fill label data value valuesize state = 
+        match valuesize with
+        |1 ->
+        |2 ->
+        |4 -> 
+        |_ -> failwith "Invalid value size."
+
 //END (DONE)
     //stop emulation
-    let endI c finalInstAddr state = 
+    let end c finalInstAddr state = 
         if c state
         then writePC finalInstAddr state 
         else state
