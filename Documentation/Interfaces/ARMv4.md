@@ -113,16 +113,16 @@ These functions update the N, Z, C and V flags according to the result.
 
 #### MUL and MLA
 
-**mulR** - 
+**mulR**
+
 c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> rm:*int* -> rs:*int* -> state:*StateHandle* -> output:*StateHandle*
 
-**mulR** - 
 Multiplies the values from *rm* and *rs*, and places the least significant 32 bits of the result in *rd*.
 
-**mlaR** - 
+**mlaR**
+
 c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> rm:*int* -> rs:*int* -> rm:*int* -> state:*StateHandle* -> output:*StateHandle*
 
-**mlaR** - 
 Multiplies the values from *rm* and *rs*, adds the value from *rn*, and places the least significant 32 bits of the result in *rd*.
 
 **Condition flags** - 
@@ -200,13 +200,35 @@ The carry flag is updated to the last bit shifted out of *rm*.
 
 #### B, BL, BX, BLX
 
-**[I|R]** - 
+**b** 
 
-**[I|R]** - 
+c:*StateHandle->bool* -> label:*int*  state:*StateHandle* -> output:*StateHandle*
 
-**[I|R]** - 
+Causes a branch to *label*.
 
-**[I|R]** - 
+**bl** 
+
+c:*StateHandle->bool* -> label:*int*  state:*StateHandle* -> output:*StateHandle*
+
+Copies the address of the next instruction into *r14 (lr, the link register)*, and causes a branch to *label*.
+
+**bx**
+
+c:*StateHandle->bool* -> rm:*int*  state:*StateHandle* -> output:*StateHandle*
+
+*rm* is an ARM register containing the address to branch to.
+
+**blxR** - 
+c:*StateHandle->bool* -> rm:*int*  state:*StateHandle* -> output:*StateHandle*
+
+**blxL** - 
+label:*int*  state:*StateHandle* -> output:*StateHandle*
+
+**blx[R|L]** - 
+Copies the address of the next instruction into *r14 (lr, the link register)* and causes a branch to *label*, or to the address held in *rm*
+
+**Condition flags** - 
+These instructions do not affect the flags.
 
 #### ADR, LDR and STR
 
