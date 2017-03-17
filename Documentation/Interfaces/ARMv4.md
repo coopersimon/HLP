@@ -39,11 +39,17 @@ result:*int* -> state:*StateHandle* -> output:*StateHandle*
 
 Modifies flags N and Z depending on *result*. 
 
-#### set[C|V]
+#### setC
 
 in1:*int64* -> in2:*int64* -> state:*StateHandle* -> output:*StateHandle*
 
-Modifies flag [C|V] depending on *in1* and *in2*. Used for arithmetic ADD, ADC, SUB, SBC, RSB and RSC instructions. 
+Modifies flag C depending on *in1* and *in2*. Used for arithmetic ADD, ADC, SUB, SBC, RSB and RSC instructions. 
+
+#### setV
+
+in1:*int* -> in2:*int* -> state:*StateHandle* -> output:*StateHandle*
+
+Modifies flag V depending on *in1* and *in2*. Used for arithmetic ADD, ADC, SUB, SBC, RSB and RSC instructions. 
 
 ### Instructions
 
