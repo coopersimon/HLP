@@ -1,0 +1,72 @@
+
+>>---SOURCE:
+     MOV  R0, #5 ; setting up the inputs
+                                                MOV  R1, #3
+                                                MOV  R2, R0
+                                        LOOP    ; Manual multiplier loop
+                                                ADD  R3, R3, R1
+                                                SUBS R2, R2, #1
+                                                BNE  LOOP
+                                                MUL  R4, R0, R1 ; instruction mult
+          MOV R1, #0
+          ADDMI R1, R1, #8
+          ADDEQ R1, R1, #4
+          ADDCS R1, R1, #2
+          ADDVS R1, R1, #1
+       
+-------
+
+>>>>>>>>>>>>>>>>>>>>>>
+
+<VisUAL xmlns="http://bitbucket.org/salmanarif/visual">
+  <syntax-error line="8">Unsupported instruction.</syntax-error>
+</VisUAL>
+----------------------
+
+>>---SOURCE:
+MOV  R0, #5 ; setting up the inputs
+                                           MOV  R1, #3
+                                           MOV  R2, R0
+                                           LOOP ; Manual multiplier loop
+                                           ADD  R3, R3, R1
+                                           SUBS R2, R2, #1
+                                           BNE  LOOP
+                                           MUL  R4, R0, R1 ; instruction mult
+          MOV R1, #0
+          ADDMI R1, R1, #8
+          ADDEQ R1, R1, #4
+          ADDCS R1, R1, #2
+          ADDVS R1, R1, #1
+       
+-------
+
+>>>>>>>>>>>>>>>>>>>>>>
+
+<VisUAL xmlns="http://bitbucket.org/salmanarif/visual">
+  <syntax-error line="8">Unsupported instruction.</syntax-error>
+</VisUAL>
+----------------------
+
+>>---SOURCE:
+MOV  R0, #5
+                                           MOV  R1, #3
+                                           MOV  R2, R0
+                                           LOOP
+                                           ADD  R3, R3, R1
+                                           SUBS R2, R2, #1
+                                           BNE  LOOP
+                                           MUL  R4, R0, R1
+          MOV R1, #0
+          ADDMI R1, R1, #8
+          ADDEQ R1, R1, #4
+          ADDCS R1, R1, #2
+          ADDVS R1, R1, #1
+       
+-------
+
+>>>>>>>>>>>>>>>>>>>>>>
+
+<VisUAL xmlns="http://bitbucket.org/salmanarif/visual">
+  <syntax-error line="8">Unsupported instruction.</syntax-error>
+</VisUAL>
+----------------------

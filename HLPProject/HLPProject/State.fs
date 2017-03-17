@@ -15,6 +15,14 @@ module State =
         let regs = Array.create 16 0
         S(regs, false, false, false, false, Map.empty)
 
+    /// Creates state for testing with visual - R13 initialized to 0xFF00000.
+    let initStateVisual =
+        let regs0to12 = Array.create 13 0
+        let regs13to15 = [|0xFF000000;0;0|]
+        let regs = Array.concat [regs0to12; regs13to15]
+
+        S(regs, false, false, false, false, Map.empty)
+
     /// Read a register in the state.
     let readReg r (S(reg,_,_,_,_,_): StateHandle) =
         reg.[r]
