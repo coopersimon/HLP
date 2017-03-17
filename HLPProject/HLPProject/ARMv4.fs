@@ -1,4 +1,5 @@
 ﻿// This module contains functions to run the ARMv4 instruction set.
+ // Document: https://github.com/coopersimon/HLP/blob/dev_16_03/Documentation/Interfaces/ARMv4.md
 
 namespace Interpret
 module ARMv4 =
@@ -701,7 +702,7 @@ module ARMv4 =
 //see http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0473c/Cacbgchh.html for equivalent modes
     
     let rec ldmIA c write rn reglist state = 
-        let loop mem reglist state = 
+        let rec loop mem reglist state = 
             match reglist with
             | hReg :: tailReg -> state
                                  |> writeReg hReg (readMem mem state)
@@ -714,7 +715,7 @@ module ARMv4 =
         else state
     
     let ldmIB c write rn reglist state = 
-        let loop mem reglist state = 
+        let rec loop mem reglist state = 
             match reglist with
             | hReg :: tailReg -> state
                                  |> writeReg hReg (readMem mem state)
@@ -727,7 +728,7 @@ module ARMv4 =
         else state
     
     let ldmDA c write rn reglist state = 
-        let loop mem reglist state = 
+        let rec loop mem reglist state = 
             match reglist with
             | hReg :: tailReg -> state
                                  |> writeReg hReg (readMem mem state)
@@ -740,7 +741,7 @@ module ARMv4 =
         else state
     
     let ldmDB c write rn reglist state = 
-        let loop mem reglist state = 
+        let rec loop mem reglist state = 
             match reglist with
             | hReg :: tailReg -> state
                                  |> writeReg hReg (readMem mem state)
@@ -753,7 +754,7 @@ module ARMv4 =
         else state
     
     let stmIA c write rn reglist state = 
-        let loop mem reglist state = 
+        let rec loop mem reglist state = 
             match reglist with
             | hReg :: tailReg -> state
                                  |> writeMem mem (readReg hReg state)
@@ -766,7 +767,7 @@ module ARMv4 =
         else state
         
     let stmIB c write rn reglist state = 
-        let loop mem reglist state = 
+        let rec loop mem reglist state = 
             match reglist with
             | hReg :: tailReg -> state
                                  |> writeMem mem (readReg hReg state)
@@ -779,7 +780,7 @@ module ARMv4 =
         else state
     
     let stmDA c write rn reglist state = 
-        let loop mem reglist state = 
+        let rec loop mem reglist state = 
             match reglist with
             | hReg :: tailReg -> state
                                  |> writeMem mem (readReg hReg state)
@@ -792,7 +793,7 @@ module ARMv4 =
         else state
     
     let stmDB c write rn reglist state = 
-        let loop mem reglist state = 
+        let rec loop mem reglist state = 
             match reglist with
             | hReg :: tailReg -> state
                                  |> writeMem mem (readReg hReg state)
@@ -804,13 +805,13 @@ module ARMv4 =
              |> loop startMem-4 reglist
         else state
     
-//DCD, EQU and FILL
+//DCD, EQU and FILL (DONE)
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0041c/Babbfcga.html
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489h/Caccddic.html
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489f/Babchded.html
 
     let dcd label valList state = 
-        let loop mem vlist state = 
+        let rec loop mem vlist state = 
             match ilist with
             | (i,'i') :: tailReg -> state
                                     |> writeMem mem i
@@ -833,12 +834,24 @@ module ARMv4 =
         | _ -> failwith "Invalid data type."
     
     let fill label data value valuesize state = 
+        let fillB label data value state = 
+            let rec loop mem n val state = 
+                if n=0 then state else state |> writeMem mem val |> loop mem+1 n-1 val
+            loop label data value state
+        let fillHW label data value state = 
+            let rec loop mem n val state = 
+                if n=0 then state else state |> writeMem mem val |> loop mem+2 n-1 val
+            loop label data value state
+        let fillW label data value state = 
+            let rec loop mem n val state = 
+                if n=0 then state else state |> writeMem mem val |> loop mem+4 n-1 val
+            loop label data value state
         match valuesize with
-        |1 ->
-        |2 ->
-        |4 -> 
+        |1 -> fillB label data value state
+        |2 -> fillHW label data value state
+        |4 -> fillW label data value state
         |_ -> failwith "Invalid value size."
-
+    
 //END (DONE)
     //stop emulation
     let end c finalInstAddr state = 
