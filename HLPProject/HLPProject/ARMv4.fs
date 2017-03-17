@@ -50,8 +50,8 @@ module ARMv4 =
         let cout = ((in1+in2)>>>32)%2L
         writeVFlag (cin<>cout) state
      
-     //this function converts an int32 to an int64 without signed extension.
-    let conv64 i = int64 (uint32 i)
+     //this function converts an int32 to an int64 without sign extension.
+    let conv64 i = (int64 i)&&&(int64 ~~~0u)
 
 //MOV and MVN (DONE)
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHCDBCA.html
