@@ -698,8 +698,31 @@ module ARMv4 =
 
 //LDM and STM
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHCADDA.html
+//see http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0473c/Cacbgchh.html for equivalent modes
     
+    let ldmIA c write rn reglist state = 
+        
     
+    let ldmIB c write rn reglist state = 
+        
+    
+    let ldmDA c write rn reglist state = 
+        
+    
+    let ldmDB c write rn reglist state = 
+        
+    
+    let stmIA c write rn reglist state = 
+        
+        
+    let stmIB c write rn reglist state = 
+        
+    
+    let stmDA c write rn reglist state = 
+        
+    
+    let stmDB c write rn reglist state = 
+        
     
 
 //DCD, EQU and FILL
