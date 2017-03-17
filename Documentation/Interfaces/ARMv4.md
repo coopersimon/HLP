@@ -208,21 +208,21 @@ Causes a branch to *label*.
 
 **bl** 
 
-c:*StateHandle->bool* -> label:*int*  state:*StateHandle* -> output:*StateHandle*
+c:*StateHandle->bool* -> label:*int* -> state:*StateHandle* -> output:*StateHandle*
 
 Copies the address of the next instruction into *r14 (lr, the link register)*, and causes a branch to *label*.
 
 **bx**
 
-c:*StateHandle->bool* -> rm:*int*  state:*StateHandle* -> output:*StateHandle*
+c:*StateHandle->bool* -> rm:*int* -> state:*StateHandle* -> output:*StateHandle*
 
 *rm* is an ARM register containing the address to branch to.
 
 **blxR** - 
-c:*StateHandle->bool* -> rm:*int*  state:*StateHandle* -> output:*StateHandle*
+c:*StateHandle->bool* -> rm:*int* -> state:*StateHandle* -> output:*StateHandle*
 
 **blxL** - 
-label:*int*  state:*StateHandle* -> output:*StateHandle*
+label:*int* -> state:*StateHandle* -> output:*StateHandle*
 
 **blx[R|L]** - 
 Copies the address of the next instruction into *r14 (lr, the link register)* and causes a branch to *label*, or to the address held in *rm*
