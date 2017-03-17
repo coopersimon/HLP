@@ -518,20 +518,16 @@ module ARMv4 =
         writeReg 14 (readPC state) state
         |> writePC label 
 
-//ADR, LDR and STR
+//ADR, LDR and STR (DONE)
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0041c/Babcjaii.html
-//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/Bcfihdhj.html (in progress)
-//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/Chdbifed.html (in progress)
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/Bcfihdhj.html
 
     //writes the address corresponding to label into rd
     let adr c rd label state =
         if c state
         then writeReg rd label state  
         else state
-
-//LDM and STM
-//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHCADDA.html
-    
+        
     //Loads word from label to rd.
     let ldrWL c rd label state = 
         if c state
@@ -547,7 +543,12 @@ module ARMv4 =
     //More LDRs (details see ARMv4.md)
     let ldrWbI c inc rd rn i state = 
         if c state
-        then  
+        then match inc with 
+             | true -> state
+                       |> writeReg rd (readMem ((readReg rn state)+i)) 
+                       |> writeReg rn ((readReg rn state)+i)
+             | false -> state
+                        |> writeReg rd (readMem (readReg rn state)+i) 
         else state
     
     let ldrWbR c inc rd rn rm rsinst nORrn rstype state = 
@@ -562,7 +563,9 @@ module ARMv4 =
     
     let ldrWaI c rd rn i state = 
         if c state
-        then  
+        then state
+             |> writeReg rd (readMem (readReg rn state)) 
+             |> writeReg rn ((readReg rn state)+i)
         else state
     
     let ldrWaR c rd rn rm rsinst nORrn rstype state = 
@@ -577,7 +580,12 @@ module ARMv4 =
     
     let ldrBbI c inc rd rn i state = 
         if c state
-        then  
+        then match inc with 
+             | true -> state
+                       |> writeReg rd (readMem (((readReg rn state)+i)&&&255)) 
+                       |> writeReg rn ((readReg rn state)+i)
+             | false -> state
+                        |> writeReg rd (readMem (((readReg rn state)+i)&&&255)) 
         else state
     
     let ldrBbR c inc rd rn rm rsinst nORrn rstype state = 
@@ -592,7 +600,9 @@ module ARMv4 =
     
     let ldrBaI c rd rn i state = 
         if c state
-        then  
+        then state
+             |> writeReg rd (readMem ((readReg rn state)&&&255)) 
+             |> writeReg rn ((readReg rn state)+i)
         else state
     
     let ldrBaR c rd rn rm rsinst nORrn rstype state = 
@@ -608,7 +618,12 @@ module ARMv4 =
     //STRs (details see ARMv4.md)
     let strWbI c inc rd rn i state = 
         if c state
-        then  
+        then match inc with 
+             | true -> state
+                       |> writeMem ((readReg rn state)+i) (readReg rd state)
+                       |> writeReg rn ((readReg rn state)+i)
+             | false -> state
+                        |> writeMem ((readReg Rn state)+i) (readReg rd state)
         else state
     
     let strWbR c inc rd rn rm rsinst nORrn rstype state = 
@@ -623,7 +638,9 @@ module ARMv4 =
     
     let strWaI c rd rn i state = 
         if c state
-        then  
+        then state
+             |> writeMem (readReg rn state) (readReg rd state)
+             |> writeReg rn ((readReg rn state)+i)
         else state
     
     let strWaR c rd rn rm rsinst nORrn rstype state = 
@@ -637,8 +654,16 @@ module ARMv4 =
         else state
     
     let strBbI c inc rd rn i state = 
+        let memVal = (readMem ((readReg rn state)+i) state) 
+        let regVal = readReg rd state
+        let val = ((~~~255)&&&memVal)|||(255&&&regVal)
         if c state
-        then  
+        then match inc with 
+             | true -> state
+                       |> writeMem ((readReg rn state)+i) val
+                       |> writeReg rn ((readReg rn state)+i)
+             | false -> state
+                        |> writeMem ((readReg Rn state)+i) val
         else state
     
     let strBbR c inc rd rn rm rsinst nORrn rstype state = 
@@ -652,8 +677,13 @@ module ARMv4 =
         else state
     
     let strBaI c rd rn i state = 
+        let memVal = (readMem (readReg rn state) state) 
+        let regVal = readReg rd state
+        let val = ((~~~255)&&&memVal)|||(255&&&regVal)
         if c state
-        then  
+        then state
+             |> writeMem (readReg rn state) val
+             |> writeReg rn ((readReg rn state)+i)
         else state
     
     let strBaR c rd rn rm rsinst nORrn rstype state = 
@@ -665,6 +695,11 @@ module ARMv4 =
         if c state
         then strBaI c rd rn op2 state
         else state
+
+//LDM and STM
+//http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHCADDA.html
+    
+    
     
 
 //DCD, EQU and FILL
