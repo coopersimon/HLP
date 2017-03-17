@@ -531,6 +531,141 @@ module ARMv4 =
 
 //LDM and STM
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHCADDA.html
+    
+    //Loads word from label to rd.
+    let ldrWL c rd label state = 
+        if c state
+        then writeReg rd label state  
+        else state
+    
+    //Loads least significant byte from label to rd.
+    let ldrBL c rd label state = 
+        if c state
+        then writeReg rd (label&&&255) state  
+        else state
+        
+    //More LDRs (details see ARMv4.md)
+    let ldrWbI c inc rd rn i state = 
+        if c state
+        then  
+        else state
+    
+    let ldrWbR c inc rd rn rm rsinst nORrn rstype state = 
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        if c state
+        then ldrWbI c inc rd rn op2 state
+        else state
+    
+    let ldrWaI c rd rn i state = 
+        if c state
+        then  
+        else state
+    
+    let ldrWaR c rd rn rm rsinst nORrn rstype state = 
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        if c state
+        then ldrWaI c rd rn op2 state
+        else state
+    
+    let ldrBbI c inc rd rn i state = 
+        if c state
+        then  
+        else state
+    
+    let ldrBbR c inc rd rn rm rsinst nORrn rstype state = 
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        if c state
+        then ldrBbI c inc rd rn op2 state
+        else state
+    
+    let ldrBaI c rd rn i state = 
+        if c state
+        then  
+        else state
+    
+    let ldrBaR c rd rn rm rsinst nORrn rstype state = 
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        if c state
+        then ldrBaI c rd rn op2 state
+        else state
+    
+    //STRs (details see ARMv4.md)
+    let strWbI c inc rd rn i state = 
+        if c state
+        then  
+        else state
+    
+    let strWbR c inc rd rn rm rsinst nORrn rstype state = 
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        if c state
+        then strWbI c inc rd rn op2 state
+        else state
+    
+    let strWaI c rd rn i state = 
+        if c state
+        then  
+        else state
+    
+    let strWaR c rd rn rm rsinst nORrn rstype state = 
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        if c state
+        then strWaI c rd rn op2 state
+        else state
+    
+    let strBbI c inc rd rn i state = 
+        if c state
+        then  
+        else state
+    
+    let strBbR c inc rd rn rm rsinst nORrn rstype state = 
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        if c state
+        then strBbI c inc rd rn op2 state
+        else state
+    
+    let strBaI c rd rn i state = 
+        if c state
+        then  
+        else state
+    
+    let strBaR c rd rn rm rsinst nORrn rstype state = 
+        let op2 =
+            match rstype with
+            |'i' -> shiftI rsinst rm nORrn state
+            |'r' -> shiftR rsinst rm nORrn state
+            | _ -> readReg rm state
+        if c state
+        then strBaI c rd rn op2 state
+        else state
+    
 
 //DCD, EQU and FILL
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0041c/Babbfcga.html
