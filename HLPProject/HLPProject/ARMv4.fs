@@ -47,7 +47,7 @@ module ARMv4 =
     //set V for arithmetic ADD, ADC, SUB, SBC, RSB and RSC cases (Note: in1 and in2 are int64)
     let setV in1 in2 state =   
         let cin = ((((in1*2L)&&&(4294967295L))+((in2*2L)&&&(4294967295L))) >>> 32)%2L
-        let cout = ((in1+in2)>>>32)%2L
+        let cout = (((in1&&&(4294967295L))+(in2&&&(4294967295L)))>>>32)%2L
         writeVFlag (cin<>cout) state
      
      //this function converts an int32 to an int64 without sign extension.
