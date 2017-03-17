@@ -46,12 +46,12 @@ module ARMv4 =
 
     //set V for arithmetic ADD, ADC, SUB, SBC, RSB and RSC cases (Note: in1 and in2 are int64)
     let setV in1 in2 state =   
-        let cin = (((in1*2L)+(in2*2L)) >>> 32)%2L
+        let cin = ((((in1*2L)&&&(4294967295L))+((in2*2L)&&&(4294967295L))) >>> 32)%2L
         let cout = ((in1+in2)>>>32)%2L
         writeVFlag (cin<>cout) state
      
      //this function converts an int32 to an int64 without sign extension.
-    let conv64 i = (int64 i)&&&(int64 4294967295u)
+    let conv64 i = (int64 i)&&&(4294967295L)
 
 //MOV and MVN (DONE)
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHCDBCA.html
@@ -146,7 +146,7 @@ module ARMv4 =
         | (true, true) -> state
                           |> setNZ ((readReg rn state)-i) 
                           |> setC (conv64 (readReg rn state)) ((conv64 ~~~i)+1L)
-                          |> setV (conv64 (readReg rn state)) (conv64 -i) 
+                          |> setV (conv64 (readReg rn state)) ((conv64 ~~~i)+1L)
                           |> writeReg rd ((readReg rn state)-i)
         | (true, false) -> writeReg rd ((readReg rn state)-i) state
         | _ -> state
@@ -165,12 +165,12 @@ module ARMv4 =
         | (true, true, true) -> state
                                 |> setNZ ((readReg rn state)-i)
                                 |> setC (conv64 (readReg rn state)) ((conv64 ~~~i)+1L) 
-                                |> setV (conv64 (readReg rn state)) (conv64 -i)
+                                |> setV (conv64 (readReg rn state)) ((conv64 ~~~i)+1L) 
                                 |> writeReg rd ((readReg rn state)-i) 
         | (true, true, false) -> state
                                 |> setNZ ((readReg rn state)-i-1) 
                                 |> setC (conv64 (readReg rn state)) ((conv64 ~~~i)) 
-                                |> setV (conv64 (readReg rn state)) ((conv64 -i)-1L) 
+                                |> setV (conv64 (readReg rn state)) ((conv64 ~~~i)) 
                                 |> writeReg rd ((readReg rn state)-i-1) 
         | (true, false, true) -> writeReg rd ((readReg rn state)-i) state
         | (true, false, false) -> writeReg rd ((readReg rn state)-i-1) state
@@ -190,7 +190,7 @@ module ARMv4 =
         | (true, true) -> state
                           |> setNZ (i-(readReg rn state))
                           |> setC (conv64 ~~~(readReg rn state)+1L) (conv64 i) 
-                          |> setV (conv64 -(readReg rn state)) (conv64 i) 
+                          |> setV (conv64 ~~~(readReg rn state)+1L) (conv64 i) 
                           |> writeReg rd (i-(readReg rn state)) 
         | (true, false) -> writeReg rd (i-(readReg rn state)) state
         | _ -> state
@@ -209,12 +209,12 @@ module ARMv4 =
         | (true, true, true) -> state
                                 |> setNZ (i-(readReg rn state)) 
                                 |> setC (conv64 ~~~(readReg rn state)+1L) (conv64 i) 
-                                |> setV (conv64 -(readReg rn state)) (conv64 i) 
+                                |> setV (conv64 ~~~(readReg rn state)+1L) (conv64 i) 
                                 |> writeReg rd (i-(readReg rn state)) 
         | (true, true, false) -> state
                                 |> setNZ (i-(readReg rn state)-1) 
                                 |> setC (conv64 ~~~(readReg rn state)) (conv64 i) 
-                                |> setV (conv64 -(readReg rn state)) ((conv64 i)-1L)
+                                |> setV (conv64 ~~~(readReg rn state)) (conv64 i) 
                                 |> writeReg rd (i-(readReg rn state)-1) 
         | (true, false, true) -> writeReg rd (i-(readReg rn state)) state
         | (true, false, false) -> writeReg rd (i-(readReg rn state)-1) state
@@ -236,7 +236,7 @@ module ARMv4 =
         match c state with 
         | true -> setNZ ((readReg rn state)-i) state
                   |> setC (conv64 (readReg rn state)) ((conv64 ~~~i)+1L) 
-                  |> setV (conv64 (readReg rn state)) (conv64 -i) 
+                  |> setV (conv64 (readReg rn state)) ((conv64 ~~~i)+1L) 
         | false -> state
 
     let cmpR c rn rm rsinst nORrn rstype state = //sets N, Z, C, V flags
