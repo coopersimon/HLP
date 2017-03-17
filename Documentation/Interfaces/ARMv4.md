@@ -1,10 +1,12 @@
 ﻿# ARMv4
 This contains the functions that represent the ARM v4 instruction set.
 
+
 ## Dependencies
 Exists in namespace **Interpret**.
 
 This module depends on **Common.State** and **Parse.Tokeniser**.
+
 
 ## General Interface
 All instructions should take in multiple arguments. It varies by instruction. The **final** argument should always be a *StateHandle*. **The output type is always a *StateHandle*.**
@@ -17,7 +19,9 @@ The remaining arguments should include a condition, of type *(StateHandle -> boo
 * **int literal**: *int* - integer literals used to modify registers in **state**.
 * **extra conditions**: *bool* - such as 'S', these do extra side-effects like modify flags in **state**.
 
+
 ### Flexible Operand 2
+
 
 #### shift[I|R]
 
@@ -25,13 +29,16 @@ inst:*Token* -> r:*int* -> [(n:*int*)|(rn:*int*)] -> state:*StateHandle* -> outp
 
 Evaluates final value of operand 2 after *n* or value in register *rn* is shifted or rotated depending on *inst*. 
 
+
 #### shiftSetC[I|R]
 
 s:*bool* -> inst:*Token* -> r:*int* -> (n:*int*) OR (rn:*int*) -> state:*StateHandle* -> output:*StateHandle*
 
 Modifies flag C when evaluating operand 2 (depends on *inst*). 
 
+
 ### Updating Flags
+
 
 #### setNZ
 
@@ -39,11 +46,13 @@ result:*int* -> state:*StateHandle* -> output:*StateHandle*
 
 Modifies flags N and Z depending on *result*. 
 
+
 #### setC
 
 in1:*int64* -> in2:*int64* -> state:*StateHandle* -> output:*StateHandle*
 
 Modifies flag C depending on *in1* and *in2*. Used for arithmetic ADD, ADC, SUB, SBC, RSB and RSC instructions. 
+
 
 #### setV
 
@@ -51,9 +60,11 @@ in1:*int* -> in2:*int* -> state:*StateHandle* -> output:*StateHandle*
 
 Modifies flag V depending on *in1* and *in2*. Used for arithmetic ADD, ADC, SUB, SBC, RSB and RSC instructions. 
 
+
 ### Instructions
 
 *Operand2* is literal *i* or value in register *rm* after shift or rotate.
+
 
 #### MOV and MVN
 
@@ -71,6 +82,7 @@ Takes the value of *Operand2*, performs a bitwise logical NOT operation on the v
 
 **Condition flags** - 
 If *s* is true, these functions update the N and Z flags according to the result, can update the C flag during the calculation of *Operand2* and do not affect the V flag.
+
 
 #### ADD, ADC, SUB, SBC, RSB and RSC
 
@@ -100,6 +112,7 @@ Subtracts the value of *Operand2* from the value in *rn*. If the carry flag is c
 **Condition flags** - 
 If *s* is true, these functions update the N, Z, C and V flags according to the result.
 
+
 #### CMP and CMN
 
 **I version** - 
@@ -117,6 +130,7 @@ Adds the value of *Operand2* to the value in *rn*. This is the same as an ADDS i
 **Condition flags** - 
 These functions update the N, Z, C and V flags according to the result.
 
+
 #### MUL and MLA
 
 **mulR**
@@ -133,6 +147,7 @@ Multiplies the values from *rm* and *rs*, adds the value from *rn*, and places t
 
 **Condition flags** - 
 If *s* is true, these functions update the N and Z flags according to the result, and do not affect the C and V flags.
+
 
 #### AND, ORR, EOR and BIC
 
@@ -157,6 +172,7 @@ Performs an AND operation on the bits in *rn* with the complements of the corres
 **Condition flags** - 
 If *s* is true, these functions update the N and Z flags according to the result, can update the C flag during the calculation of *Operand2* and do not affect the V flag.
 
+
 #### TST and TEQ
 
 **I version** - 
@@ -174,6 +190,7 @@ Performs a bitwise Exclusive OR operation on the value in *rn* and the value of 
 **Condition flags** - 
 These functions update the N and Z flags according to the result, can update the C flag during the calculation of *Operand2* and do not affect the V flag.
 
+
 #### CLZ
 
 c:*StateHandle->bool* -> rd:*int* -> rm:*int* -> state:*StateHandle* -> output:*StateHandle*
@@ -183,6 +200,7 @@ Counts the number of leading zeroes in the value in *rm* and returns the result 
 
 **Condition flags** - 
 This instruction does not affect the flags.
+
 
 #### LSL, LSR, ASR, ROR and RRX
 
@@ -203,6 +221,7 @@ Where n is value in *rn*:
 **Condition flags** - 
 If *s* is true, these functions update the N, Z and C flags according to the result and do not affect the V flag.
 The carry flag is updated to the last bit shifted out of *rm*.
+
 
 #### B, BL, BX, BLX
 
@@ -236,6 +255,7 @@ Copies the address of the next instruction into *r14 (lr, the link register)* an
 **Condition flags** - 
 These instructions do not affect the flags.
 
+
 #### ADR
 
 c:*StateHandle->bool* -> rd:*int* -> label:*int* -> state:*StateHandle* -> output:*StateHandle*
@@ -244,6 +264,7 @@ c:*StateHandle->bool* -> rd:*int* -> label:*int* -> state:*StateHandle* -> outpu
 
 **Condition flags** - 
 This instruction does not affect the flags.
+
 
 #### LDR and STR
 
@@ -301,6 +322,7 @@ c:*StateHandle->bool* -> rd:*int* -> rn:*int* -> rm:*int* -> rsinst:*Token* -> n
 **Condition flags** - 
 These instructions do not affect the flags.
 
+
 #### LDM and STM
 
 c:*StateHandle->bool* -> write:*bool* -> rn:*int* -> reglist:*int list* -> state:*StateHandle* -> output:*StateHandle*
@@ -334,9 +356,37 @@ Store multiple registers.
 **Condition flags** - 
 These instructions do not affect the flags.
 
+
 #### DCD, EQU and FILL
 
-#### end
+**DCD**
+
+label:*int* -> valList:*int\*char list* -> state: *StateHandle* -> output:*StateHandle*
+*Note: valList is a (intORmem, vtype) tuple list*
+
+Allocates one or more words of memory, and defines the initial runtime contents of the memory.
+
+**EQU**
+
+name:*int* -> val:*int\*char* -> state: *StateHandle* -> output:*StateHandle*
+*Note: val is a (intORmem, vtype) tuple*
+
+Gives a symbolic name to a numeric constant, a register-relative value or a PC-relative value.
+
+**FILL**
+
+label:*int* -> data:*int* -> value:*int* -> valuesize:*int* -> state: *StateHandle* -> output:*StateHandle*
+*Note: Defaults for **value** and **valuesize** are 0 and 1 respectively.*
+
+Reserves a block of memory to fill with the given value.
+
+**Condition flags** - 
+These instructions do not affect the flags.
+
+
+#### END
+
+c:*StateHandle->bool* -> finalInstAddr:*int* -> state: *StateHandle* -> output:*StateHandle*
 
 If condition is true, stop emulation (by modifying PC). Output type is *StateHandle*.
 
