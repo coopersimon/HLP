@@ -69,12 +69,12 @@ module ARMv4 =
             |'i' -> shiftI rsinst rm nORrn state
             |'r' -> shiftR rsinst rm nORrn state
             | _ -> readReg rm state
-       if  c state
-       then match rstype with
+        if  c state
+        then match rstype with
              |'i' -> shiftSetCI s rsinst rm nORrn state |> movI c s rd op2
              |'r' -> shiftSetCR s rsinst rm nORrn state |> movI c s rd op2
              | _ -> movI c s rd op2 state 
-       else state
+        else state
         
     //write bitwise not of op2 to r
     let mvnI c s rd i state = //if s: sets N and Z flags only
@@ -146,7 +146,7 @@ module ARMv4 =
         | (true, true) -> state
                           |> setNZ ((readReg rn state)-i) 
                           |> setC (conv64 (readReg rn state)) ((conv64 ~~~i)+1L)
-                          |> setV (conv64 (readReg rn state)) ((conv64 ~~~i)+1L) 
+                          |> setV (conv64 (readReg rn state)) (conv64 -i) 
                           |> writeReg rd ((readReg rn state)-i)
         | (true, false) -> writeReg rd ((readReg rn state)-i) state
         | _ -> state
@@ -165,12 +165,12 @@ module ARMv4 =
         | (true, true, true) -> state
                                 |> setNZ ((readReg rn state)-i)
                                 |> setC (conv64 (readReg rn state)) ((conv64 ~~~i)+1L) 
-                                |> setV (conv64 (readReg rn state)) ((conv64 ~~~i)+1L)
+                                |> setV (conv64 (readReg rn state)) (conv64 -i)
                                 |> writeReg rd ((readReg rn state)-i) 
         | (true, true, false) -> state
                                 |> setNZ ((readReg rn state)-i-1) 
                                 |> setC (conv64 (readReg rn state)) ((conv64 ~~~i)) 
-                                |> setV (conv64 (readReg rn state)) ((conv64 ~~~i)) 
+                                |> setV (conv64 (readReg rn state)) ((conv64 -i)-1L) 
                                 |> writeReg rd ((readReg rn state)-i-1) 
         | (true, false, true) -> writeReg rd ((readReg rn state)-i) state
         | (true, false, false) -> writeReg rd ((readReg rn state)-i-1) state
@@ -189,7 +189,7 @@ module ARMv4 =
         match (c state, s) with 
         | (true, true) -> state
                           |> setNZ (i-(readReg rn state))
-                          |> setC (conv64 -(readReg rn state)) (conv64 i) 
+                          |> setC (conv64 ~~~(readReg rn state)+1L) (conv64 i) 
                           |> setV (conv64 -(readReg rn state)) (conv64 i) 
                           |> writeReg rd (i-(readReg rn state)) 
         | (true, false) -> writeReg rd (i-(readReg rn state)) state
@@ -208,12 +208,12 @@ module ARMv4 =
         match (c state, s, readCFlag state) with 
         | (true, true, true) -> state
                                 |> setNZ (i-(readReg rn state)) 
-                                |> setC (conv64 -(readReg rn state)) (conv64 i) 
+                                |> setC (conv64 ~~~(readReg rn state)+1L) (conv64 i) 
                                 |> setV (conv64 -(readReg rn state)) (conv64 i) 
                                 |> writeReg rd (i-(readReg rn state)) 
         | (true, true, false) -> state
                                 |> setNZ (i-(readReg rn state)-1) 
-                                |> setC (conv64 -(readReg rn state)) ((conv64 i)-1L) 
+                                |> setC (conv64 ~~~(readReg rn state)) (conv64 i) 
                                 |> setV (conv64 -(readReg rn state)) ((conv64 i)-1L)
                                 |> writeReg rd (i-(readReg rn state)-1) 
         | (true, false, true) -> writeReg rd (i-(readReg rn state)) state
@@ -235,7 +235,7 @@ module ARMv4 =
     let cmpI c rn i state = //sets N, Z, C, V flags
         match c state with 
         | true -> setNZ ((readReg rn state)-i) state
-                  |> setC (conv64 (readReg rn state)) (conv64 -i) 
+                  |> setC (conv64 (readReg rn state)) ((conv64 ~~~i)+1L) 
                   |> setV (conv64 (readReg rn state)) (conv64 -i) 
         | false -> state
 
