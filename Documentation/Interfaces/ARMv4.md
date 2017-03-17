@@ -303,6 +303,37 @@ These instructions do not affect the flags.
 
 #### LDM and STM
 
+c:*StateHandle->bool* -> write:*bool* -> rn:*int* -> reglist:*int list* -> state:*StateHandle* -> output:*StateHandle*
+
+If *write* is true, the final address is written back into *rn*.
+
+**LDM**
+
+Load multiple registers.
+
+**ldmIA** - increment address after each transfer
+
+**ldmIB** - increment address before each transfer
+
+**ldmDA** - decrement address after each transfer
+
+**ldmDB** - decrement address before each transfer
+
+**STM**
+
+Store multiple registers.
+
+**stmIA** - increment address after each transfer
+
+**stmIB** - increment address before each transfer
+
+**stmDA** - decrement address after each transfer
+
+**stmDB** - decrement address before each transfer
+
+**Condition flags** - 
+These instructions do not affect the flags.
+
 #### DCD, EQU and FILL
 
 #### end
