@@ -700,31 +700,110 @@ module ARMv4 =
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHCADDA.html
 //see http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0473c/Cacbgchh.html for equivalent modes
     
-    let ldmIA c write rn reglist state = 
-        
+    let rec ldmIA c write rn reglist state = 
+        let loop mem reglist state = 
+            match reglist with
+            | hReg :: tailReg -> state
+                                 |> writeReg hReg (readMem mem state)
+                                 |> loop (mem+4) tailReg
+            | [] -> state
+        if let startMem = readReg rn state
+        if c state
+        then if write then WriteReg rn (startMem+(reglist.length)*4) else state
+             |> loop startMem reglist
+        else state
     
     let ldmIB c write rn reglist state = 
-        
+        let loop mem reglist state = 
+            match reglist with
+            | hReg :: tailReg -> state
+                                 |> writeReg hReg (readMem mem state)
+                                 |> loop (mem+4) tailReg
+            | [] -> state
+        if let startMem = readReg rn state
+        if c state
+        then if write then WriteReg rn (startMem+(reglist.length+1)*4) else state
+             |> loop startMem+4 reglist
+        else state
     
     let ldmDA c write rn reglist state = 
-        
+        let loop mem reglist state = 
+            match reglist with
+            | hReg :: tailReg -> state
+                                 |> writeReg hReg (readMem mem state)
+                                 |> loop (mem-4) tailReg
+            | [] -> state
+        if let startMem = readReg rn state
+        if c state
+        then if write then WriteReg rn (startMem-(reglist.length)*4) else state
+             |> loop startMem reglist
+        else state
     
     let ldmDB c write rn reglist state = 
-        
+        let loop mem reglist state = 
+            match reglist with
+            | hReg :: tailReg -> state
+                                 |> writeReg hReg (readMem mem state)
+                                 |> loop (mem-4) tailReg
+            | [] -> state
+        if let startMem = readReg rn state
+        if c state
+        then if write then WriteReg rn (startMem-(reglist.length+1)*4) else state
+             |> loop startMem-4 reglist
+        else state
     
     let stmIA c write rn reglist state = 
-        
+        let loop mem reglist state = 
+            match reglist with
+            | hReg :: tailReg -> state
+                                 |> writeMem mem (readReg hReg state)
+                                 |> loop (mem+4) tailReg
+            | [] -> state
+        if let startMem = readReg rn state
+        if c state
+        then if write then WriteReg rn (startMem+(reglist.length)*4) else state
+             |> loop startMem reglist
+        else state
         
     let stmIB c write rn reglist state = 
-        
+        let loop mem reglist state = 
+            match reglist with
+            | hReg :: tailReg -> state
+                                 |> writeMem mem (readReg hReg state)
+                                 |> loop (mem+4) tailReg
+            | [] -> state
+        if let startMem = readReg rn state
+        if c state
+        then if write then WriteReg rn (startMem+(reglist.length+1)*4) else state
+             |> loop startMem+4 reglist
+        else state
     
     let stmDA c write rn reglist state = 
-        
+        let loop mem reglist state = 
+            match reglist with
+            | hReg :: tailReg -> state
+                                 |> writeMem mem (readReg hReg state)
+                                 |> loop (mem-4) tailReg
+            | [] -> state
+        if let startMem = readReg rn state
+        if c state
+        then if write then WriteReg rn (startMem-(reglist.length)*4) else state
+             |> loop startMem reglist
+        else state
     
     let stmDB c write rn reglist state = 
-        
+        let loop mem reglist state = 
+            match reglist with
+            | hReg :: tailReg -> state
+                                 |> writeMem mem (readReg hReg state)
+                                 |> loop (mem-4) tailReg
+            | [] -> state
+        if let startMem = readReg rn state
+        if c state
+        then if write then WriteReg rn (startMem-(reglist.length+1)*4) else state
+             |> loop startMem-4 reglist
+        else state
     
-
 //DCD, EQU and FILL
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0041c/Babbfcga.html
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489h/Caccddic.html
