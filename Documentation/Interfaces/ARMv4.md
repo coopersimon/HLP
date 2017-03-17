@@ -255,7 +255,7 @@ c:*StateHandle->bool* -> rd:*int* -> label:*int* -> state:*StateHandle* -> outpu
 
 Loads word or least significant byte from *label* to *rd*.
 
-*Note: FlexOffset is **i** or **rn** shifted or rotated.*
+*Note: FlexOffset is **i** or **rm** shifted or rotated.*
 
 **ldr[W|B]b[I|R] and str[W|B]b[I|R]**
 
@@ -267,15 +267,15 @@ c:*StateHandle->bool* -> inc:*bool* -> rd:*int* -> rn:*int* -> i:*int* -> state:
 
 **R version**
 
-c:*StateHandle->bool* -> inc:*bool* -> rd:*int* -> rn:*int* -> rn:*int* -> rsinst:*Token* -> nORrn:*int* -> rstype:*char* -> state:*StateHandle* -> output:*StateHandle*
+c:*StateHandle->bool* -> inc:*bool* -> rd:*int* -> rn:*int* -> rm:*int* -> rsinst:*Token* -> nORrn:*int* -> rstype:*char* -> state:*StateHandle* -> output:*StateHandle*
 
-**ldrWb[I|R]** - Loads *rd* from a word at address *rm + FlexOffset*, and increments *rm* by *FlexOffset* if *inc* is true.
+**ldrWb[I|R]** - Loads *rd* from a word at address *rn + FlexOffset*, and increments *rn* by *FlexOffset* if *inc* is true.
 
-**ldrBb[I|R]** - Loads  *rd* from the least significant byte at address *rm* + *FlexOffset*, and increments *rm* by *FlexOffset* if *inc* is true.
+**ldrBb[I|R]** - Loads  *rd* from the least significant byte at address *rn* + *FlexOffset*, and increments *rn* by *FlexOffset* if *inc* is true.
 
-**strWb[I|R]** - Stores a word from *rd* to the address in *rm + FlexOffset*, and increments *rm* by *FlexOffset* if *inc* is true.
+**strWb[I|R]** - Stores a word from *rd* to the address in *rn + FlexOffset*, and increments *rn* by *FlexOffset* if *inc* is true.
 
-**strBb[I|R]** - Stores the least significant byte from *rd* to the address in *rm + FlexOffset*, and increments *rm* by *FlexOffset* if *inc* is true.
+**strBb[I|R]** - Stores the least significant byte from *rd* to the address in *rn + FlexOffset*, and increments *rn* by *FlexOffset* if *inc* is true.
 
 **ldr[W|B]a[I|R] and str[W|B]a[I|R]**
 
@@ -288,15 +288,15 @@ c:*StateHandle->bool* -> rd:*int* -> rn:*int* -> i:*int* -> state:*StateHandle* 
 
 **R version**
 
-c:*StateHandle->bool* -> rd:*int* -> rn:*int* -> rn:*int* -> rsinst:*Token* -> nORrn:*int* -> rstype:*char* -> state:*StateHandle* -> output:*StateHandle*
+c:*StateHandle->bool* -> rd:*int* -> rn:*int* -> rm:*int* -> rsinst:*Token* -> nORrn:*int* -> rstype:*char* -> state:*StateHandle* -> output:*StateHandle*
 
-**ldrWa[I|R]** - Loads *rd* from a word at address *rm*, and increments *rm* by *FlexOffset*.
+**ldrWa[I|R]** - Loads *rd* from a word at address *rn*, and increments *rn* by *FlexOffset*.
 
-**ldrBa[I|R]** - Loads  *rd* from the least significant byte at address *rm*, and increments *rm* by *FlexOffset*.
+**ldrBa[I|R]** - Loads  *rd* from the least significant byte at address *rn*, and increments *rn* by *FlexOffset*.
 
-**strWa[I|R]** - Stores a word from *rd* to the address in *rm*, and increments *rm* by *FlexOffset*.
+**strWa[I|R]** - Stores a word from *rd* to the address in *rn*, and increments *rn* by *FlexOffset*.
 
-**strBa[I|R]** - Stores the least significant byte from *rd* to the address in *rm*, and increments *rm* by *FlexOffset*.
+**strBa[I|R]** - Stores the least significant byte from *rd* to the address in *rn*, and increments *rn* by *FlexOffset*.
 
 **Condition flags** - 
 These instructions do not affect the flags.
