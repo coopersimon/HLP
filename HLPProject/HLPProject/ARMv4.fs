@@ -550,16 +550,16 @@ module ARMv4 =
         if c state
         then match inc with 
              | true -> state
-                       |> writeReg rd (readMem ((readReg rn state)+i) state) 
+                       |> writeReg rd (readMem ((readReg rn state)+i) state)  
                        |> writeReg rn ((readReg rn state)+i)
              | false -> state
-                        |> writeReg rd (readMem ((readReg rn state)+i) state)
+                        |> writeReg rd (readMem ((readReg rn state)+i) state) 
         else state
     
     let ldrWbR c inc rd rn rm rsinst nORrn rstype state = 
         let op2 =
             match rstype with
-            |'i' -> shiftI rsinst rm nORrn state
+            |'i' -> shiftI rsinst rm nORrn state 
             |'r' -> shiftR rsinst rm nORrn state
             | _ -> readReg rm state
         if c state
@@ -569,8 +569,8 @@ module ARMv4 =
     let ldrWaI c rd rn i state = 
         if c state
         then state
-             |> writeReg rd (readMem (readReg rn state) state) 
-             |> writeReg rn ((readReg rn state)+i)
+             |> writeReg rd (readMem (readReg rn state) state)  
+             |> writeReg rn ((readReg rn state)+i) 
         else state
     
     let ldrWaR c rd rn rm rsinst nORrn rstype state = 
@@ -587,10 +587,10 @@ module ARMv4 =
         if c state
         then match inc with 
              | true -> state
-                       |> writeReg rd (readMem (((readReg rn state)+i)&&&255) state) 
+                       |> writeReg rd (readMem (((readReg rn state)+i)&&&255) state)  
                        |> writeReg rn ((readReg rn state)+i)
              | false -> state
-                        |> writeReg rd (readMem (((readReg rn state)+i)&&&255) state) 
+                        |> writeReg rd (readMem (((readReg rn state)+i)&&&255) state)  
         else state
     
     let ldrBbR c inc rd rn rm rsinst nORrn rstype state = 
@@ -606,7 +606,7 @@ module ARMv4 =
     let ldrBaI c rd rn i state = 
         if c state
         then state
-             |> writeReg rd (readMem ((readReg rn state)&&&255) state) 
+             |> writeReg rd (readMem ((readReg rn state)&&&255) state)  
              |> writeReg rn ((readReg rn state)+i)
         else state
     
@@ -625,10 +625,10 @@ module ARMv4 =
         if c state
         then match inc with 
              | true -> state
-                       |> writeMem ((readReg rn state)+i) (readReg rd state)
-                       |> writeReg rn ((readReg rn state)+i)
+                       |> writeMem ((readReg rn state)+i) (readReg rd state) 
+                       |> writeReg rn ((readReg rn state)+i) 
              | false -> state
-                        |> writeMem ((readReg rn state)+i) (readReg rd state)
+                        |> writeMem ((readReg rn state)+i) (readReg rd state) 
         else state
     
     let strWbR c inc rd rn rm rsinst nORrn rstype state = 
@@ -644,8 +644,8 @@ module ARMv4 =
     let strWaI c rd rn i state = 
         if c state
         then state
-             |> writeMem (readReg rn state) (readReg rd state)
-             |> writeReg rn ((readReg rn state)+i)
+             |> writeMem (readReg rn state) (readReg rd state) 
+             |> writeReg rn ((readReg rn state)+i) 
         else state
     
     let strWaR c rd rn rm rsinst nORrn rstype state = 
@@ -659,9 +659,9 @@ module ARMv4 =
         else state
     
     let strBbI c inc rd rn i state = 
-        let memVal = (readMem ((readReg rn state)+i) state) 
+        let memVal = (readMem ((readReg rn state)+i) state)  
         let regVal = readReg rd state
-        let writeVal = ((~~~255)&&&memVal)|||(255&&&regVal)
+        let writeVal = ((~~~255)&&&memVal)|||(255&&&regVal) 
         if c state
         then match inc with 
              | true -> state
@@ -684,7 +684,7 @@ module ARMv4 =
     let strBaI c rd rn i state = 
         let memVal = (readMem (readReg rn state) state) 
         let regVal = readReg rd state
-        let writeVal = ((~~~255)&&&memVal)|||(255&&&regVal)
+        let writeVal = ((~~~255)&&&memVal)|||(255&&&regVal) 
         if c state
         then state
              |> writeMem (readReg rn state) writeVal
@@ -705,11 +705,11 @@ module ARMv4 =
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHCADDA.html
 //see http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0473c/Cacbgchh.html for equivalent modes
     
-    let rec ldmIA c write rn reglist state = 
-        let rec loop mem reglist state = 
+    let rec ldmIA c write rn reglist:((int*char) list) state = 
+        let rec loop mem reglist:((int*char) list) state = 
             match reglist with
             | hReg :: tailReg -> state
-                                 |> writeReg hReg (readMem mem state)
+                                 |> writeReg hReg (readMem mem state) 
                                  |> loop (mem+4) tailReg
             | [] -> state
         let startMem = readReg rn state
@@ -718,11 +718,11 @@ module ARMv4 =
              |> loop startMem reglist
         else state
     
-    let ldmIB c write rn reglist state = 
-        let rec loop mem reglist state = 
+    let ldmIB c write rn reglist:((int*char) list) state = 
+        let rec loop mem reglist:((int*char) list) state = 
             match reglist with
             | hReg :: tailReg -> state
-                                 |> writeReg hReg (readMem mem state)
+                                 |> writeReg hReg (readMem mem state) 
                                  |> loop (mem+4) tailReg
             | [] -> state
         let startMem = readReg rn state
@@ -731,11 +731,11 @@ module ARMv4 =
              |> loop startMem+4 reglist
         else state
     
-    let ldmDA c write rn reglist state = 
-        let rec loop mem reglist state = 
+    let ldmDA c write rn reglist:((int*char) list) state = 
+        let rec loop mem reglist:((int*char) list) state = 
             match reglist with
             | hReg :: tailReg -> state
-                                 |> writeReg hReg (readMem mem state)
+                                 |> writeReg hReg (readMem mem state) 
                                  |> loop (mem-4) tailReg
             | [] -> state
         let startMem = readReg rn state
@@ -744,11 +744,11 @@ module ARMv4 =
              |> loop startMem reglist
         else state
     
-    let ldmDB c write rn reglist state = 
-        let rec loop mem reglist state = 
+    let ldmDB c write rn reglist:((int*char) list) state = 
+        let rec loop mem reglist:((int*char) list) state = 
             match reglist with
             | hReg :: tailReg -> state
-                                 |> writeReg hReg (readMem mem state)
+                                 |> writeReg hReg (readMem mem state) 
                                  |> loop (mem-4) tailReg
             | [] -> state
         let startMem = readReg rn state
@@ -757,11 +757,11 @@ module ARMv4 =
              |> loop startMem-4 reglist
         else state
     
-    let stmIA c write rn reglist state = 
-        let rec loop mem reglist state = 
+    let stmIA c write rn reglist:((int*char) list) state = 
+        let rec loop mem reglist:((int*char) list) state = 
             match reglist with
             | hReg :: tailReg -> state
-                                 |> writeMem mem (readReg hReg state)
+                                 |> writeMem mem (readReg hReg state) 
                                  |> loop (mem+4) tailReg
             | [] -> state
         let startMem = readReg rn state
@@ -770,11 +770,11 @@ module ARMv4 =
              |> loop startMem reglist
         else state
         
-    let stmIB c write rn reglist state = 
-        let rec loop mem reglist state = 
+    let stmIB c write rn reglist:((int*char) list) state = 
+        let rec loop mem reglist:((int*char) list) state = 
             match reglist with
             | hReg :: tailReg -> state
-                                 |> writeMem mem (readReg hReg state)
+                                 |> writeMem mem (readReg hReg state) 
                                  |> loop (mem+4) tailReg
             | [] -> state
         let startMem = readReg rn state
@@ -783,11 +783,11 @@ module ARMv4 =
              |> loop startMem+4 reglist
         else state
     
-    let stmDA c write rn reglist state = 
-        let rec loop mem reglist state = 
+    let stmDA c write rn reglist:((int*char) list) state = 
+        let rec loop mem reglist:((int*char) list) state = 
             match reglist with
             | hReg :: tailReg -> state
-                                 |> writeMem mem (readReg hReg state)
+                                 |> writeMem mem (readReg hReg state) 
                                  |> loop (mem-4) tailReg
             | [] -> state
         let startMem = readReg rn state
@@ -796,11 +796,11 @@ module ARMv4 =
              |> loop startMem reglist
         else state
     
-    let stmDB c write rn reglist state = 
-        let rec loop mem reglist state = 
+    let stmDB c write rn reglist:((int*char) list) state = 
+        let rec loop mem reglist:((int*char) list) state = 
             match reglist with
             | hReg :: tailReg -> state
-                                 |> writeMem mem (readReg hReg state)
+                                 |> writeMem mem (readReg hReg state) 
                                  |> loop (mem-4) tailReg
             | [] -> state
         let startMem = readReg rn state
