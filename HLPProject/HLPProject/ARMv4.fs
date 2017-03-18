@@ -805,7 +805,7 @@ module ARMv4 =
             | [] -> state
         let startMem = readReg rn state
         if c state
-        then if write then WriteReg rn (startMem-(reglist.length+1)*4) else state
+        then if write then writeReg rn (startMem-(reglist.length+1)*4) else state
              |> loop startMem-4 reglist
         else state
     
@@ -841,8 +841,8 @@ module ARMv4 =
         | _ -> failwith "Invalid data type."
 
     let fillW label data value state = 
-        let rec loop mem n val state = 
-            if n=0 then state else state |> writeMem mem val |> loop mem+4 n-4 val
+        let rec loop mem n val2 state = 
+            if n=0 then state else state |> writeMem mem val |> loop mem+4 n-4 val2
         loop label data value state
     
 //END (DONE)
