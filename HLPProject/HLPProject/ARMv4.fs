@@ -816,8 +816,12 @@ module ARMv4 =
             | (i,'i') :: tailReg -> state
                                     |> writeMem mem i
                                     |> loop (mem+4) tailList
+
+            | (r,'r') :: tailReg -> state
+                                    |> writeMem mem (readReg r state)
+                                    |> loop (mem+4) tailList
             | (m,'m') :: tailReg -> state
-                                    |> writeMem mem (readMem m)
+                                    |> writeMem mem (readMem m state)
                                     |> loop (mem+4) tailList
             | [] -> state
             | _ -> failwith "Invalid data type."
@@ -829,8 +833,10 @@ module ARMv4 =
         match val with
         | (i,'i') :: tailReg -> state
                                 |> writeMem name i
+        | (r,'r') :: tailReg -> state
+                                |> writeMem name (readReg r state)
         | (m,'m') :: tailReg -> state
-                                |> writeMem name (readMem m)
+                                |> writeMem name (readMem m state)
         | _ -> failwith "Invalid data type."
 
     let fillW label data value state = 
