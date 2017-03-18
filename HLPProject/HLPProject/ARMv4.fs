@@ -813,14 +813,14 @@ module ARMv4 =
     let dcd label valList state = 
         let rec loop mem vlist state = 
             match ilist with
-            | (i,'i') :: tailReg -> state
+            | (i,'i') :: tailList -> state
                                     |> writeMem mem i
                                     |> loop (mem+4) tailList
 
-            | (r,'r') :: tailReg -> state
+            | (r,'r') :: tailList -> state
                                     |> writeMem mem (readReg r state)
                                     |> loop (mem+4) tailList
-            | (m,'m') :: tailReg -> state
+            | (m,'m') :: tailList -> state
                                     |> writeMem mem (readMem m state)
                                     |> loop (mem+4) tailList
             | [] -> state
@@ -831,12 +831,9 @@ module ARMv4 =
     
     let equ name val state = 
         match val with
-        | (i,'i') :: tailReg -> state
-                                |> writeMem name i
-        | (r,'r') :: tailReg -> state
-                                |> writeMem name (readReg r state)
-        | (m,'m') :: tailReg -> state
-                                |> writeMem name (readMem m state)
+        | (i,'i') -> writeMem name i state
+        | (r,'r') -> writeMem name (readReg r state) state
+        | (m,'m') -> writeMem name (readMem m state) state
         | _ -> failwith "Invalid data type."
 
     let fillW label data value state = 
