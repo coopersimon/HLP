@@ -728,7 +728,7 @@ module ARMv4 =
         let startMem = readReg rn state
         if c state
         then if write then (writeReg rn (startMem+((List.length reglist)+1)*4) state) else state
-             |> loop startMem+4 reglist
+             |> loop (startMem+4) reglist
         else state
     
     let ldmDA c write rn (reglist:int list) state = 
@@ -754,7 +754,7 @@ module ARMv4 =
         let startMem = readReg rn state
         if c state
         then if write then (writeReg rn (startMem-((List.length reglist)+1)*4) state) else state
-             |> loop startMem-4 reglist
+             |> loop (startMem-4) reglist
         else state
     
     let stmIA c write rn (reglist:int list) state = 
@@ -780,7 +780,7 @@ module ARMv4 =
         let startMem = readReg rn state
         if c state
         then if write then (writeReg rn (startMem+((List.length reglist)+1)*4) state) else state
-             |> loop startMem+4 reglist
+             |> loop (startMem+4) reglist
         else state
     
     let stmDA c write rn (reglist:int list) state = 
@@ -806,7 +806,7 @@ module ARMv4 =
         let startMem = readReg rn state
         if c state
         then if write then (writeReg rn (startMem-((List.length reglist)+1)*4) state) else state
-             |> loop startMem-4 reglist
+             |> loop (startMem-4) reglist
         else state
     
 //DCD, EQU and FILL (DONE)
@@ -840,7 +840,7 @@ module ARMv4 =
 
     let fillW label data value state = 
         let rec loop mem n val2 state = 
-            if n=0 then state else (state |> writeMem mem val2 |> loop mem+4 n-4 val2)
+            if n=0 then state else (state |> writeMem mem val2 |> loop (mem+4) (n-4) val2)
         loop label data value state
     
 //END (DONE)

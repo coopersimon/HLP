@@ -15,6 +15,9 @@ module Tokeniser =
         // Add to equals override
         // Add to stringToToken function
 
+    // INTERPRETATION/PARSING TOKENS:
+    // These shouldn't be in this module. They will get moved out soon.
+
     /// Shift tokens.
     type shiftOp =
         | T_ASR
@@ -23,6 +26,18 @@ module Tokeniser =
         | T_ROR
         | T_RRX
         | T_NIL // Ideally this shouldn't exist.
+
+    /// Load/Store Multiple tokens.
+    type stackOrder =
+        | S_IA
+        | S_IB
+        | S_DA
+        | S_DB
+
+    /// Operand type tokens.
+    type opType =
+        | T_I
+        | T_R
 
     /// Add tokens here! Format: "T_x"
     [<CustomEquality; NoComparison>]
@@ -65,18 +80,22 @@ module Tokeniser =
         | T_LDR of (StateHandle -> bool)
         | T_LDRB of (StateHandle -> bool)
         | T_LDRH of (StateHandle -> bool)
-        | T_LDM of (StateHandle -> bool)
+        | T_LDM of (StateHandle -> bool)*stackOrder
 
         | T_STR of (StateHandle -> bool)
         | T_STRB of (StateHandle -> bool)
         | T_STRH of (StateHandle -> bool)
-        | T_STM of (StateHandle -> bool)
+        | T_STM of (StateHandle -> bool)*stackOrder
 
         | T_ADR of (StateHandle -> bool)
         | T_SWP of (StateHandle -> bool)
         | T_SWI of (StateHandle -> bool)
         | T_NOP of (StateHandle -> bool)
         | T_CLZ of (StateHandle -> bool)
+
+        | T_DCD
+        | T_EQU
+        | T_FILL
         | T_END of (StateHandle -> bool)
         // shift operands
         | T_SHIFT of shiftOp*((StateHandle -> bool)*bool)
@@ -114,6 +133,9 @@ module Tokeniser =
     /// S suffix, for setting flags.
     let setFlags = @"(|S)"
 
+    /// Stack suffix, for load/store multiple
+    let stackSfx = @"(IA|IB|DA|DB|FD|FA|ED|EA)"
+
     (***TOKENISER***)
 
     // active patterns for matching strings
@@ -148,6 +170,30 @@ module Tokeniser =
         | TOKEN_MATCH "S" -> true
         | _ -> false
 
+    /// Match LDM suffix to stackOrder.
+    let matchLDM = function
+        | TOKEN_MATCH "IA" -> S_IA
+        | TOKEN_MATCH "IB" -> S_IB
+        | TOKEN_MATCH "DA" -> S_DA
+        | TOKEN_MATCH "DB" -> S_DB
+        | TOKEN_MATCH "FD" -> S_IA
+        | TOKEN_MATCH "ED" -> S_IB
+        | TOKEN_MATCH "FA" -> S_DA
+        | TOKEN_MATCH "EA" -> S_DB
+        | _ -> S_IA
+
+    /// Match STM suffix to stackOrder.
+    let matchSTM = function
+        | TOKEN_MATCH "IA" -> S_IA
+        | TOKEN_MATCH "IB" -> S_IB
+        | TOKEN_MATCH "DA" -> S_DA
+        | TOKEN_MATCH "DB" -> S_DB
+        | TOKEN_MATCH "EA" -> S_IA
+        | TOKEN_MATCH "FA" -> S_IB
+        | TOKEN_MATCH "ED" -> S_DA
+        | TOKEN_MATCH "FD" -> S_DB
+        | _ -> S_IA
+
     // match an instruction (with condition code)
     let (|INSTR_MATCH|_|) pattern str =
         let m = Regex.Match(str, pattern+cond+"$", RegexOptions.IgnoreCase)
@@ -157,6 +203,16 @@ module Tokeniser =
     let (|INSTR_S_MATCH|_|) pattern str =
         let m = Regex.Match(str, pattern+cond+setFlags+"$", RegexOptions.IgnoreCase)
         if m.Success then Some(matchCond m.Groups.[1].Value, matchS m.Groups.[2].Value) else None
+
+    // match load multiple instruction with stack suffix.
+    let (|LDM_MATCH|_|) str =
+        let m = Regex.Match(str, @"^LDM"+cond+stackSfx+"$", RegexOptions.IgnoreCase)
+        if m.Success then Some(matchCond m.Groups.[1].Value, matchLDM m.Groups.[2].Value) else None
+        
+    // match load multiple instruction with stack suffix.
+    let (|STM_MATCH|_|) str =
+        let m = Regex.Match(str, @"^STM"+cond+stackSfx+"$", RegexOptions.IgnoreCase)
+        if m.Success then Some(matchCond m.Groups.[1].Value, matchSTM m.Groups.[2].Value) else None
 
     // match a valid register
     let (|REG_MATCH|_|) str =
@@ -237,17 +293,20 @@ module Tokeniser =
         | INSTR_MATCH @"^LDR" c -> T_LDR c
         | INSTR_MATCH @"^LDRB" c -> T_LDRB c
         | INSTR_MATCH @"^LDRH" c -> T_LDRH c
-        | INSTR_MATCH @"^LDM" c -> T_LDM c
+        | LDM_MATCH cs -> T_LDM cs
         | INSTR_MATCH @"^STR" c -> T_STR c
         | INSTR_MATCH @"^STRB" c -> T_STRB c
         | INSTR_MATCH @"^STRH" c -> T_STRH c
-        | INSTR_MATCH @"^STM" c -> T_STM c
+        | STM_MATCH cs -> T_STM cs
         | INSTR_MATCH @"^SWP" c -> T_SWP c
         | INSTR_MATCH @"^SWI" c -> T_SWI c
         | INSTR_MATCH @"^NOP" c -> T_NOP c
         | INSTR_MATCH @"^ADR" c -> T_ADR c
         | INSTR_MATCH @"^END" c -> T_END c
         | INSTR_MATCH @"^CLZ" c -> T_CLZ c
+        | TOKEN_MATCH @"^DCD$" -> T_DCD
+        | TOKEN_MATCH @"^EQU$" -> T_EQU
+        | TOKEN_MATCH @"^FILL$" -> T_FILL
         // shift operands
         | INSTR_S_MATCH @"^ASR" cs -> T_SHIFT (T_ASR, cs)
         | INSTR_S_MATCH @"^LSL" cs -> T_SHIFT (T_LSL, cs)
