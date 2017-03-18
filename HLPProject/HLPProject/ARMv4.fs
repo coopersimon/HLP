@@ -705,8 +705,8 @@ module ARMv4 =
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHCADDA.html
 //see http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0473c/Cacbgchh.html for equivalent modes
     
-    let rec ldmIA c write rn reglist:((int*char) list) state = 
-        let rec loop mem reglist:((int*char) list) state = 
+    let rec ldmIA c write rn (reglist:int list) state = 
+        let rec loop mem (reglist:int list) state = 
             match reglist with
             | hReg :: tailReg -> state
                                  |> writeReg hReg (readMem mem state) 
@@ -718,8 +718,8 @@ module ARMv4 =
              |> loop startMem reglist
         else state
     
-    let ldmIB c write rn reglist:((int*char) list) state = 
-        let rec loop mem reglist:((int*char) list) state = 
+    let ldmIB c write rn (reglist:int list) state = 
+        let rec loop mem (reglist:int list) state = 
             match reglist with
             | hReg :: tailReg -> state
                                  |> writeReg hReg (readMem mem state) 
@@ -731,8 +731,8 @@ module ARMv4 =
              |> loop startMem+4 reglist
         else state
     
-    let ldmDA c write rn reglist:((int*char) list) state = 
-        let rec loop mem reglist:((int*char) list) state = 
+    let ldmDA c write rn (reglist:int list) state = 
+        let rec loop mem (reglist:int list) state = 
             match reglist with
             | hReg :: tailReg -> state
                                  |> writeReg hReg (readMem mem state) 
@@ -744,8 +744,8 @@ module ARMv4 =
              |> loop startMem reglist
         else state
     
-    let ldmDB c write rn reglist:((int*char) list) state = 
-        let rec loop mem reglist:((int*char) list) state = 
+    let ldmDB c write rn (reglist:int list) state = 
+        let rec loop mem (reglist:int list) state = 
             match reglist with
             | hReg :: tailReg -> state
                                  |> writeReg hReg (readMem mem state) 
@@ -757,8 +757,8 @@ module ARMv4 =
              |> loop startMem-4 reglist
         else state
     
-    let stmIA c write rn reglist:((int*char) list) state = 
-        let rec loop mem reglist:((int*char) list) state = 
+    let stmIA c write rn (reglist:int list) state = 
+        let rec loop mem (reglist:int list) state = 
             match reglist with
             | hReg :: tailReg -> state
                                  |> writeMem mem (readReg hReg state) 
@@ -770,8 +770,8 @@ module ARMv4 =
              |> loop startMem reglist
         else state
         
-    let stmIB c write rn reglist:((int*char) list) state = 
-        let rec loop mem reglist:((int*char) list) state = 
+    let stmIB c write rn (reglist:int list) state = 
+        let rec loop mem (reglist:int list) state = 
             match reglist with
             | hReg :: tailReg -> state
                                  |> writeMem mem (readReg hReg state) 
@@ -783,8 +783,8 @@ module ARMv4 =
              |> loop startMem+4 reglist
         else state
     
-    let stmDA c write rn reglist:((int*char) list) state = 
-        let rec loop mem reglist:((int*char) list) state = 
+    let stmDA c write rn (reglist:int list) state = 
+        let rec loop mem (reglist:int list) state = 
             match reglist with
             | hReg :: tailReg -> state
                                  |> writeMem mem (readReg hReg state) 
@@ -796,8 +796,8 @@ module ARMv4 =
              |> loop startMem reglist
         else state
     
-    let stmDB c write rn reglist:((int*char) list) state = 
-        let rec loop mem reglist:((int*char) list) state = 
+    let stmDB c write rn (reglist:int list) state = 
+        let rec loop mem (reglist:int list) state = 
             match reglist with
             | hReg :: tailReg -> state
                                  |> writeMem mem (readReg hReg state) 
@@ -814,9 +814,9 @@ module ARMv4 =
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489h/Caccddic.html
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489f/Babchded.html
 
-    let dcd label valList state = 
-        let rec loop mem vlist state = 
-            match ilist with
+    let dcd label (valList:(int*char) list) state = 
+        let rec loop mem (vlist:(int*char) list) state = 
+            match vlist with
             | (i,'i') :: tailList -> state
                                     |> writeMem mem i
                                     |> loop (mem+4) tailList
@@ -833,7 +833,7 @@ module ARMv4 =
         then loop label vallist state
         else state
     
-    let equ name value state = 
+    let equ name (value:int*char) state = 
         match value with
         | (i,'i') -> writeMem name i state
         | (r,'r') -> writeMem name (readReg r state) state
