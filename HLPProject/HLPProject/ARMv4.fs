@@ -832,25 +832,11 @@ module ARMv4 =
         | (m,'m') :: tailReg -> state
                                 |> writeMem name (readMem m)
         | _ -> failwith "Invalid data type."
-    
-    let fill label data value valuesize state = 
-        let fillB label data value state = 
-            let rec loop mem n val state = 
-                if n=0 then state else state |> writeMem mem val |> loop mem+1 n-1 val
-            loop label data value state
-        let fillHW label data value state = 
-            let rec loop mem n val state = 
-                if n=0 then state else state |> writeMem mem val |> loop mem+2 n-1 val
-            loop label data value state
-        let fillW label data value state = 
-            let rec loop mem n val state = 
-                if n=0 then state else state |> writeMem mem val |> loop mem+4 n-1 val
-            loop label data value state
-        match valuesize with
-        |1 -> fillB label data value state
-        |2 -> fillHW label data value state
-        |4 -> fillW label data value state
-        |_ -> failwith "Invalid value size."
+
+    let fillW label data value state = 
+        let rec loop mem n val state = 
+            if n=0 then state else state |> writeMem mem val |> loop mem+4 n-4 val
+        loop label data value state
     
 //END (DONE)
     //stop emulation
