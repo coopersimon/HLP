@@ -361,7 +361,7 @@ These instructions do not affect the flags.
 
 **dcd**
 
-label:*int* -> valList:*int\*char list* -> state: *StateHandle* -> output:*StateHandle*
+c:*StateHandle->bool* -> label:*int* -> valList:*int\*char list* -> state: *StateHandle* -> output:*StateHandle*
 *Note: valList is a (intORmem, vtype) tuple list*
 
 Allocates one or more words of memory (depending on length of *valList*) starting from address *label*, and defines t
