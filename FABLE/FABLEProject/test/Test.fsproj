@@ -30,6 +30,7 @@
     <Compile Include="fs/Tokeniser.fs" />
     <Compile Include="fs/Parser.fs" />
     <Compile Include="fs/Interpreter.fs" />
+    <Compile Include="fs/FsHtml.fs" />
     <Compile Include="fs/Main.fs" />
   </ItemGroup>
 

@@ -1,7 +1,7 @@
 (function (global, factory) {
-    typeof exports === 'object' && typeof module !== 'undefined' ? factory() :
-    typeof define === 'function' && define.amd ? define(factory) :
-    (factory());
+   typeof exports === 'object' && typeof module !== 'undefined' ? factory() :
+   typeof define === 'function' && define.amd ? define(factory) :
+   (factory());
 }(this, (function () { 'use strict';
 
 var fableGlobal = function () {
@@ -49,7 +49,9 @@ function FArray(t) {
 
 
 
-
+function makeGeneric(typeDef, genArgs) {
+    return new NonDeclaredType("GenericType", typeDef, genArgs);
+}
 
 /**
  * Returns the parent if this is a declared generic type or the argument otherwise.
@@ -423,9 +425,15 @@ function map2(f, xs, ys) {
 
 
 
+function rangeStep(first, step, last) {
+    if (step === 0)
+        throw new Error("Step cannot be 0");
+    return delay(function () { return unfold(function (x) { return step > 0 && x <= last || step < 0 && x >= last ? [x, x + step] : null; }, first); });
+}
 
-
-
+function range(first, last) {
+    return rangeStep(first, 1, last);
+}
 
 
 
@@ -2092,11 +2100,21 @@ function fsFormat(str) {
 }
 
 
+function initialize$1(n, f) {
+    if (n < 0)
+        throw new Error("String length must be non-negative");
+    var xs = new Array(n);
+    for (var i = 0; i < n; i++)
+        xs[i] = f(i);
+    return xs.join("");
+}
 
 
 
-
-
+function join(delimiter, xs) {
+    xs = typeof xs == "string" ? getRestParams(arguments, 1) : xs;
+    return (Array.isArray(xs) ? xs : Array.from(xs)).join(delimiter);
+}
 
 function padLeft(str, len, ch, isRight) {
     ch = ch || " ";
@@ -2109,7 +2127,9 @@ function padLeft(str, len, ch, isRight) {
 
 
 
-
+function replicate$1(n, x) {
+    return initialize$1(n, function () { return x; });
+}
 function split$$1(str, splitters, count, removeEmpty) {
     count = typeof count == "number" ? count : null;
     removeEmpty = typeof removeEmpty == "number" ? removeEmpty : null;
@@ -2147,7 +2167,12 @@ function map$2(f, xs) {
     return reverse$1(fold(function (acc, x) { return new List(f(x), acc); }, new List(), xs));
 }
 
-
+function partition$2(f, xs) {
+    return fold(function (acc, x) {
+        var lacc = acc[0], racc = acc[1];
+        return f(x) ? [new List(x, lacc), racc] : [lacc, new List(x, racc)];
+    }, [new List(), new List()], reverse$1(xs));
+}
 
 function reverse$1(xs) {
     return fold(function (acc, x) { return new List(x, acc); }, new List(), xs);
@@ -2788,6 +2813,164 @@ function tokenise(s) {
     }, toList(split$$1(sC, " ", "\t", "\n", "\r", "\f"))));
 }
 
+var _createClass$2 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _classCallCheck$2(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var Html = function () {
+   function Html(caseName, fields) {
+      _classCallCheck$2(this, Html);
+
+      this.Case = caseName;
+      this.Fields = fields;
+   }
+
+   _createClass$2(Html, [{
+      key: _Symbol.reflection,
+      value: function () {
+         return {
+            type: "FsHtml.Html",
+            interfaces: ["FSharpUnion", "System.IEquatable", "System.IComparable"],
+            cases: {
+               Attr: ["string", "string"],
+               Elem: ["string", makeGeneric(List, {
+                  T: Html
+               })],
+               Text: ["string"]
+            }
+         };
+      }
+   }, {
+      key: "Equals",
+      value: function (other) {
+         return equalsUnions(this, other);
+      }
+   }, {
+      key: "CompareTo",
+      value: function (other) {
+         return compareUnions(this, other);
+      }
+   }, {
+      key: "ToString",
+      value: function () {
+         return Html.toString(this);
+      }
+   }], [{
+      key: "toString",
+      value: function (elem) {
+         var toString$$1 = function toString$$1(indent) {
+            return function (elem_1) {
+               var spaces = replicate$1(indent, " ");
+
+               var _target2 = function _target2(content, tag) {
+                  var isAttr = function isAttr(_arg1) {
+                     if (_arg1.Case === "Attr") {
+                        return true;
+                     } else {
+                        return false;
+                     }
+                  };
+
+                  var patternInput = function (list) {
+                     return partition$2(isAttr, list);
+                  }(content);
+
+                  var attrs = patternInput[0].Equals(new List()) ? "" : " " + join(" ", toList(delay(function () {
+                     return map(function (attr) {
+                        return toString$$1(0)(attr);
+                     }, patternInput[0]);
+                  })));
+
+                  if (patternInput[1].tail == null) {
+                     return spaces + "<" + tag + attrs + "/>\r\n";
+                  } else {
+                     return spaces + "<" + tag + attrs + ">\r\n" + join("", toList(delay(function () {
+                        return map(function (e) {
+                           return toString$$1(indent + 1)(e);
+                        }, patternInput[1]);
+                     }))) + spaces + "</" + tag + ">\r\n";
+                  }
+               };
+
+               if (elem_1.Case === "Elem") {
+                  if (elem_1.Fields[1].tail != null) {
+                     if (elem_1.Fields[1].head.Case === "Text") {
+                        if (elem_1.Fields[1].tail.tail == null) {
+                           var s = elem_1.Fields[1].head.Fields[0];
+                           var tag = elem_1.Fields[0];
+                           return spaces + "<" + tag + ">" + s + "</" + tag + ">\r\n";
+                        } else {
+                           return _target2(elem_1.Fields[1], elem_1.Fields[0]);
+                        }
+                     } else {
+                        return _target2(elem_1.Fields[1], elem_1.Fields[0]);
+                     }
+                  } else {
+                     return _target2(elem_1.Fields[1], elem_1.Fields[0]);
+                  }
+               } else if (elem_1.Case === "Text") {
+                  var text = elem_1.Fields[0];
+                  return spaces + text + "\r\n";
+               } else {
+                  var name = elem_1.Fields[0];
+                  var value = elem_1.Fields[1];
+                  return name + "=\"" + value + "\"";
+               }
+            };
+         };
+
+         return toString$$1(0)(elem);
+      }
+   }]);
+
+   return Html;
+}();
+setType("FsHtml.Html", Html);
+function elem(tag, content) {
+   return new Html("Elem", [tag, content]);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+var ul = function () {
+   var tag = "ul";
+   return function (content) {
+      return elem(tag, content);
+   };
+}();
+var li = function () {
+   var tag = "li";
+   return function (content) {
+      return elem(tag, content);
+   };
+}();
+
+
+
+
+
+function op_Splice(s) {
+   return ofArray$1([new Html("Text", [toString(s)])]);
+}
+
 (function (args) {
     var state = initState;
     var inString = "MOV R5, #2";
@@ -2796,15 +2979,15 @@ function tokenise(s) {
         return interpret(state, instr);
     }(parser(tokenise(inString)));
 
-    fsFormat("Start Main.fs - 2")(function (x) {
-        console.log(x);
-    });
-    fsFormat("%A")(function (x) {
-        console.log(x);
-    })(readReg(state, 5));
-    fsFormat("%A")(function (x) {
-        console.log(x);
-    })(readReg(newState, 5));
+    var regs = document.getElementById("regs");
+    var registerString = ul(toList(delay(function () {
+        return map(function (i) {
+            return li(op_Splice(fsFormat("R%A = %A")(function (x) {
+                return x;
+            })(i)(readReg(newState, i))));
+        }, range(1, 15));
+    })));
+    regs.innerHTML = Html.toString(registerString);
     return 0;
 })(process.argv.slice(2));
 
