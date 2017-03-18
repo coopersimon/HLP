@@ -373,12 +373,12 @@ name:*int* -> val:*int\*char* -> state: *StateHandle* -> output:*StateHandle*
 
 Gives a symbolic name to a numeric constant, a register-relative value or a PC-relative value.
 
-**FILL**
+**fillW**
 
-label:*int* -> data:*int* -> value:*int* -> valuesize:*int* -> state: *StateHandle* -> output:*StateHandle*
-*Note: Defaults for **value** and **valuesize** are 0 and 1 respectively.*
+label:*int* -> data:*int* -> value:*int* -> state: *StateHandle* -> output:*StateHandle*
+*Note: Default for **value** is 0.*
 
-Reserves a block of memory to fill with the given value.
+Reserves a block of memory of *data* bytes to fill with the given value (word). Thus, *data* must be divisible by 4.
 
 **Condition flags** - 
 These instructions do not affect the flags.
@@ -388,5 +388,5 @@ These instructions do not affect the flags.
 
 c:*StateHandle->bool* -> finalInstAddr:*int* -> state: *StateHandle* -> output:*StateHandle*
 
-If condition is true, stop emulation (by modifying PC). Output type is *StateHandle*.
+If *c state* is true, stop emulation (by writing *finalInstAddr* to *PC*). 
 
