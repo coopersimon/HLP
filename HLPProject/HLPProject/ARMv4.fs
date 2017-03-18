@@ -1,5 +1,6 @@
 ﻿// This module contains functions to run the ARMv4 instruction set.
- // Document: https://github.com/coopersimon/HLP/blob/dev_16_03/Documentation/Interfaces/ARMv4.md
+ // Mark down document: https://github.com/coopersimon/HLP/blob/dev_16_03/Documentation/Interfaces/ARMv4.md
+ // Not all instructions supported by the following functions are support by VISUAL. VISUAL supports : https://web.archive.org/web/20160831113526/http://salmanarif.bitbucket.org/visual/supported_instructions.html
 
 namespace Interpret
 module ARMv4 =
