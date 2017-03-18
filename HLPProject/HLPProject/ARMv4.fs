@@ -714,7 +714,7 @@ module ARMv4 =
             | [] -> state
         let startMem = readReg rn state
         if c state
-        then if write then writeReg rn (startMem+(List.length reglist)*4) else state
+        then if write then (writeReg rn (startMem+(List.length reglist)*4) state) else state
              |> loop startMem reglist
         else state
     
@@ -727,7 +727,7 @@ module ARMv4 =
             | [] -> state
         let startMem = readReg rn state
         if c state
-        then if write then writeReg rn (startMem+((List.length reglist)+1)*4) else state
+        then if write then (writeReg rn (startMem+((List.length reglist)+1)*4) state) else state
              |> loop startMem+4 reglist
         else state
     
@@ -740,7 +740,7 @@ module ARMv4 =
             | [] -> state
         let startMem = readReg rn state
         if c state
-        then if write then WriteReg rn (startMem-(List.length reglist)*4) else state
+        then if write then (writeReg rn (startMem-(List.length reglist)*4) state) else state
              |> loop startMem reglist
         else state
     
@@ -753,7 +753,7 @@ module ARMv4 =
             | [] -> state
         let startMem = readReg rn state
         if c state
-        then if write then WriteReg rn (startMem-((List.length reglist)+1)*4) else state
+        then if write then (writeReg rn (startMem-((List.length reglist)+1)*4) state) else state
              |> loop startMem-4 reglist
         else state
     
@@ -766,7 +766,7 @@ module ARMv4 =
             | [] -> state
         let startMem = readReg rn state
         if c state
-        then if write then WriteReg rn (startMem+(List.length reglist)*4) else state
+        then if write then (writeReg rn (startMem+(List.length reglist)*4) state) else state
              |> loop startMem reglist
         else state
         
@@ -779,7 +779,7 @@ module ARMv4 =
             | [] -> state
         let startMem = readReg rn state
         if c state
-        then if write then WriteReg rn (startMem+((List.length reglist)+1)*4) else state
+        then if write then (writeReg rn (startMem+((List.length reglist)+1)*4) state) else state
              |> loop startMem+4 reglist
         else state
     
@@ -792,7 +792,7 @@ module ARMv4 =
             | [] -> state
         let startMem = readReg rn state
         if c state
-        then if write then WriteReg rn (startMem-(List.length reglist)*4) else state
+        then if write then (writeReg rn (startMem-(List.length reglist)*4) state) else state
              |> loop startMem reglist
         else state
     
@@ -805,7 +805,7 @@ module ARMv4 =
             | [] -> state
         let startMem = readReg rn state
         if c state
-        then if write then writeReg rn (startMem-((List.length reglist)+1)*4) else state
+        then if write then (writeReg rn (startMem-((List.length reglist)+1)*4) state) else state
              |> loop startMem-4 reglist
         else state
     
