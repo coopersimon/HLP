@@ -714,7 +714,7 @@ module ARMv4 =
             | [] -> state
         let startMem = readReg rn state
         if c state
-        then if write then writeReg rn (startMem+(reglist.length)*4) else state
+        then if write then writeReg rn (startMem+(List.length reglist)*4) else state
              |> loop startMem reglist
         else state
     
@@ -727,7 +727,7 @@ module ARMv4 =
             | [] -> state
         let startMem = readReg rn state
         if c state
-        then if write then writeReg rn (startMem+(reglist.length+1)*4) else state
+        then if write then writeReg rn (startMem+((List.length reglist)+1)*4) else state
              |> loop startMem+4 reglist
         else state
     
@@ -740,7 +740,7 @@ module ARMv4 =
             | [] -> state
         let startMem = readReg rn state
         if c state
-        then if write then WriteReg rn (startMem-(reglist.length)*4) else state
+        then if write then WriteReg rn (startMem-(List.length reglist)*4) else state
              |> loop startMem reglist
         else state
     
@@ -753,7 +753,7 @@ module ARMv4 =
             | [] -> state
         let startMem = readReg rn state
         if c state
-        then if write then WriteReg rn (startMem-(reglist.length+1)*4) else state
+        then if write then WriteReg rn (startMem-((List.length reglist)+1)*4) else state
              |> loop startMem-4 reglist
         else state
     
@@ -766,7 +766,7 @@ module ARMv4 =
             | [] -> state
         let startMem = readReg rn state
         if c state
-        then if write then WriteReg rn (startMem+(reglist.length)*4) else state
+        then if write then WriteReg rn (startMem+(List.length reglist)*4) else state
              |> loop startMem reglist
         else state
         
@@ -779,7 +779,7 @@ module ARMv4 =
             | [] -> state
         let startMem = readReg rn state
         if c state
-        then if write then WriteReg rn (startMem+(reglist.length+1)*4) else state
+        then if write then WriteReg rn (startMem+((List.length reglist)+1)*4) else state
              |> loop startMem+4 reglist
         else state
     
@@ -792,7 +792,7 @@ module ARMv4 =
             | [] -> state
         let startMem = readReg rn state
         if c state
-        then if write then WriteReg rn (startMem-(reglist.length)*4) else state
+        then if write then WriteReg rn (startMem-(List.length reglist)*4) else state
              |> loop startMem reglist
         else state
     
@@ -805,7 +805,7 @@ module ARMv4 =
             | [] -> state
         let startMem = readReg rn state
         if c state
-        then if write then writeReg rn (startMem-(reglist.length+1)*4) else state
+        then if write then writeReg rn (startMem-((List.length reglist)+1)*4) else state
              |> loop startMem-4 reglist
         else state
     
@@ -814,7 +814,7 @@ module ARMv4 =
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489h/Caccddic.html
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489f/Babchded.html
 
-    let dcd label (valList:(int*char) list) state = 
+    let dcd c label (valList:(int*char) list) state = 
         let rec loop mem (vlist:(int*char) list) state = 
             match vlist with
             | (i,'i') :: tailList -> state
@@ -830,7 +830,7 @@ module ARMv4 =
             | [] -> state
             | _ -> failwith "Invalid data type."
         if c state
-        then loop label vallist state
+        then loop label valList state
         else state
     
     let equ name (value:int*char) state = 
