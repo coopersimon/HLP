@@ -1953,40 +1953,40 @@ var Token = function () {
 
             if (yobj instanceof Token) {
                 var matchValue = [this, yobj];
-                var $var4 = matchValue[0].Case === "T_REG" ? matchValue[1].Case === "T_REG" ? [0, matchValue[0].Fields[0], matchValue[1].Fields[0]] : [8] : matchValue[0].Case === "T_INT" ? matchValue[1].Case === "T_INT" ? [1, matchValue[0].Fields[0], matchValue[1].Fields[0]] : [8] : matchValue[0].Case === "T_COMMA" ? matchValue[1].Case === "T_COMMA" ? [2] : [8] : matchValue[0].Case === "T_ERROR" ? matchValue[1].Case === "T_ERROR" ? [3, matchValue[0].Fields[0], matchValue[1].Fields[0]] : [8] : matchValue[0].Case === "T_MOV" ? matchValue[1].Case === "T_MOV" ? [4, matchValue[0].Fields[0], matchValue[1].Fields[0], matchValue[0].Fields[1], matchValue[1].Fields[1]] : [8] : matchValue[0].Case === "T_MVN" ? matchValue[1].Case === "T_MVN" ? [5, matchValue[0].Fields[0], matchValue[1].Fields[0], matchValue[0].Fields[1], matchValue[1].Fields[1]] : [8] : matchValue[0].Case === "T_MRS" ? matchValue[1].Case === "T_MRS" ? [6, matchValue[0].Fields[0], matchValue[1].Fields[0]] : [8] : matchValue[0].Case === "T_MSR" ? matchValue[1].Case === "T_MSR" ? [7, matchValue[0].Fields[0], matchValue[1].Fields[0]] : [8] : [8];
+                var $var1317 = matchValue[0].Case === "T_REG" ? matchValue[1].Case === "T_REG" ? [0, matchValue[0].Fields[0], matchValue[1].Fields[0]] : [8] : matchValue[0].Case === "T_INT" ? matchValue[1].Case === "T_INT" ? [1, matchValue[0].Fields[0], matchValue[1].Fields[0]] : [8] : matchValue[0].Case === "T_COMMA" ? matchValue[1].Case === "T_COMMA" ? [2] : [8] : matchValue[0].Case === "T_ERROR" ? matchValue[1].Case === "T_ERROR" ? [3, matchValue[0].Fields[0], matchValue[1].Fields[0]] : [8] : matchValue[0].Case === "T_MOV" ? matchValue[1].Case === "T_MOV" ? [4, matchValue[0].Fields[0], matchValue[1].Fields[0], matchValue[0].Fields[1], matchValue[1].Fields[1]] : [8] : matchValue[0].Case === "T_MVN" ? matchValue[1].Case === "T_MVN" ? [5, matchValue[0].Fields[0], matchValue[1].Fields[0], matchValue[0].Fields[1], matchValue[1].Fields[1]] : [8] : matchValue[0].Case === "T_MRS" ? matchValue[1].Case === "T_MRS" ? [6, matchValue[0].Fields[0], matchValue[1].Fields[0]] : [8] : matchValue[0].Case === "T_MSR" ? matchValue[1].Case === "T_MSR" ? [7, matchValue[0].Fields[0], matchValue[1].Fields[0]] : [8] : [8];
 
-                switch ($var4[0]) {
+                switch ($var1317[0]) {
                     case 0:
-                        return $var4[1] === $var4[2];
+                        return $var1317[1] === $var1317[2];
 
                     case 1:
-                        return $var4[1] === $var4[2];
+                        return $var1317[1] === $var1317[2];
 
                     case 2:
                         return true;
 
                     case 3:
-                        return $var4[1] === $var4[2];
+                        return $var1317[1] === $var1317[2];
 
                     case 4:
-                        if ($var4[1](state) === $var4[2](state)) {
-                            return $var4[3] === $var4[4];
+                        if ($var1317[1](state) === $var1317[2](state)) {
+                            return $var1317[3] === $var1317[4];
                         } else {
                             return false;
                         }
 
                     case 5:
-                        if ($var4[1](state) === $var4[2](state)) {
-                            return $var4[3] === $var4[4];
+                        if ($var1317[1](state) === $var1317[2](state)) {
+                            return $var1317[3] === $var1317[4];
                         } else {
                             return false;
                         }
 
                     case 6:
-                        return $var4[1](state) === $var4[2](state);
+                        return $var1317[1](state) === $var1317[2](state);
 
                     case 7:
-                        return $var4[1](state) === $var4[2](state);
+                        return $var1317[1](state) === $var1317[2](state);
 
                     case 8:
                         return false;
@@ -2015,114 +2015,114 @@ function _TOKEN_MATCH___(pattern, str) {
 }
 
 function matchCond(_arg1) {
-    var activePatternResult249 = _TOKEN_MATCH___("EQ", _arg1);
+    var activePatternResult39736 = _TOKEN_MATCH___("EQ", _arg1);
 
-    if (activePatternResult249 != null) {
+    if (activePatternResult39736 != null) {
         return function (state) {
             return checkEQ(state);
         };
     } else {
-        var activePatternResult247 = _TOKEN_MATCH___("NE", _arg1);
+        var activePatternResult39734 = _TOKEN_MATCH___("NE", _arg1);
 
-        if (activePatternResult247 != null) {
+        if (activePatternResult39734 != null) {
             return function (state_1) {
                 return checkNE(state_1);
             };
         } else {
-            var activePatternResult245 = _TOKEN_MATCH___("CS", _arg1);
+            var activePatternResult39732 = _TOKEN_MATCH___("CS", _arg1);
 
-            if (activePatternResult245 != null) {
+            if (activePatternResult39732 != null) {
                 return function (state_2) {
                     return checkCS(state_2);
                 };
             } else {
-                var activePatternResult243 = _TOKEN_MATCH___("HS", _arg1);
+                var activePatternResult39730 = _TOKEN_MATCH___("HS", _arg1);
 
-                if (activePatternResult243 != null) {
+                if (activePatternResult39730 != null) {
                     return function (state_3) {
                         return checkCS(state_3);
                     };
                 } else {
-                    var activePatternResult241 = _TOKEN_MATCH___("CC", _arg1);
+                    var activePatternResult39728 = _TOKEN_MATCH___("CC", _arg1);
 
-                    if (activePatternResult241 != null) {
+                    if (activePatternResult39728 != null) {
                         return function (state_4) {
                             return checkCC(state_4);
                         };
                     } else {
-                        var activePatternResult239 = _TOKEN_MATCH___("LO", _arg1);
+                        var activePatternResult39726 = _TOKEN_MATCH___("LO", _arg1);
 
-                        if (activePatternResult239 != null) {
+                        if (activePatternResult39726 != null) {
                             return function (state_5) {
                                 return checkCC(state_5);
                             };
                         } else {
-                            var activePatternResult237 = _TOKEN_MATCH___("MI", _arg1);
+                            var activePatternResult39724 = _TOKEN_MATCH___("MI", _arg1);
 
-                            if (activePatternResult237 != null) {
+                            if (activePatternResult39724 != null) {
                                 return function (state_6) {
                                     return checkMI(state_6);
                                 };
                             } else {
-                                var activePatternResult235 = _TOKEN_MATCH___("PL", _arg1);
+                                var activePatternResult39722 = _TOKEN_MATCH___("PL", _arg1);
 
-                                if (activePatternResult235 != null) {
+                                if (activePatternResult39722 != null) {
                                     return function (state_7) {
                                         return checkPL(state_7);
                                     };
                                 } else {
-                                    var activePatternResult233 = _TOKEN_MATCH___("VS", _arg1);
+                                    var activePatternResult39720 = _TOKEN_MATCH___("VS", _arg1);
 
-                                    if (activePatternResult233 != null) {
+                                    if (activePatternResult39720 != null) {
                                         return function (state_8) {
                                             return checkVS(state_8);
                                         };
                                     } else {
-                                        var activePatternResult231 = _TOKEN_MATCH___("VC", _arg1);
+                                        var activePatternResult39718 = _TOKEN_MATCH___("VC", _arg1);
 
-                                        if (activePatternResult231 != null) {
+                                        if (activePatternResult39718 != null) {
                                             return function (state_9) {
                                                 return checkVC(state_9);
                                             };
                                         } else {
-                                            var activePatternResult229 = _TOKEN_MATCH___("HI", _arg1);
+                                            var activePatternResult39716 = _TOKEN_MATCH___("HI", _arg1);
 
-                                            if (activePatternResult229 != null) {
+                                            if (activePatternResult39716 != null) {
                                                 return function (state_10) {
                                                     return checkHI(state_10);
                                                 };
                                             } else {
-                                                var activePatternResult227 = _TOKEN_MATCH___("GE", _arg1);
+                                                var activePatternResult39714 = _TOKEN_MATCH___("GE", _arg1);
 
-                                                if (activePatternResult227 != null) {
+                                                if (activePatternResult39714 != null) {
                                                     return function (state_11) {
                                                         return checkGE(state_11);
                                                     };
                                                 } else {
-                                                    var activePatternResult225 = _TOKEN_MATCH___("LT", _arg1);
+                                                    var activePatternResult39712 = _TOKEN_MATCH___("LT", _arg1);
 
-                                                    if (activePatternResult225 != null) {
+                                                    if (activePatternResult39712 != null) {
                                                         return function (state_12) {
                                                             return checkLT(state_12);
                                                         };
                                                     } else {
-                                                        var activePatternResult223 = _TOKEN_MATCH___("GT", _arg1);
+                                                        var activePatternResult39710 = _TOKEN_MATCH___("GT", _arg1);
 
-                                                        if (activePatternResult223 != null) {
+                                                        if (activePatternResult39710 != null) {
                                                             return function (state_13) {
                                                                 return checkGT(state_13);
                                                             };
                                                         } else {
-                                                            var activePatternResult221 = _TOKEN_MATCH___("LE", _arg1);
+                                                            var activePatternResult39708 = _TOKEN_MATCH___("LE", _arg1);
 
-                                                            if (activePatternResult221 != null) {
+                                                            if (activePatternResult39708 != null) {
                                                                 return function (state_14) {
                                                                     return checkLE(state_14);
                                                                 };
                                                             } else {
-                                                                var activePatternResult219 = _TOKEN_MATCH___("AL", _arg1);
+                                                                var activePatternResult39706 = _TOKEN_MATCH___("AL", _arg1);
 
-                                                                if (activePatternResult219 != null) {
+                                                                if (activePatternResult39706 != null) {
                                                                     return function (state_15) {
                                                                         return checkAL(state_15);
                                                                     };
@@ -2148,53 +2148,53 @@ function matchCond(_arg1) {
     }
 }
 function matchS(_arg1) {
-    var activePatternResult252 = _TOKEN_MATCH___("S", _arg1);
+    var activePatternResult39739 = _TOKEN_MATCH___("S", _arg1);
 
-    if (activePatternResult252 != null) {
+    if (activePatternResult39739 != null) {
         return true;
     } else {
         return false;
     }
 }
 function matchLDM(_arg1) {
-    var activePatternResult269 = _TOKEN_MATCH___("IA", _arg1);
+    var activePatternResult39756 = _TOKEN_MATCH___("IA", _arg1);
 
-    if (activePatternResult269 != null) {
+    if (activePatternResult39756 != null) {
         return new stackOrder("S_IA", []);
     } else {
-        var activePatternResult267 = _TOKEN_MATCH___("IB", _arg1);
+        var activePatternResult39754 = _TOKEN_MATCH___("IB", _arg1);
 
-        if (activePatternResult267 != null) {
+        if (activePatternResult39754 != null) {
             return new stackOrder("S_IB", []);
         } else {
-            var activePatternResult265 = _TOKEN_MATCH___("DA", _arg1);
+            var activePatternResult39752 = _TOKEN_MATCH___("DA", _arg1);
 
-            if (activePatternResult265 != null) {
+            if (activePatternResult39752 != null) {
                 return new stackOrder("S_DA", []);
             } else {
-                var activePatternResult263 = _TOKEN_MATCH___("DB", _arg1);
+                var activePatternResult39750 = _TOKEN_MATCH___("DB", _arg1);
 
-                if (activePatternResult263 != null) {
+                if (activePatternResult39750 != null) {
                     return new stackOrder("S_DB", []);
                 } else {
-                    var activePatternResult261 = _TOKEN_MATCH___("FD", _arg1);
+                    var activePatternResult39748 = _TOKEN_MATCH___("FD", _arg1);
 
-                    if (activePatternResult261 != null) {
+                    if (activePatternResult39748 != null) {
                         return new stackOrder("S_IA", []);
                     } else {
-                        var activePatternResult259 = _TOKEN_MATCH___("ED", _arg1);
+                        var activePatternResult39746 = _TOKEN_MATCH___("ED", _arg1);
 
-                        if (activePatternResult259 != null) {
+                        if (activePatternResult39746 != null) {
                             return new stackOrder("S_IB", []);
                         } else {
-                            var activePatternResult257 = _TOKEN_MATCH___("FA", _arg1);
+                            var activePatternResult39744 = _TOKEN_MATCH___("FA", _arg1);
 
-                            if (activePatternResult257 != null) {
+                            if (activePatternResult39744 != null) {
                                 return new stackOrder("S_DA", []);
                             } else {
-                                var activePatternResult255 = _TOKEN_MATCH___("EA", _arg1);
+                                var activePatternResult39742 = _TOKEN_MATCH___("EA", _arg1);
 
-                                if (activePatternResult255 != null) {
+                                if (activePatternResult39742 != null) {
                                     return new stackOrder("S_DB", []);
                                 } else {
                                     return new stackOrder("S_IA", []);
@@ -2208,44 +2208,44 @@ function matchLDM(_arg1) {
     }
 }
 function matchSTM(_arg1) {
-    var activePatternResult286 = _TOKEN_MATCH___("IA", _arg1);
+    var activePatternResult39773 = _TOKEN_MATCH___("IA", _arg1);
 
-    if (activePatternResult286 != null) {
+    if (activePatternResult39773 != null) {
         return new stackOrder("S_IA", []);
     } else {
-        var activePatternResult284 = _TOKEN_MATCH___("IB", _arg1);
+        var activePatternResult39771 = _TOKEN_MATCH___("IB", _arg1);
 
-        if (activePatternResult284 != null) {
+        if (activePatternResult39771 != null) {
             return new stackOrder("S_IB", []);
         } else {
-            var activePatternResult282 = _TOKEN_MATCH___("DA", _arg1);
+            var activePatternResult39769 = _TOKEN_MATCH___("DA", _arg1);
 
-            if (activePatternResult282 != null) {
+            if (activePatternResult39769 != null) {
                 return new stackOrder("S_DA", []);
             } else {
-                var activePatternResult280 = _TOKEN_MATCH___("DB", _arg1);
+                var activePatternResult39767 = _TOKEN_MATCH___("DB", _arg1);
 
-                if (activePatternResult280 != null) {
+                if (activePatternResult39767 != null) {
                     return new stackOrder("S_DB", []);
                 } else {
-                    var activePatternResult278 = _TOKEN_MATCH___("EA", _arg1);
+                    var activePatternResult39765 = _TOKEN_MATCH___("EA", _arg1);
 
-                    if (activePatternResult278 != null) {
+                    if (activePatternResult39765 != null) {
                         return new stackOrder("S_IA", []);
                     } else {
-                        var activePatternResult276 = _TOKEN_MATCH___("FA", _arg1);
+                        var activePatternResult39763 = _TOKEN_MATCH___("FA", _arg1);
 
-                        if (activePatternResult276 != null) {
+                        if (activePatternResult39763 != null) {
                             return new stackOrder("S_IB", []);
                         } else {
-                            var activePatternResult274 = _TOKEN_MATCH___("ED", _arg1);
+                            var activePatternResult39761 = _TOKEN_MATCH___("ED", _arg1);
 
-                            if (activePatternResult274 != null) {
+                            if (activePatternResult39761 != null) {
                                 return new stackOrder("S_DA", []);
                             } else {
-                                var activePatternResult272 = _TOKEN_MATCH___("FD", _arg1);
+                                var activePatternResult39759 = _TOKEN_MATCH___("FD", _arg1);
 
-                                if (activePatternResult272 != null) {
+                                if (activePatternResult39759 != null) {
                                     return new stackOrder("S_DB", []);
                                 } else {
                                     return new stackOrder("S_IA", []);
@@ -2340,104 +2340,104 @@ function _HEX_LIT_MATCH___(str) {
 }
 
 function stringToToken(_arg1) {
-    var activePatternResult455 = _REG_MATCH___(_arg1);
+    var activePatternResult39942 = _REG_MATCH___(_arg1);
 
-    if (activePatternResult455 != null) {
-        return new Token("T_REG", [activePatternResult455]);
+    if (activePatternResult39942 != null) {
+        return new Token("T_REG", [activePatternResult39942]);
     } else {
-        var activePatternResult454 = _TOKEN_MATCH___("^a1$", _arg1);
+        var activePatternResult39941 = _TOKEN_MATCH___("^a1$", _arg1);
 
-        if (activePatternResult454 != null) {
+        if (activePatternResult39941 != null) {
             return new Token("T_REG", [0]);
         } else {
-            var activePatternResult452 = _TOKEN_MATCH___("^a2$", _arg1);
+            var activePatternResult39939 = _TOKEN_MATCH___("^a2$", _arg1);
 
-            if (activePatternResult452 != null) {
+            if (activePatternResult39939 != null) {
                 return new Token("T_REG", [1]);
             } else {
-                var activePatternResult450 = _TOKEN_MATCH___("^a3$", _arg1);
+                var activePatternResult39937 = _TOKEN_MATCH___("^a3$", _arg1);
 
-                if (activePatternResult450 != null) {
+                if (activePatternResult39937 != null) {
                     return new Token("T_REG", [2]);
                 } else {
-                    var activePatternResult448 = _TOKEN_MATCH___("^a4$", _arg1);
+                    var activePatternResult39935 = _TOKEN_MATCH___("^a4$", _arg1);
 
-                    if (activePatternResult448 != null) {
+                    if (activePatternResult39935 != null) {
                         return new Token("T_REG", [3]);
                     } else {
-                        var activePatternResult446 = _TOKEN_MATCH___("^v1$", _arg1);
+                        var activePatternResult39933 = _TOKEN_MATCH___("^v1$", _arg1);
 
-                        if (activePatternResult446 != null) {
+                        if (activePatternResult39933 != null) {
                             return new Token("T_REG", [4]);
                         } else {
-                            var activePatternResult444 = _TOKEN_MATCH___("^v2$", _arg1);
+                            var activePatternResult39931 = _TOKEN_MATCH___("^v2$", _arg1);
 
-                            if (activePatternResult444 != null) {
+                            if (activePatternResult39931 != null) {
                                 return new Token("T_REG", [5]);
                             } else {
-                                var activePatternResult442 = _TOKEN_MATCH___("^v3$", _arg1);
+                                var activePatternResult39929 = _TOKEN_MATCH___("^v3$", _arg1);
 
-                                if (activePatternResult442 != null) {
+                                if (activePatternResult39929 != null) {
                                     return new Token("T_REG", [6]);
                                 } else {
-                                    var activePatternResult440 = _TOKEN_MATCH___("^v4$", _arg1);
+                                    var activePatternResult39927 = _TOKEN_MATCH___("^v4$", _arg1);
 
-                                    if (activePatternResult440 != null) {
+                                    if (activePatternResult39927 != null) {
                                         return new Token("T_REG", [7]);
                                     } else {
-                                        var activePatternResult438 = _TOKEN_MATCH___("^v5$", _arg1);
+                                        var activePatternResult39925 = _TOKEN_MATCH___("^v5$", _arg1);
 
-                                        if (activePatternResult438 != null) {
+                                        if (activePatternResult39925 != null) {
                                             return new Token("T_REG", [8]);
                                         } else {
-                                            var activePatternResult436 = _TOKEN_MATCH___("^v6$", _arg1);
+                                            var activePatternResult39923 = _TOKEN_MATCH___("^v6$", _arg1);
 
-                                            if (activePatternResult436 != null) {
+                                            if (activePatternResult39923 != null) {
                                                 return new Token("T_REG", [9]);
                                             } else {
-                                                var activePatternResult434 = _TOKEN_MATCH___("^v7$", _arg1);
+                                                var activePatternResult39921 = _TOKEN_MATCH___("^v7$", _arg1);
 
-                                                if (activePatternResult434 != null) {
+                                                if (activePatternResult39921 != null) {
                                                     return new Token("T_REG", [10]);
                                                 } else {
-                                                    var activePatternResult432 = _TOKEN_MATCH___("^v8$", _arg1);
+                                                    var activePatternResult39919 = _TOKEN_MATCH___("^v8$", _arg1);
 
-                                                    if (activePatternResult432 != null) {
+                                                    if (activePatternResult39919 != null) {
                                                         return new Token("T_REG", [11]);
                                                     } else {
-                                                        var activePatternResult430 = _TOKEN_MATCH___("^sb$", _arg1);
+                                                        var activePatternResult39917 = _TOKEN_MATCH___("^sb$", _arg1);
 
-                                                        if (activePatternResult430 != null) {
+                                                        if (activePatternResult39917 != null) {
                                                             return new Token("T_REG", [9]);
                                                         } else {
-                                                            var activePatternResult428 = _TOKEN_MATCH___("^sl$", _arg1);
+                                                            var activePatternResult39915 = _TOKEN_MATCH___("^sl$", _arg1);
 
-                                                            if (activePatternResult428 != null) {
+                                                            if (activePatternResult39915 != null) {
                                                                 return new Token("T_REG", [10]);
                                                             } else {
-                                                                var activePatternResult426 = _TOKEN_MATCH___("^fp$", _arg1);
+                                                                var activePatternResult39913 = _TOKEN_MATCH___("^fp$", _arg1);
 
-                                                                if (activePatternResult426 != null) {
+                                                                if (activePatternResult39913 != null) {
                                                                     return new Token("T_REG", [11]);
                                                                 } else {
-                                                                    var activePatternResult424 = _TOKEN_MATCH___("^ip$", _arg1);
+                                                                    var activePatternResult39911 = _TOKEN_MATCH___("^ip$", _arg1);
 
-                                                                    if (activePatternResult424 != null) {
+                                                                    if (activePatternResult39911 != null) {
                                                                         return new Token("T_REG", [12]);
                                                                     } else {
-                                                                        var activePatternResult422 = _TOKEN_MATCH___("^sp$", _arg1);
+                                                                        var activePatternResult39909 = _TOKEN_MATCH___("^sp$", _arg1);
 
-                                                                        if (activePatternResult422 != null) {
+                                                                        if (activePatternResult39909 != null) {
                                                                             return new Token("T_REG", [13]);
                                                                         } else {
-                                                                            var activePatternResult420 = _TOKEN_MATCH___("^lr$", _arg1);
+                                                                            var activePatternResult39907 = _TOKEN_MATCH___("^lr$", _arg1);
 
-                                                                            if (activePatternResult420 != null) {
+                                                                            if (activePatternResult39907 != null) {
                                                                                 return new Token("T_REG", [14]);
                                                                             } else {
-                                                                                var activePatternResult418 = _TOKEN_MATCH___("^pc$", _arg1);
+                                                                                var activePatternResult39905 = _TOKEN_MATCH___("^pc$", _arg1);
 
-                                                                                if (activePatternResult418 != null) {
+                                                                                if (activePatternResult39905 != null) {
                                                                                     return new Token("T_REG", [15]);
                                                                                 } else if (_arg1 === ",") {
                                                                                     return new Token("T_COMMA", []);
@@ -2448,305 +2448,305 @@ function stringToToken(_arg1) {
                                                                                 } else if (_arg1 === "!") {
                                                                                     return new Token("T_EXCL", []);
                                                                                 } else {
-                                                                                    var activePatternResult416 = _DEC_LIT_MATCH___(_arg1);
+                                                                                    var activePatternResult39903 = _DEC_LIT_MATCH___(_arg1);
 
-                                                                                    if (activePatternResult416 != null) {
-                                                                                        return new Token("T_INT", [activePatternResult416]);
+                                                                                    if (activePatternResult39903 != null) {
+                                                                                        return new Token("T_INT", [activePatternResult39903]);
                                                                                     } else {
-                                                                                        var activePatternResult415 = _HEX_LIT_MATCH___(_arg1);
+                                                                                        var activePatternResult39902 = _HEX_LIT_MATCH___(_arg1);
 
-                                                                                        if (activePatternResult415 != null) {
-                                                                                            return new Token("T_INT", [activePatternResult415]);
+                                                                                        if (activePatternResult39902 != null) {
+                                                                                            return new Token("T_INT", [activePatternResult39902]);
                                                                                         } else {
-                                                                                            var activePatternResult414 = _INSTR_S_MATCH___("^MOV", _arg1);
+                                                                                            var activePatternResult39901 = _INSTR_S_MATCH___("^MOV", _arg1);
 
-                                                                                            if (activePatternResult414 != null) {
+                                                                                            if (activePatternResult39901 != null) {
                                                                                                 return function (tupledArg) {
                                                                                                     return new Token("T_MOV", [tupledArg[0], tupledArg[1]]);
-                                                                                                }(activePatternResult414);
+                                                                                                }(activePatternResult39901);
                                                                                             } else {
-                                                                                                var activePatternResult412 = _INSTR_S_MATCH___("^MVN", _arg1);
+                                                                                                var activePatternResult39899 = _INSTR_S_MATCH___("^MVN", _arg1);
 
-                                                                                                if (activePatternResult412 != null) {
+                                                                                                if (activePatternResult39899 != null) {
                                                                                                     return function (tupledArg_1) {
                                                                                                         return new Token("T_MVN", [tupledArg_1[0], tupledArg_1[1]]);
-                                                                                                    }(activePatternResult412);
+                                                                                                    }(activePatternResult39899);
                                                                                                 } else {
-                                                                                                    var activePatternResult410 = _INSTR_MATCH___("^MRS", _arg1);
+                                                                                                    var activePatternResult39897 = _INSTR_MATCH___("^MRS", _arg1);
 
-                                                                                                    if (activePatternResult410 != null) {
-                                                                                                        return new Token("T_MRS", [activePatternResult410]);
+                                                                                                    if (activePatternResult39897 != null) {
+                                                                                                        return new Token("T_MRS", [activePatternResult39897]);
                                                                                                     } else {
-                                                                                                        var activePatternResult408 = _INSTR_MATCH___("^MSR", _arg1);
+                                                                                                        var activePatternResult39895 = _INSTR_MATCH___("^MSR", _arg1);
 
-                                                                                                        if (activePatternResult408 != null) {
-                                                                                                            return new Token("T_MSR", [activePatternResult408]);
+                                                                                                        if (activePatternResult39895 != null) {
+                                                                                                            return new Token("T_MSR", [activePatternResult39895]);
                                                                                                         } else {
-                                                                                                            var activePatternResult406 = _INSTR_S_MATCH___("^ADD", _arg1);
+                                                                                                            var activePatternResult39893 = _INSTR_S_MATCH___("^ADD", _arg1);
 
-                                                                                                            if (activePatternResult406 != null) {
+                                                                                                            if (activePatternResult39893 != null) {
                                                                                                                 return function (tupledArg_2) {
                                                                                                                     return new Token("T_ADD", [tupledArg_2[0], tupledArg_2[1]]);
-                                                                                                                }(activePatternResult406);
+                                                                                                                }(activePatternResult39893);
                                                                                                             } else {
-                                                                                                                var activePatternResult404 = _INSTR_S_MATCH___("^ADC", _arg1);
+                                                                                                                var activePatternResult39891 = _INSTR_S_MATCH___("^ADC", _arg1);
 
-                                                                                                                if (activePatternResult404 != null) {
+                                                                                                                if (activePatternResult39891 != null) {
                                                                                                                     return function (tupledArg_3) {
                                                                                                                         return new Token("T_ADC", [tupledArg_3[0], tupledArg_3[1]]);
-                                                                                                                    }(activePatternResult404);
+                                                                                                                    }(activePatternResult39891);
                                                                                                                 } else {
-                                                                                                                    var activePatternResult402 = _INSTR_S_MATCH___("^SUB", _arg1);
+                                                                                                                    var activePatternResult39889 = _INSTR_S_MATCH___("^SUB", _arg1);
 
-                                                                                                                    if (activePatternResult402 != null) {
+                                                                                                                    if (activePatternResult39889 != null) {
                                                                                                                         return function (tupledArg_4) {
                                                                                                                             return new Token("T_SUB", [tupledArg_4[0], tupledArg_4[1]]);
-                                                                                                                        }(activePatternResult402);
+                                                                                                                        }(activePatternResult39889);
                                                                                                                     } else {
-                                                                                                                        var activePatternResult400 = _INSTR_S_MATCH___("^SBC", _arg1);
+                                                                                                                        var activePatternResult39887 = _INSTR_S_MATCH___("^SBC", _arg1);
 
-                                                                                                                        if (activePatternResult400 != null) {
+                                                                                                                        if (activePatternResult39887 != null) {
                                                                                                                             return function (tupledArg_5) {
                                                                                                                                 return new Token("T_SBC", [tupledArg_5[0], tupledArg_5[1]]);
-                                                                                                                            }(activePatternResult400);
+                                                                                                                            }(activePatternResult39887);
                                                                                                                         } else {
-                                                                                                                            var activePatternResult398 = _INSTR_S_MATCH___("^RSB", _arg1);
+                                                                                                                            var activePatternResult39885 = _INSTR_S_MATCH___("^RSB", _arg1);
 
-                                                                                                                            if (activePatternResult398 != null) {
+                                                                                                                            if (activePatternResult39885 != null) {
                                                                                                                                 return function (tupledArg_6) {
                                                                                                                                     return new Token("T_RSB", [tupledArg_6[0], tupledArg_6[1]]);
-                                                                                                                                }(activePatternResult398);
+                                                                                                                                }(activePatternResult39885);
                                                                                                                             } else {
-                                                                                                                                var activePatternResult396 = _INSTR_S_MATCH___("^RSC", _arg1);
+                                                                                                                                var activePatternResult39883 = _INSTR_S_MATCH___("^RSC", _arg1);
 
-                                                                                                                                if (activePatternResult396 != null) {
+                                                                                                                                if (activePatternResult39883 != null) {
                                                                                                                                     return function (tupledArg_7) {
                                                                                                                                         return new Token("T_RSC", [tupledArg_7[0], tupledArg_7[1]]);
-                                                                                                                                    }(activePatternResult396);
+                                                                                                                                    }(activePatternResult39883);
                                                                                                                                 } else {
-                                                                                                                                    var activePatternResult394 = _INSTR_S_MATCH___("^MUL", _arg1);
+                                                                                                                                    var activePatternResult39881 = _INSTR_S_MATCH___("^MUL", _arg1);
 
-                                                                                                                                    if (activePatternResult394 != null) {
+                                                                                                                                    if (activePatternResult39881 != null) {
                                                                                                                                         return function (tupledArg_8) {
                                                                                                                                             return new Token("T_MUL", [tupledArg_8[0], tupledArg_8[1]]);
-                                                                                                                                        }(activePatternResult394);
+                                                                                                                                        }(activePatternResult39881);
                                                                                                                                     } else {
-                                                                                                                                        var activePatternResult392 = _INSTR_S_MATCH___("^MLA", _arg1);
+                                                                                                                                        var activePatternResult39879 = _INSTR_S_MATCH___("^MLA", _arg1);
 
-                                                                                                                                        if (activePatternResult392 != null) {
+                                                                                                                                        if (activePatternResult39879 != null) {
                                                                                                                                             return function (tupledArg_9) {
                                                                                                                                                 return new Token("T_MLA", [tupledArg_9[0], tupledArg_9[1]]);
-                                                                                                                                            }(activePatternResult392);
+                                                                                                                                            }(activePatternResult39879);
                                                                                                                                         } else {
-                                                                                                                                            var activePatternResult390 = _INSTR_S_MATCH___("^UMULL", _arg1);
+                                                                                                                                            var activePatternResult39877 = _INSTR_S_MATCH___("^UMULL", _arg1);
 
-                                                                                                                                            if (activePatternResult390 != null) {
+                                                                                                                                            if (activePatternResult39877 != null) {
                                                                                                                                                 return function (tupledArg_10) {
                                                                                                                                                     return new Token("T_UMULL", [tupledArg_10[0], tupledArg_10[1]]);
-                                                                                                                                                }(activePatternResult390);
+                                                                                                                                                }(activePatternResult39877);
                                                                                                                                             } else {
-                                                                                                                                                var activePatternResult388 = _INSTR_S_MATCH___("^UMLAL", _arg1);
+                                                                                                                                                var activePatternResult39875 = _INSTR_S_MATCH___("^UMLAL", _arg1);
 
-                                                                                                                                                if (activePatternResult388 != null) {
+                                                                                                                                                if (activePatternResult39875 != null) {
                                                                                                                                                     return function (tupledArg_11) {
                                                                                                                                                         return new Token("T_UMLAL", [tupledArg_11[0], tupledArg_11[1]]);
-                                                                                                                                                    }(activePatternResult388);
+                                                                                                                                                    }(activePatternResult39875);
                                                                                                                                                 } else {
-                                                                                                                                                    var activePatternResult386 = _INSTR_S_MATCH___("^SMULL", _arg1);
+                                                                                                                                                    var activePatternResult39873 = _INSTR_S_MATCH___("^SMULL", _arg1);
 
-                                                                                                                                                    if (activePatternResult386 != null) {
+                                                                                                                                                    if (activePatternResult39873 != null) {
                                                                                                                                                         return function (tupledArg_12) {
                                                                                                                                                             return new Token("T_SMULL", [tupledArg_12[0], tupledArg_12[1]]);
-                                                                                                                                                        }(activePatternResult386);
+                                                                                                                                                        }(activePatternResult39873);
                                                                                                                                                     } else {
-                                                                                                                                                        var activePatternResult384 = _INSTR_S_MATCH___("^SMLAL", _arg1);
+                                                                                                                                                        var activePatternResult39871 = _INSTR_S_MATCH___("^SMLAL", _arg1);
 
-                                                                                                                                                        if (activePatternResult384 != null) {
+                                                                                                                                                        if (activePatternResult39871 != null) {
                                                                                                                                                             return function (tupledArg_13) {
                                                                                                                                                                 return new Token("T_SMLAL", [tupledArg_13[0], tupledArg_13[1]]);
-                                                                                                                                                            }(activePatternResult384);
+                                                                                                                                                            }(activePatternResult39871);
                                                                                                                                                         } else {
-                                                                                                                                                            var activePatternResult382 = _INSTR_S_MATCH___("^AND", _arg1);
+                                                                                                                                                            var activePatternResult39869 = _INSTR_S_MATCH___("^AND", _arg1);
 
-                                                                                                                                                            if (activePatternResult382 != null) {
+                                                                                                                                                            if (activePatternResult39869 != null) {
                                                                                                                                                                 return function (tupledArg_14) {
                                                                                                                                                                     return new Token("T_AND", [tupledArg_14[0], tupledArg_14[1]]);
-                                                                                                                                                                }(activePatternResult382);
+                                                                                                                                                                }(activePatternResult39869);
                                                                                                                                                             } else {
-                                                                                                                                                                var activePatternResult380 = _INSTR_S_MATCH___("^ORR", _arg1);
+                                                                                                                                                                var activePatternResult39867 = _INSTR_S_MATCH___("^ORR", _arg1);
 
-                                                                                                                                                                if (activePatternResult380 != null) {
+                                                                                                                                                                if (activePatternResult39867 != null) {
                                                                                                                                                                     return function (tupledArg_15) {
                                                                                                                                                                         return new Token("T_ORR", [tupledArg_15[0], tupledArg_15[1]]);
-                                                                                                                                                                    }(activePatternResult380);
+                                                                                                                                                                    }(activePatternResult39867);
                                                                                                                                                                 } else {
-                                                                                                                                                                    var activePatternResult378 = _INSTR_S_MATCH___("^EOR", _arg1);
+                                                                                                                                                                    var activePatternResult39865 = _INSTR_S_MATCH___("^EOR", _arg1);
 
-                                                                                                                                                                    if (activePatternResult378 != null) {
+                                                                                                                                                                    if (activePatternResult39865 != null) {
                                                                                                                                                                         return function (tupledArg_16) {
                                                                                                                                                                             return new Token("T_EOR", [tupledArg_16[0], tupledArg_16[1]]);
-                                                                                                                                                                        }(activePatternResult378);
+                                                                                                                                                                        }(activePatternResult39865);
                                                                                                                                                                     } else {
-                                                                                                                                                                        var activePatternResult376 = _INSTR_S_MATCH___("^BIC", _arg1);
+                                                                                                                                                                        var activePatternResult39863 = _INSTR_S_MATCH___("^BIC", _arg1);
 
-                                                                                                                                                                        if (activePatternResult376 != null) {
+                                                                                                                                                                        if (activePatternResult39863 != null) {
                                                                                                                                                                             return function (tupledArg_17) {
                                                                                                                                                                                 return new Token("T_BIC", [tupledArg_17[0], tupledArg_17[1]]);
-                                                                                                                                                                            }(activePatternResult376);
+                                                                                                                                                                            }(activePatternResult39863);
                                                                                                                                                                         } else {
-                                                                                                                                                                            var activePatternResult374 = _INSTR_MATCH___("^CMP", _arg1);
+                                                                                                                                                                            var activePatternResult39861 = _INSTR_MATCH___("^CMP", _arg1);
 
-                                                                                                                                                                            if (activePatternResult374 != null) {
-                                                                                                                                                                                return new Token("T_CMP", [activePatternResult374]);
+                                                                                                                                                                            if (activePatternResult39861 != null) {
+                                                                                                                                                                                return new Token("T_CMP", [activePatternResult39861]);
                                                                                                                                                                             } else {
-                                                                                                                                                                                var activePatternResult372 = _INSTR_MATCH___("^CMN", _arg1);
+                                                                                                                                                                                var activePatternResult39859 = _INSTR_MATCH___("^CMN", _arg1);
 
-                                                                                                                                                                                if (activePatternResult372 != null) {
-                                                                                                                                                                                    return new Token("T_CMN", [activePatternResult372]);
+                                                                                                                                                                                if (activePatternResult39859 != null) {
+                                                                                                                                                                                    return new Token("T_CMN", [activePatternResult39859]);
                                                                                                                                                                                 } else {
-                                                                                                                                                                                    var activePatternResult370 = _INSTR_MATCH___("^TST", _arg1);
+                                                                                                                                                                                    var activePatternResult39857 = _INSTR_MATCH___("^TST", _arg1);
 
-                                                                                                                                                                                    if (activePatternResult370 != null) {
-                                                                                                                                                                                        return new Token("T_TST", [activePatternResult370]);
+                                                                                                                                                                                    if (activePatternResult39857 != null) {
+                                                                                                                                                                                        return new Token("T_TST", [activePatternResult39857]);
                                                                                                                                                                                     } else {
-                                                                                                                                                                                        var activePatternResult368 = _INSTR_MATCH___("^TEQ", _arg1);
+                                                                                                                                                                                        var activePatternResult39855 = _INSTR_MATCH___("^TEQ", _arg1);
 
-                                                                                                                                                                                        if (activePatternResult368 != null) {
-                                                                                                                                                                                            return new Token("T_TEQ", [activePatternResult368]);
+                                                                                                                                                                                        if (activePatternResult39855 != null) {
+                                                                                                                                                                                            return new Token("T_TEQ", [activePatternResult39855]);
                                                                                                                                                                                         } else {
-                                                                                                                                                                                            var activePatternResult366 = _INSTR_MATCH___("^B", _arg1);
+                                                                                                                                                                                            var activePatternResult39853 = _INSTR_MATCH___("^B", _arg1);
 
-                                                                                                                                                                                            if (activePatternResult366 != null) {
-                                                                                                                                                                                                return new Token("T_B", [activePatternResult366]);
+                                                                                                                                                                                            if (activePatternResult39853 != null) {
+                                                                                                                                                                                                return new Token("T_B", [activePatternResult39853]);
                                                                                                                                                                                             } else {
-                                                                                                                                                                                                var activePatternResult364 = _INSTR_MATCH___("^BL", _arg1);
+                                                                                                                                                                                                var activePatternResult39851 = _INSTR_MATCH___("^BL", _arg1);
 
-                                                                                                                                                                                                if (activePatternResult364 != null) {
-                                                                                                                                                                                                    return new Token("T_BL", [activePatternResult364]);
+                                                                                                                                                                                                if (activePatternResult39851 != null) {
+                                                                                                                                                                                                    return new Token("T_BL", [activePatternResult39851]);
                                                                                                                                                                                                 } else {
-                                                                                                                                                                                                    var activePatternResult362 = _INSTR_MATCH___("^BX", _arg1);
+                                                                                                                                                                                                    var activePatternResult39849 = _INSTR_MATCH___("^BX", _arg1);
 
-                                                                                                                                                                                                    if (activePatternResult362 != null) {
-                                                                                                                                                                                                        return new Token("T_BX", [activePatternResult362]);
+                                                                                                                                                                                                    if (activePatternResult39849 != null) {
+                                                                                                                                                                                                        return new Token("T_BX", [activePatternResult39849]);
                                                                                                                                                                                                     } else {
-                                                                                                                                                                                                        var activePatternResult360 = _INSTR_MATCH___("^LDR", _arg1);
+                                                                                                                                                                                                        var activePatternResult39847 = _INSTR_MATCH___("^LDR", _arg1);
 
-                                                                                                                                                                                                        if (activePatternResult360 != null) {
-                                                                                                                                                                                                            return new Token("T_LDR", [activePatternResult360]);
+                                                                                                                                                                                                        if (activePatternResult39847 != null) {
+                                                                                                                                                                                                            return new Token("T_LDR", [activePatternResult39847]);
                                                                                                                                                                                                         } else {
-                                                                                                                                                                                                            var activePatternResult358 = _INSTR_MATCH___("^LDRB", _arg1);
+                                                                                                                                                                                                            var activePatternResult39845 = _INSTR_MATCH___("^LDRB", _arg1);
 
-                                                                                                                                                                                                            if (activePatternResult358 != null) {
-                                                                                                                                                                                                                return new Token("T_LDRB", [activePatternResult358]);
+                                                                                                                                                                                                            if (activePatternResult39845 != null) {
+                                                                                                                                                                                                                return new Token("T_LDRB", [activePatternResult39845]);
                                                                                                                                                                                                             } else {
-                                                                                                                                                                                                                var activePatternResult356 = _INSTR_MATCH___("^LDRH", _arg1);
+                                                                                                                                                                                                                var activePatternResult39843 = _INSTR_MATCH___("^LDRH", _arg1);
 
-                                                                                                                                                                                                                if (activePatternResult356 != null) {
-                                                                                                                                                                                                                    return new Token("T_LDRH", [activePatternResult356]);
+                                                                                                                                                                                                                if (activePatternResult39843 != null) {
+                                                                                                                                                                                                                    return new Token("T_LDRH", [activePatternResult39843]);
                                                                                                                                                                                                                 } else {
-                                                                                                                                                                                                                    var activePatternResult354 = _LDM_MATCH___(_arg1);
+                                                                                                                                                                                                                    var activePatternResult39841 = _LDM_MATCH___(_arg1);
 
-                                                                                                                                                                                                                    if (activePatternResult354 != null) {
+                                                                                                                                                                                                                    if (activePatternResult39841 != null) {
                                                                                                                                                                                                                         return function (tupledArg_18) {
                                                                                                                                                                                                                             return new Token("T_LDM", [tupledArg_18[0], tupledArg_18[1]]);
-                                                                                                                                                                                                                        }(activePatternResult354);
+                                                                                                                                                                                                                        }(activePatternResult39841);
                                                                                                                                                                                                                     } else {
-                                                                                                                                                                                                                        var activePatternResult353 = _INSTR_MATCH___("^STR", _arg1);
+                                                                                                                                                                                                                        var activePatternResult39840 = _INSTR_MATCH___("^STR", _arg1);
 
-                                                                                                                                                                                                                        if (activePatternResult353 != null) {
-                                                                                                                                                                                                                            return new Token("T_STR", [activePatternResult353]);
+                                                                                                                                                                                                                        if (activePatternResult39840 != null) {
+                                                                                                                                                                                                                            return new Token("T_STR", [activePatternResult39840]);
                                                                                                                                                                                                                         } else {
-                                                                                                                                                                                                                            var activePatternResult351 = _INSTR_MATCH___("^STRB", _arg1);
+                                                                                                                                                                                                                            var activePatternResult39838 = _INSTR_MATCH___("^STRB", _arg1);
 
-                                                                                                                                                                                                                            if (activePatternResult351 != null) {
-                                                                                                                                                                                                                                return new Token("T_STRB", [activePatternResult351]);
+                                                                                                                                                                                                                            if (activePatternResult39838 != null) {
+                                                                                                                                                                                                                                return new Token("T_STRB", [activePatternResult39838]);
                                                                                                                                                                                                                             } else {
-                                                                                                                                                                                                                                var activePatternResult349 = _INSTR_MATCH___("^STRH", _arg1);
+                                                                                                                                                                                                                                var activePatternResult39836 = _INSTR_MATCH___("^STRH", _arg1);
 
-                                                                                                                                                                                                                                if (activePatternResult349 != null) {
-                                                                                                                                                                                                                                    return new Token("T_STRH", [activePatternResult349]);
+                                                                                                                                                                                                                                if (activePatternResult39836 != null) {
+                                                                                                                                                                                                                                    return new Token("T_STRH", [activePatternResult39836]);
                                                                                                                                                                                                                                 } else {
-                                                                                                                                                                                                                                    var activePatternResult347 = _STM_MATCH___(_arg1);
+                                                                                                                                                                                                                                    var activePatternResult39834 = _STM_MATCH___(_arg1);
 
-                                                                                                                                                                                                                                    if (activePatternResult347 != null) {
+                                                                                                                                                                                                                                    if (activePatternResult39834 != null) {
                                                                                                                                                                                                                                         return function (tupledArg_19) {
                                                                                                                                                                                                                                             return new Token("T_STM", [tupledArg_19[0], tupledArg_19[1]]);
-                                                                                                                                                                                                                                        }(activePatternResult347);
+                                                                                                                                                                                                                                        }(activePatternResult39834);
                                                                                                                                                                                                                                     } else {
-                                                                                                                                                                                                                                        var activePatternResult346 = _INSTR_MATCH___("^SWP", _arg1);
+                                                                                                                                                                                                                                        var activePatternResult39833 = _INSTR_MATCH___("^SWP", _arg1);
 
-                                                                                                                                                                                                                                        if (activePatternResult346 != null) {
-                                                                                                                                                                                                                                            return new Token("T_SWP", [activePatternResult346]);
+                                                                                                                                                                                                                                        if (activePatternResult39833 != null) {
+                                                                                                                                                                                                                                            return new Token("T_SWP", [activePatternResult39833]);
                                                                                                                                                                                                                                         } else {
-                                                                                                                                                                                                                                            var activePatternResult344 = _INSTR_MATCH___("^SWI", _arg1);
+                                                                                                                                                                                                                                            var activePatternResult39831 = _INSTR_MATCH___("^SWI", _arg1);
 
-                                                                                                                                                                                                                                            if (activePatternResult344 != null) {
-                                                                                                                                                                                                                                                return new Token("T_SWI", [activePatternResult344]);
+                                                                                                                                                                                                                                            if (activePatternResult39831 != null) {
+                                                                                                                                                                                                                                                return new Token("T_SWI", [activePatternResult39831]);
                                                                                                                                                                                                                                             } else {
-                                                                                                                                                                                                                                                var activePatternResult342 = _INSTR_MATCH___("^NOP", _arg1);
+                                                                                                                                                                                                                                                var activePatternResult39829 = _INSTR_MATCH___("^NOP", _arg1);
 
-                                                                                                                                                                                                                                                if (activePatternResult342 != null) {
-                                                                                                                                                                                                                                                    return new Token("T_NOP", [activePatternResult342]);
+                                                                                                                                                                                                                                                if (activePatternResult39829 != null) {
+                                                                                                                                                                                                                                                    return new Token("T_NOP", [activePatternResult39829]);
                                                                                                                                                                                                                                                 } else {
-                                                                                                                                                                                                                                                    var activePatternResult340 = _INSTR_MATCH___("^ADR", _arg1);
+                                                                                                                                                                                                                                                    var activePatternResult39827 = _INSTR_MATCH___("^ADR", _arg1);
 
-                                                                                                                                                                                                                                                    if (activePatternResult340 != null) {
-                                                                                                                                                                                                                                                        return new Token("T_ADR", [activePatternResult340]);
+                                                                                                                                                                                                                                                    if (activePatternResult39827 != null) {
+                                                                                                                                                                                                                                                        return new Token("T_ADR", [activePatternResult39827]);
                                                                                                                                                                                                                                                     } else {
-                                                                                                                                                                                                                                                        var activePatternResult338 = _INSTR_MATCH___("^END", _arg1);
+                                                                                                                                                                                                                                                        var activePatternResult39825 = _INSTR_MATCH___("^END", _arg1);
 
-                                                                                                                                                                                                                                                        if (activePatternResult338 != null) {
-                                                                                                                                                                                                                                                            return new Token("T_END", [activePatternResult338]);
+                                                                                                                                                                                                                                                        if (activePatternResult39825 != null) {
+                                                                                                                                                                                                                                                            return new Token("T_END", [activePatternResult39825]);
                                                                                                                                                                                                                                                         } else {
-                                                                                                                                                                                                                                                            var activePatternResult336 = _INSTR_MATCH___("^CLZ", _arg1);
+                                                                                                                                                                                                                                                            var activePatternResult39823 = _INSTR_MATCH___("^CLZ", _arg1);
 
-                                                                                                                                                                                                                                                            if (activePatternResult336 != null) {
-                                                                                                                                                                                                                                                                return new Token("T_CLZ", [activePatternResult336]);
+                                                                                                                                                                                                                                                            if (activePatternResult39823 != null) {
+                                                                                                                                                                                                                                                                return new Token("T_CLZ", [activePatternResult39823]);
                                                                                                                                                                                                                                                             } else {
-                                                                                                                                                                                                                                                                var activePatternResult334 = _TOKEN_MATCH___("^DCD$", _arg1);
+                                                                                                                                                                                                                                                                var activePatternResult39821 = _TOKEN_MATCH___("^DCD$", _arg1);
 
-                                                                                                                                                                                                                                                                if (activePatternResult334 != null) {
+                                                                                                                                                                                                                                                                if (activePatternResult39821 != null) {
                                                                                                                                                                                                                                                                     return new Token("T_DCD", []);
                                                                                                                                                                                                                                                                 } else {
-                                                                                                                                                                                                                                                                    var activePatternResult332 = _TOKEN_MATCH___("^EQU$", _arg1);
+                                                                                                                                                                                                                                                                    var activePatternResult39819 = _TOKEN_MATCH___("^EQU$", _arg1);
 
-                                                                                                                                                                                                                                                                    if (activePatternResult332 != null) {
+                                                                                                                                                                                                                                                                    if (activePatternResult39819 != null) {
                                                                                                                                                                                                                                                                         return new Token("T_EQU", []);
                                                                                                                                                                                                                                                                     } else {
-                                                                                                                                                                                                                                                                        var activePatternResult330 = _TOKEN_MATCH___("^FILL$", _arg1);
+                                                                                                                                                                                                                                                                        var activePatternResult39817 = _TOKEN_MATCH___("^FILL$", _arg1);
 
-                                                                                                                                                                                                                                                                        if (activePatternResult330 != null) {
+                                                                                                                                                                                                                                                                        if (activePatternResult39817 != null) {
                                                                                                                                                                                                                                                                             return new Token("T_FILL", []);
                                                                                                                                                                                                                                                                         } else {
-                                                                                                                                                                                                                                                                            var activePatternResult328 = _INSTR_S_MATCH___("^ASR", _arg1);
+                                                                                                                                                                                                                                                                            var activePatternResult39815 = _INSTR_S_MATCH___("^ASR", _arg1);
 
-                                                                                                                                                                                                                                                                            if (activePatternResult328 != null) {
-                                                                                                                                                                                                                                                                                return new Token("T_SHIFT", [new shiftOp("T_ASR", []), activePatternResult328]);
+                                                                                                                                                                                                                                                                            if (activePatternResult39815 != null) {
+                                                                                                                                                                                                                                                                                return new Token("T_SHIFT", [new shiftOp("T_ASR", []), activePatternResult39815]);
                                                                                                                                                                                                                                                                             } else {
-                                                                                                                                                                                                                                                                                var activePatternResult326 = _INSTR_S_MATCH___("^LSL", _arg1);
+                                                                                                                                                                                                                                                                                var activePatternResult39813 = _INSTR_S_MATCH___("^LSL", _arg1);
 
-                                                                                                                                                                                                                                                                                if (activePatternResult326 != null) {
-                                                                                                                                                                                                                                                                                    return new Token("T_SHIFT", [new shiftOp("T_LSL", []), activePatternResult326]);
+                                                                                                                                                                                                                                                                                if (activePatternResult39813 != null) {
+                                                                                                                                                                                                                                                                                    return new Token("T_SHIFT", [new shiftOp("T_LSL", []), activePatternResult39813]);
                                                                                                                                                                                                                                                                                 } else {
-                                                                                                                                                                                                                                                                                    var activePatternResult324 = _INSTR_S_MATCH___("^LSR", _arg1);
+                                                                                                                                                                                                                                                                                    var activePatternResult39811 = _INSTR_S_MATCH___("^LSR", _arg1);
 
-                                                                                                                                                                                                                                                                                    if (activePatternResult324 != null) {
-                                                                                                                                                                                                                                                                                        return new Token("T_SHIFT", [new shiftOp("T_LSR", []), activePatternResult324]);
+                                                                                                                                                                                                                                                                                    if (activePatternResult39811 != null) {
+                                                                                                                                                                                                                                                                                        return new Token("T_SHIFT", [new shiftOp("T_LSR", []), activePatternResult39811]);
                                                                                                                                                                                                                                                                                     } else {
-                                                                                                                                                                                                                                                                                        var activePatternResult322 = _INSTR_S_MATCH___("^ROR", _arg1);
+                                                                                                                                                                                                                                                                                        var activePatternResult39809 = _INSTR_S_MATCH___("^ROR", _arg1);
 
-                                                                                                                                                                                                                                                                                        if (activePatternResult322 != null) {
-                                                                                                                                                                                                                                                                                            return new Token("T_SHIFT", [new shiftOp("T_ROR", []), activePatternResult322]);
+                                                                                                                                                                                                                                                                                        if (activePatternResult39809 != null) {
+                                                                                                                                                                                                                                                                                            return new Token("T_SHIFT", [new shiftOp("T_ROR", []), activePatternResult39809]);
                                                                                                                                                                                                                                                                                         } else {
-                                                                                                                                                                                                                                                                                            var activePatternResult320 = _INSTR_S_MATCH___("^RRX", _arg1);
+                                                                                                                                                                                                                                                                                            var activePatternResult39807 = _INSTR_S_MATCH___("^RRX", _arg1);
 
-                                                                                                                                                                                                                                                                                            if (activePatternResult320 != null) {
-                                                                                                                                                                                                                                                                                                return new Token("T_SHIFT", [new shiftOp("T_RRX", []), activePatternResult320]);
+                                                                                                                                                                                                                                                                                            if (activePatternResult39807 != null) {
+                                                                                                                                                                                                                                                                                                return new Token("T_SHIFT", [new shiftOp("T_RRX", []), activePatternResult39807]);
                                                                                                                                                                                                                                                                                             } else {
-                                                                                                                                                                                                                                                                                                var activePatternResult318 = _LABEL_MATCH___(_arg1);
+                                                                                                                                                                                                                                                                                                var activePatternResult39805 = _LABEL_MATCH___(_arg1);
 
-                                                                                                                                                                                                                                                                                                if (activePatternResult318 != null) {
-                                                                                                                                                                                                                                                                                                    return new Token("T_LABEL", [activePatternResult318]);
+                                                                                                                                                                                                                                                                                                if (activePatternResult39805 != null) {
+                                                                                                                                                                                                                                                                                                    return new Token("T_LABEL", [activePatternResult39805]);
                                                                                                                                                                                                                                                                                                 } else {
                                                                                                                                                                                                                                                                                                     return new Token("T_ERROR", [_arg1]);
                                                                                                                                                                                                                                                                                                 }
