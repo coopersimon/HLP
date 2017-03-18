@@ -842,12 +842,12 @@ module ARMv4 =
 
     let fillW label data value state = 
         let rec loop mem n val2 state = 
-            if n=0 then state else state |> writeMem mem val |> loop mem+4 n-4 val2
+            if n=0 then state else (state |> writeMem mem val |> loop mem+4 n-4 val2)
         loop label data value state
     
 //END (DONE)
     //stop emulation
-    let end c finalInstAddr state = 
+    let endI c finalInstAddr state = 
         if c state
         then writePC finalInstAddr state 
         else state
