@@ -536,13 +536,13 @@ module ARMv4 =
     //Loads word from label to rd.
     let ldrWL c rd label state = 
         if c state
-        then writeReg rd label state  
+        then writeReg rd (readMem label state) state  
         else state
     
     //Loads least significant byte from label to rd.
     let ldrBL c rd label state = 
         if c state
-        then writeReg rd (label&&&255) state  
+        then writeReg rd ((readMem label state)&&&255) state  
         else state
         
     //More LDRs (details see ARMv4.md)
