@@ -814,7 +814,7 @@ module ARMv4 =
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489h/Caccddic.html
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489f/Babchded.html
 
-    let dcd c label (valList:(int*char) list) state = 
+    let dcd label (valList:(int*char) list) state = 
         let rec loop mem (vlist:(int*char) list) state = 
             match vlist with
             | (i,'i') :: tailList -> state
@@ -829,9 +829,7 @@ module ARMv4 =
                                     |> loop (mem+4) tailList
             | [] -> state
             | _ -> failwith "Invalid data type."
-        if c state
-        then loop label valList state
-        else state
+        loop label valList state
     
     let equ name (value:int*char) state = 
         match value with
