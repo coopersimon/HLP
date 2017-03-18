@@ -108,6 +108,7 @@ module Tokeniser =
         | T_L_BRAC
         | T_R_BRAC
         | T_EXCL
+        | T_EQUAL
         | T_ERROR of string
 
         override x.Equals yobj =
@@ -260,6 +261,7 @@ module Tokeniser =
         | "[" -> T_L_BRAC
         | "]" -> T_R_BRAC
         | "!" -> T_EXCL
+        | "=" -> T_EQUAL
         | DEC_LIT_MATCH i -> T_INT i
         | HEX_LIT_MATCH i -> T_INT i
         // instructions
@@ -321,7 +323,7 @@ module Tokeniser =
 
     /// Take in string and output list of tokens.
     let tokenise (source: string) =
-        Regex.Split(source, @"([,\[\]!])|[ \t\n\r\f]+|;.*")
+        Regex.Split(source, @"([,\[\]!=])|[ \t\n\r\f]+|;.*")
         |> Array.toList
         |> List.filter (fun s -> s <> "")
         |> List.map stringToToken
