@@ -364,21 +364,22 @@ These instructions do not affect the flags.
 label:*int* -> valList:*int\*char list* -> state: *StateHandle* -> output:*StateHandle*
 *Note: valList is a (intORmem, vtype) tuple list*
 
-Allocates one or more words of memory, and defines the initial runtime contents of the memory.
+Allocates one or more words of memory (depending on length of *valList*) starting from address *label*, and defines t
+he initial runtime contents of the memory.
 
 **equ**
 
 name:*int* -> val:*int\*char* -> state: *StateHandle* -> output:*StateHandle*
 *Note: val is a (intORmem, vtype) tuple*
 
-Gives a symbolic name *name* to a numeric constant - *i* where *val=(i,'i')*, a register-relative value - value in register *r* where *val=(r,'r')* or a PC-relative value - value stored in address *m* where *val=(m,'m')*. In VISUAL, only *val=(i,'i')* is implemented.
+Gives a symbolic name *name* to a numeric constant - *i* where *val=(i,'i')*, a register-relative value - value in register *r* where *val=(r,'r')* or a PC-relative value - value stored in address *m* where *val=(m,'m')*. In VISUAL, only *val=(i,'i')* is implemented. *i* is evaluated from a numeric expression in the assembly code.
 
 **fillW**
 
 label:*int* -> data:*int* -> value:*int* -> state: *StateHandle* -> output:*StateHandle*
 *Note: Default for **value** is 0.*
 
-Reserves a block of memory of *data* bytes starting from address *label* to fill with the given value (word). Thus, *data* must be divisible by 4.
+Reserves a block of memory of *data* bytes starting from address *label* to fill with the given *value* (word). Thus, *data* must be divisible by 4.
 
 **Condition flags** - 
 These instructions do not affect the flags.
