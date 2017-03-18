@@ -833,8 +833,8 @@ module ARMv4 =
         then loop label vallist state
         else state
     
-    let equ name val state = 
-        match val with
+    let equ name value state = 
+        match value with
         | (i,'i') -> writeMem name i state
         | (r,'r') -> writeMem name (readReg r state) state
         | (m,'m') -> writeMem name (readMem m state) state
