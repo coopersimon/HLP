@@ -359,26 +359,26 @@ These instructions do not affect the flags.
 
 #### DCD, EQU and FILL
 
-**DCD**
+**dcd**
 
 label:*int* -> valList:*int\*char list* -> state: *StateHandle* -> output:*StateHandle*
 *Note: valList is a (intORmem, vtype) tuple list*
 
 Allocates one or more words of memory, and defines the initial runtime contents of the memory.
 
-**EQU**
+**equ**
 
 name:*int* -> val:*int\*char* -> state: *StateHandle* -> output:*StateHandle*
 *Note: val is a (intORmem, vtype) tuple*
 
-Gives a symbolic name to a numeric constant, a register-relative value or a PC-relative value.
+Gives a symbolic name *name* to a numeric constant, a register-relative value or a PC-relative value.
 
 **fillW**
 
 label:*int* -> data:*int* -> value:*int* -> state: *StateHandle* -> output:*StateHandle*
 *Note: Default for **value** is 0.*
 
-Reserves a block of memory of *data* bytes to fill with the given value (word). Thus, *data* must be divisible by 4.
+Reserves a block of memory of *data* bytes starting from address *label* to fill with the given value (word). Thus, *data* must be divisible by 4.
 
 **Condition flags** - 
 These instructions do not affect the flags.
