@@ -36,14 +36,16 @@ module Parser =
         /// Replaces placeholder branch and end references with correct instructions.
         let rec resolveRefs labels endMem outLst = function
             | (m, LabelRef(f))::t -> match f labels with
-                                   | Ok(h) -> resolveRefs labels endMem (outLst@[(m, h)]) t
-                                   | Err(s) -> Err(s)
+                                     | Ok(h) -> resolveRefs labels endMem (outLst@[(m, h)]) t
+                                     | Err(s) -> Err(s)
             | (m, EndRef(f))::t -> resolveRefs labels endMem (outLst@[(m, f endMem)]) t
             | h::t -> resolveRefs labels endMem (outLst@[h]) t
             | [] -> Ok(outLst)
 
         /// Construct a list of instructions.
         let rec parseRec mem labels outLst = function
+            // ARITHMETIC
+
             | T_MOV (c,s) :: T_REG rd :: T_COMMA :: T_INT i :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(movI c s rd i))]) t
             | T_MOV (c,s) :: T_REG rd :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
@@ -122,6 +124,7 @@ module Parser =
             | T_MLA (c,s) :: T_REG rd :: T_COMMA :: T_REG rm :: T_COMMA :: T_REG rs :: T_COMMA :: T_REG rn :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(mlaR c s rd rm rs rn))]) t
 
+            // LOGIC
             | T_AND (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_INT i :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(andI c s rd rn i))]) t
             | T_AND (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
@@ -158,6 +161,7 @@ module Parser =
             | T_BIC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(bicR c s rd rn rm T_LSL 0 'i'))]) t
 
+            // COMPARISON
             | T_CMP c :: T_REG rn :: T_COMMA :: T_INT i :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(cmpI c rn i))]) t
             | T_CMP c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
@@ -194,6 +198,7 @@ module Parser =
             | T_TEQ c :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(teqR c rn rm T_LSL 0 'i'))]) t
 
+            // BITWISE
             | T_CLZ c :: T_REG rn :: T_COMMA :: T_INT i :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(tstI c rn i))]) t
             | T_CLZ c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
@@ -218,6 +223,7 @@ module Parser =
             | T_SHIFT (T_RRX,(c,s)) :: T_REG rd :: T_COMMA :: T_REG rm :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(rrxR c s rd rm))]) t
 
+            // BRANCHING
             | T_B c :: T_LABEL s :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, LabelRef(branchRef c s b))]) t
             | T_BL c :: T_LABEL s :: t ->
@@ -225,10 +231,11 @@ module Parser =
             | T_BX c :: T_REG r :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(bx c r))]) t
 
+            // MEMORY
             | T_ADR c :: T_REG rd :: T_COMMA :: T_LABEL s :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, LabelRef(lsaRef c rd s adr))]) t
 
-
+            // LOAD SINGLE
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(ldrWaR c rd rn rm z i 'i'))]) t
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
@@ -289,6 +296,7 @@ module Parser =
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: T_R_BRAC :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(ldrBbR c false rd rn rm z rs 'r'))]) t
 
+            // STORE SINGLE
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(strWaR c rd rn rm z i 'i'))]) t
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
@@ -346,6 +354,15 @@ module Parser =
                 parseRec (mem+4) labels (outLst@[(mem, Instr(strBbR c false rd rn rm z rs 'r'))]) t
 
 
+            // DIRECTIVES
+            | T_LABEL s :: T_EQU :: T_INT i :: t ->
+                parseRec mem (Map.add s i labels) outLst t
+            | T_LABEL s1 :: T_EQU :: T_LABEL s2 :: t ->
+                match Map.tryFind s2 labels with
+                | Some(n) -> parseRec mem (Map.add s1 n labels) outLst t
+                | None -> Err(sprintf "Undefined label: %s." s2)
+
+            //| T_LABEL 
 
             | T_END c :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, EndRef(endRef c))]) t
