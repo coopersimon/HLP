@@ -2306,6 +2306,9 @@ function op_PercentEquals(name, value) {
     }, range(1, 15));
   })))]));
   regs.innerHTML = Html.toString(registerString);
+  var submitHtml = fsFormat("%A")(function (x) {
+    console.log(x);
+  })(regs);
   return 0;
 })(process.argv.slice(2));
 

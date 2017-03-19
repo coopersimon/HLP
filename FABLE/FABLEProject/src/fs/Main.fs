@@ -7,6 +7,10 @@ open Fable.Import
 open FsHtml
 
 [<EntryPoint>]
+
+let getById<'T when 'T :> Browser.HTMLElement> id =
+    Browser.document.getElementById(id) :?> 'T
+    
 let main args =  
     let state = initState
     let inString = "MOV R5, #2"
@@ -31,6 +35,9 @@ let main args =
                 ]
             ]
     regs.innerHTML <- registerString |> Html.toString
+
+    let editor = getById<Browser.HTMLSelectElement>("editor").value
+    printfn "%A" editor
     0
  (*
 
