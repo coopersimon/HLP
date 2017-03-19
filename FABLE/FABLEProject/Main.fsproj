@@ -47,12 +47,14 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="src/fs/TestFramework.fs" />
+    <Compile Include="src/fs/Error.fs" />
     <Compile Include="src/fs/State.fs" />
     <Compile Include="src/fs/Conditions.fs" />
-    <Compile Include="src/fs/ARMv4.fs" />
     <Compile Include="src/fs/Tokeniser.fs" />
+    <Compile Include="src/fs/ARMv4.fs" />
     <Compile Include="src/fs/Parser.fs" />
     <Compile Include="src/fs/Interpreter.fs" />
+    <Compile Include="src/fs/GetStates.fs" />
     <Compile Include="src/fs/Main.fs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />

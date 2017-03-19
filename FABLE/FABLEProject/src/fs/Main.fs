@@ -1,14 +1,16 @@
-﻿module Main
+module Main
+open Execute.GetStates
 open Common.State
-open Parse
-open Interpret
+open Common.Conditions
+open Common.Error
 
 [<EntryPoint>]
-let main args =  
-    let state = initState
-    let inString = "MOV R5, #2"
-    let newState = inString |> Tokeniser.tokenise |> Parser.parser |> Interpreter.interpret state
-    printfn "Start Main.fs - 2"
-    printfn "%A" (readReg state 5)
-    printfn "%A" (readReg newState 5)
+let main args =
+    
+    let inString = "MOV R1, #5"
+    let oState = initState
+    let nState = newState oState inString
+    match nState with
+    | Ok(s) -> printfn "Valid = %A" (readReg 0 s)
+    | Err(msg) -> printfn "%s" msg
     0

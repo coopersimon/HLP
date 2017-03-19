@@ -6,87 +6,109 @@ module Tokeniser =
     open System.Text.RegularExpressions
     open Common.Conditions
     open Common.State
+    //open Common.Error
 
-    (***CONDITIONS***)
-
-    /// Instruction condition codes.
-    let cond = @"(|EQ|NE|CS|HS|CC|LO|MI|PL|VS|VC|HI|LS|GE|LT|GT|LE|AL)$"
-
-    /// Match input string to condition code.
-    let matchCond = function
-        | "EQ" -> checkEQ
-        | "NE" -> checkNE
-        | "CS" -> checkCS
-        | "HS" -> checkCS
-        | "CC" -> checkCC
-        | "LO" -> checkCC
-        | "MI" -> checkMI
-        | "PL" -> checkPL
-        | "VS" -> checkVS
-        | "VC" -> checkVC
-        | "HI" -> checkHI
-        | "GE" -> checkGE
-        | "LT" -> checkLT
-        | "GT" -> checkGT
-        | "LE" -> checkLE
-        | "AL" -> checkAL
-        | "" -> checkAL
-        | _ -> checkAL
-
-
+    
     (***TOKENS***)
     // To add token:
         // Add to discriminated union
         // Add to equals override
         // Add to stringToToken function
 
+    // INTERPRETATION/PARSING TOKENS:
+    // These shouldn't be in this module. They will get moved out soon.
+
+    /// Shift tokens.
+    type shiftOp =
+        | T_ASR
+        | T_LSL
+        | T_LSR
+        | T_ROR
+        | T_RRX
+        | T_NIL // Ideally this shouldn't exist.
+
+    /// Load/Store Multiple tokens.
+    type stackOrder =
+        | S_IA
+        | S_IB
+        | S_DA
+        | S_DB
+
+    /// Operand type tokens.
+    type opType =
+        | T_I
+        | T_R
 
     /// Add tokens here! Format: "T_x"
     [<CustomEquality; NoComparison>]
     type Token =
-        // Instructions
-        | T_MOV of (StateHandle -> bool)
-        | T_MVN of (StateHandle -> bool)
+        // Instructions:
+            // All of these have a condition function, some have 'S' bool
+        | T_MOV of (StateHandle -> bool)*bool
+        | T_MVN of (StateHandle -> bool)*bool
         | T_MRS of (StateHandle -> bool)
         | T_MSR of (StateHandle -> bool)
-        | T_ADD of (StateHandle -> bool)
-        | T_ADC of (StateHandle -> bool)
-        | T_SUB of (StateHandle -> bool)
-        | T_SBC of (StateHandle -> bool)
-        | T_RSB of (StateHandle -> bool)
-        | T_RSC of (StateHandle -> bool)
-        | T_MUL of (StateHandle -> bool)
-        | T_MLA of (StateHandle -> bool)
-        | T_UMULL of (StateHandle -> bool)
-        | T_UMLAL of (StateHandle -> bool)
-        | T_SMULL of (StateHandle -> bool)
-        | T_SMLAL of (StateHandle -> bool)
-        | T_AND of (StateHandle -> bool)
-        | T_ORR of (StateHandle -> bool)
-        | T_EOR of (StateHandle -> bool)
-        | T_BIC of (StateHandle -> bool)
+
+        | T_ADD of (StateHandle -> bool)*bool
+        | T_ADC of (StateHandle -> bool)*bool
+        | T_SUB of (StateHandle -> bool)*bool
+        | T_SBC of (StateHandle -> bool)*bool
+        | T_RSB of (StateHandle -> bool)*bool
+        | T_RSC of (StateHandle -> bool)*bool
+
+        | T_MUL of (StateHandle -> bool)*bool
+        | T_MLA of (StateHandle -> bool)*bool
+        | T_UMULL of (StateHandle -> bool)*bool
+        | T_UMLAL of (StateHandle -> bool)*bool
+        | T_SMULL of (StateHandle -> bool)*bool
+        | T_SMLAL of (StateHandle -> bool)*bool
+
+        | T_AND of (StateHandle -> bool)*bool
+        | T_ORR of (StateHandle -> bool)*bool
+        | T_EOR of (StateHandle -> bool)*bool
+        | T_BIC of (StateHandle -> bool)*bool
+
         | T_CMP of (StateHandle -> bool)
         | T_CMN of (StateHandle -> bool)
         | T_TST of (StateHandle -> bool)
         | T_TEQ of (StateHandle -> bool)
+
         | T_B of (StateHandle -> bool)
         | T_BL of (StateHandle -> bool)
         | T_BX of (StateHandle -> bool)
+
         | T_LDR of (StateHandle -> bool)
-        | T_LDM of (StateHandle -> bool)
+        | T_LDRB of (StateHandle -> bool)
+        | T_LDRH of (StateHandle -> bool)
+        | T_LDM of (StateHandle -> bool)*stackOrder
+
         | T_STR of (StateHandle -> bool)
-        | T_STM of (StateHandle -> bool)
+        | T_STRB of (StateHandle -> bool)
+        | T_STRH of (StateHandle -> bool)
+        | T_STM of (StateHandle -> bool)*stackOrder
+
         | T_ADR of (StateHandle -> bool)
         | T_SWP of (StateHandle -> bool)
         | T_SWI of (StateHandle -> bool)
         | T_NOP of (StateHandle -> bool)
+        | T_CLZ of (StateHandle -> bool)
+
+        | T_DCD
+        | T_EQU
+        | T_FILL
+        | T_END of (StateHandle -> bool)
+        // shift operands
+        | T_SHIFT of shiftOp*((StateHandle -> bool)*bool)
         // Values
         | T_REG of int
         | T_INT of int
         | T_LABEL of string
         // Others
         | T_COMMA
-        | T_ERROR
+        | T_L_BRAC
+        | T_R_BRAC
+        | T_EXCL
+        | T_ERROR of string
 
         override x.Equals yobj =
             let state = initState
@@ -95,30 +117,110 @@ module Tokeniser =
                                | T_REG ix, T_REG iy -> ix = iy
                                | T_INT ix, T_INT iy -> ix = iy
                                | T_COMMA, T_COMMA -> true
-                               | T_ERROR, T_ERROR -> true
-                               | T_MOV cx, T_MOV cy -> cx state = cy state
-                               | T_MVN cx, T_MVN cy -> cx state = cy state
+                               | T_ERROR tx, T_ERROR ty -> tx = ty
+                               | T_MOV (cx,sx), T_MOV (cy,sy) -> cx state = cy state && sx = sy
+                               | T_MVN (cx,sx), T_MVN (cy,sy) -> cx state = cy state && sx = sy
                                | T_MRS cx, T_MRS cy -> cx state = cy state
                                | T_MSR cx, T_MSR cy -> cx state = cy state
                                | _,_ -> false
             | _ -> false
 
+    (***SUFFIXES***)
+
+    /// Instruction condition codes.
+    let cond = @"(|EQ|NE|CS|HS|CC|LO|MI|PL|VS|VC|HI|LS|GE|LT|GT|LE|AL)"
+
+    /// S suffix, for setting flags.
+    let setFlags = @"(|S)"
+
+    /// Stack suffix, for load/store multiple
+    let stackSfx = @"(IA|IB|DA|DB|FD|FA|ED|EA)"
+
+    (***TOKENISER***)
 
     // active patterns for matching strings
-    let (|INSTR_MATCH|_|) pattern str =
-        let m = Regex.Match(str, pattern+cond)
-        if m.Success then Some(matchCond m.Groups.[1].Value) else None
 
-    let (|REG_MATCH|_|) str =
-        let m = Regex.Match(str, @"^R([0-9]|1[0-5])$")
-        if m.Success then Some(int m.Groups.[1].Value) else None
-
-    let (|COMMA_MATCH|_|) str =
-        let m = Regex.Match(str, @"^,$")
+    // match generic token with no output.
+    let (|TOKEN_MATCH|_|) pattern str =
+        let m = Regex.Match(str, pattern, RegexOptions.IgnoreCase)
         if m.Success then Some() else None
 
+    /// Match input string to condition code.
+    let matchCond = function
+        | TOKEN_MATCH "EQ" -> checkEQ
+        | TOKEN_MATCH "NE" -> checkNE
+        | TOKEN_MATCH "CS" -> checkCS
+        | TOKEN_MATCH "HS" -> checkCS
+        | TOKEN_MATCH "CC" -> checkCC
+        | TOKEN_MATCH "LO" -> checkCC
+        | TOKEN_MATCH "MI" -> checkMI
+        | TOKEN_MATCH "PL" -> checkPL
+        | TOKEN_MATCH "VS" -> checkVS
+        | TOKEN_MATCH "VC" -> checkVC
+        | TOKEN_MATCH "HI" -> checkHI
+        | TOKEN_MATCH "GE" -> checkGE
+        | TOKEN_MATCH "LT" -> checkLT
+        | TOKEN_MATCH "GT" -> checkGT
+        | TOKEN_MATCH "LE" -> checkLE
+        | TOKEN_MATCH "AL" -> checkAL
+        | _ -> checkAL
+
+    /// Match 'S' suffix to bool.
+    let matchS = function
+        | TOKEN_MATCH "S" -> true
+        | _ -> false
+
+    /// Match LDM suffix to stackOrder.
+    let matchLDM = function
+        | TOKEN_MATCH "IA" -> S_IA
+        | TOKEN_MATCH "IB" -> S_IB
+        | TOKEN_MATCH "DA" -> S_DA
+        | TOKEN_MATCH "DB" -> S_DB
+        | TOKEN_MATCH "FD" -> S_IA
+        | TOKEN_MATCH "ED" -> S_IB
+        | TOKEN_MATCH "FA" -> S_DA
+        | TOKEN_MATCH "EA" -> S_DB
+        | _ -> S_IA
+
+    /// Match STM suffix to stackOrder.
+    let matchSTM = function
+        | TOKEN_MATCH "IA" -> S_IA
+        | TOKEN_MATCH "IB" -> S_IB
+        | TOKEN_MATCH "DA" -> S_DA
+        | TOKEN_MATCH "DB" -> S_DB
+        | TOKEN_MATCH "EA" -> S_IA
+        | TOKEN_MATCH "FA" -> S_IB
+        | TOKEN_MATCH "ED" -> S_DA
+        | TOKEN_MATCH "FD" -> S_DB
+        | _ -> S_IA
+
+    // match an instruction (with condition code)
+    let (|INSTR_MATCH|_|) pattern str =
+        let m = Regex.Match(str, pattern+cond+"$", RegexOptions.IgnoreCase)
+        if m.Success then Some(matchCond m.Groups.[1].Value) else None
+
+    // match an instruction with condition code AND 's' suffix (for setting flags)
+    let (|INSTR_S_MATCH|_|) pattern str =
+        let m = Regex.Match(str, pattern+cond+setFlags+"$", RegexOptions.IgnoreCase)
+        if m.Success then Some(matchCond m.Groups.[1].Value, matchS m.Groups.[2].Value) else None
+
+    // match load multiple instruction with stack suffix.
+    let (|LDM_MATCH|_|) str =
+        let m = Regex.Match(str, @"^LDM"+cond+stackSfx+"$", RegexOptions.IgnoreCase)
+        if m.Success then Some(matchCond m.Groups.[1].Value, matchLDM m.Groups.[2].Value) else None
+        
+    // match load multiple instruction with stack suffix.
+    let (|STM_MATCH|_|) str =
+        let m = Regex.Match(str, @"^STM"+cond+stackSfx+"$", RegexOptions.IgnoreCase)
+        if m.Success then Some(matchCond m.Groups.[1].Value, matchSTM m.Groups.[2].Value) else None
+
+    // match a valid register
+    let (|REG_MATCH|_|) str =
+        let m = Regex.Match(str, @"^R([0-9]|1[0-5])$", RegexOptions.IgnoreCase)
+        if m.Success then Some(int m.Groups.[1].Value) else None
+
     let (|LABEL_MATCH|_|) str =
-        let m = Regex.Match(str, @"^([a-zA-Z][a-zA-Z0-9]*):$")
+        let m = Regex.Match(str, @"^([a-zA-Z_][a-zA-Z0-9_]*)$")
         if m.Success then Some(m.Groups.[1].Value) else None
 
     let (|DEC_LIT_MATCH|_|) str =
@@ -129,39 +231,97 @@ module Tokeniser =
         let m = Regex.Match(str, @"^#?(0x[0-9a-fA-F]+)$")
         if m.Success then Some(System.Convert.ToInt32 (m.Groups.[1].Value, 16)) else None
 
-    let (|TOKEN_MATCH|_|) pattern str =
-        let m = Regex.Match(str, pattern)
-        if m.Success then Some(m.Groups.[1].Value) else None
-
-
-    (***TOKENISER***)
-
+    
     /// Match input string to token.
     let stringToToken = function
+        // registers & aliases
         | REG_MATCH i -> T_REG i
-        | COMMA_MATCH -> T_COMMA
-        | LABEL_MATCH s -> T_LABEL s
+        | TOKEN_MATCH @"^a1$" -> T_REG 0
+        | TOKEN_MATCH @"^a2$" -> T_REG 1
+        | TOKEN_MATCH @"^a3$" -> T_REG 2
+        | TOKEN_MATCH @"^a4$" -> T_REG 3
+        | TOKEN_MATCH @"^v1$" -> T_REG 4
+        | TOKEN_MATCH @"^v2$" -> T_REG 5
+        | TOKEN_MATCH @"^v3$" -> T_REG 6
+        | TOKEN_MATCH @"^v4$" -> T_REG 7
+        | TOKEN_MATCH @"^v5$" -> T_REG 8
+        | TOKEN_MATCH @"^v6$" -> T_REG 9
+        | TOKEN_MATCH @"^v7$" -> T_REG 10
+        | TOKEN_MATCH @"^v8$" -> T_REG 11
+        | TOKEN_MATCH @"^sb$" -> T_REG 9
+        | TOKEN_MATCH @"^sl$" -> T_REG 10
+        | TOKEN_MATCH @"^fp$" -> T_REG 11
+        | TOKEN_MATCH @"^ip$" -> T_REG 12
+        | TOKEN_MATCH @"^sp$" -> T_REG 13
+        | TOKEN_MATCH @"^lr$" -> T_REG 14
+        | TOKEN_MATCH @"^pc$" -> T_REG 15
+        // other
+        | "," -> T_COMMA
+        | "[" -> T_L_BRAC
+        | "]" -> T_R_BRAC
+        | "!" -> T_EXCL
         | DEC_LIT_MATCH i -> T_INT i
         | HEX_LIT_MATCH i -> T_INT i
-        | INSTR_MATCH @"^MOV" c -> T_MOV c
-        | INSTR_MATCH @"^MVN" c -> T_MVN c
+        // instructions
+        | INSTR_S_MATCH @"^MOV" cs -> T_MOV cs
+        | INSTR_S_MATCH @"^MVN" cs -> T_MVN cs
         | INSTR_MATCH @"^MRS" c -> T_MRS c
         | INSTR_MATCH @"^MSR" c -> T_MSR c
-        | INSTR_MATCH @"^ADD" c -> T_ADD c
-        | INSTR_MATCH @"^ADC" c -> T_ADC c
-        | INSTR_MATCH @"^SUB" c -> T_SUB c
-        | INSTR_MATCH @"^SBC" c -> T_SBC c
-        | INSTR_MATCH @"^RSB" c -> T_RSB c
-        | INSTR_MATCH @"^RSC" c -> T_RSC c
-        | _ -> T_ERROR
+        | INSTR_S_MATCH @"^ADD" cs -> T_ADD cs
+        | INSTR_S_MATCH @"^ADC" cs -> T_ADC cs
+        | INSTR_S_MATCH @"^SUB" cs -> T_SUB cs
+        | INSTR_S_MATCH @"^SBC" cs -> T_SBC cs
+        | INSTR_S_MATCH @"^RSB" cs -> T_RSB cs
+        | INSTR_S_MATCH @"^RSC" cs -> T_RSC cs
+        | INSTR_S_MATCH @"^MUL" cs -> T_MUL cs
+        | INSTR_S_MATCH @"^MLA" cs -> T_MLA cs
+        | INSTR_S_MATCH @"^UMULL" cs -> T_UMULL cs
+        | INSTR_S_MATCH @"^UMLAL" cs -> T_UMLAL cs
+        | INSTR_S_MATCH @"^SMULL" cs -> T_SMULL cs
+        | INSTR_S_MATCH @"^SMLAL" cs -> T_SMLAL cs
+        | INSTR_S_MATCH @"^AND" cs -> T_AND cs
+        | INSTR_S_MATCH @"^ORR" cs -> T_ORR cs
+        | INSTR_S_MATCH @"^EOR" cs -> T_EOR cs
+        | INSTR_S_MATCH @"^BIC" cs -> T_BIC cs
+        | INSTR_MATCH @"^CMP" c -> T_CMP c
+        | INSTR_MATCH @"^CMN" c -> T_CMN c
+        | INSTR_MATCH @"^TST" c -> T_TST c
+        | INSTR_MATCH @"^TEQ" c -> T_TEQ c
+        | INSTR_MATCH @"^B" c -> T_B c
+        | INSTR_MATCH @"^BL" c -> T_BL c
+        | INSTR_MATCH @"^BX" c -> T_BX c
+        | INSTR_MATCH @"^LDR" c -> T_LDR c
+        | INSTR_MATCH @"^LDRB" c -> T_LDRB c
+        | INSTR_MATCH @"^LDRH" c -> T_LDRH c
+        | LDM_MATCH cs -> T_LDM cs
+        | INSTR_MATCH @"^STR" c -> T_STR c
+        | INSTR_MATCH @"^STRB" c -> T_STRB c
+        | INSTR_MATCH @"^STRH" c -> T_STRH c
+        | STM_MATCH cs -> T_STM cs
+        | INSTR_MATCH @"^SWP" c -> T_SWP c
+        | INSTR_MATCH @"^SWI" c -> T_SWI c
+        | INSTR_MATCH @"^NOP" c -> T_NOP c
+        | INSTR_MATCH @"^ADR" c -> T_ADR c
+        | INSTR_MATCH @"^END" c -> T_END c
+        | INSTR_MATCH @"^CLZ" c -> T_CLZ c
+        | TOKEN_MATCH @"^DCD$" -> T_DCD
+        | TOKEN_MATCH @"^EQU$" -> T_EQU
+        | TOKEN_MATCH @"^FILL$" -> T_FILL
+        // shift operands
+        | INSTR_S_MATCH @"^ASR" cs -> T_SHIFT (T_ASR, cs)
+        | INSTR_S_MATCH @"^LSL" cs -> T_SHIFT (T_LSL, cs)
+        | INSTR_S_MATCH @"^LSR" cs -> T_SHIFT (T_LSR, cs)
+        | INSTR_S_MATCH @"^ROR" cs -> T_SHIFT (T_ROR, cs)
+        | INSTR_S_MATCH @"^RRX" cs -> T_SHIFT (T_RRX, cs)
+        // labels
+        | LABEL_MATCH s -> T_LABEL s
+        //| t -> failwithf "Invalid token %A" t
+        | t -> T_ERROR t
 
 
     /// Take in string and output list of tokens.
-    let tokenise (s: string) =
-        // TODO: look into different ways of splitting (regex)
-        let rgx = new Regex(",")
-        let sC = rgx.Replace(s, " , ")
-        sC.Split([|' '; '\t'; '\n'; '\r'; '\f'|])
+    let tokenise (source: string) =
+        Regex.Split(source, @"([,\[\]!])|[ \t\n\r\f]+|;.*")
         |> Array.toList
         |> List.filter (fun s -> s <> "")
         |> List.map stringToToken
