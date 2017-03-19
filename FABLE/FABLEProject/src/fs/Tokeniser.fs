@@ -323,5 +323,6 @@ module Tokeniser =
     let tokenise (source: string) =
         Regex.Split(source, @"([,\[\]!])|[\ \t\n\r\f]+|;.*")
         |> Array.toList
+        |> List.filter (fun s -> s <> null)
         |> List.filter (fun s -> s <> "")
         |> List.map stringToToken
