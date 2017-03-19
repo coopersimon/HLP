@@ -6,7 +6,7 @@ module Tokeniser =
     open System.Text.RegularExpressions
     open Common.Conditions
     open Common.State
-    //open Common.Error
+    open Common.Types
 
     
     (***TOKENS***)
@@ -15,30 +15,7 @@ module Tokeniser =
         // Add to equals override
         // Add to stringToToken function
 
-    // INTERPRETATION/PARSING TOKENS:
-    // These shouldn't be in this module. They will get moved out soon.
-
-    /// Shift tokens.
-    type shiftOp =
-        | T_ASR
-        | T_LSL
-        | T_LSR
-        | T_ROR
-        | T_RRX
-        | T_NIL // Ideally this shouldn't exist.
-
-    /// Load/Store Multiple tokens.
-    type stackOrder =
-        | S_IA
-        | S_IB
-        | S_DA
-        | S_DB
-
-    /// Operand type tokens.
-    type opType =
-        | T_I
-        | T_R
-
+    
     /// Add tokens here! Format: "T_x"
     [<CustomEquality; NoComparison>]
     type Token =
@@ -108,6 +85,10 @@ module Tokeniser =
         | T_L_BRAC
         | T_R_BRAC
         | T_EXCL
+        | T_EQUAL
+        | T_L_CBR
+        | T_R_CBR
+        | T_DASH
         | T_ERROR of string
 
         override x.Equals yobj =
@@ -206,12 +187,12 @@ module Tokeniser =
 
     // match load multiple instruction with stack suffix.
     let (|LDM_MATCH|_|) str =
-        let m = Regex.Match(str, @"^LDM"+cond+stackSfx+"$", RegexOptions.IgnoreCase)
+        let m = Regex.Match(str, @"^LDM"+stackSfx+cond+"$", RegexOptions.IgnoreCase)
         if m.Success then Some(matchCond m.Groups.[1].Value, matchLDM m.Groups.[2].Value) else None
         
     // match load multiple instruction with stack suffix.
     let (|STM_MATCH|_|) str =
-        let m = Regex.Match(str, @"^STM"+cond+stackSfx+"$", RegexOptions.IgnoreCase)
+        let m = Regex.Match(str, @"^STM"+stackSfx+cond+"$", RegexOptions.IgnoreCase)
         if m.Success then Some(matchCond m.Groups.[1].Value, matchSTM m.Groups.[2].Value) else None
 
     // match a valid register
@@ -260,6 +241,10 @@ module Tokeniser =
         | "[" -> T_L_BRAC
         | "]" -> T_R_BRAC
         | "!" -> T_EXCL
+        | "=" -> T_EQUAL
+        | "{" -> T_L_CBR
+        | "}" -> T_R_CBR
+        | "-" -> T_DASH
         | DEC_LIT_MATCH i -> T_INT i
         | HEX_LIT_MATCH i -> T_INT i
         // instructions
@@ -321,7 +306,7 @@ module Tokeniser =
 
     /// Take in string and output list of tokens.
     let tokenise (source: string) =
-        Regex.Split(source, @"([,\[\]!])|[ \t\n\r\f]+|;.*")
+        Regex.Split(source, @"([,\[\]!={}-])|[ \t\n\r\f]+|;.*")
         |> Array.toList
         |> List.filter (fun s -> s <> "")
         |> List.map stringToToken
