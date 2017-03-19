@@ -7,6 +7,7 @@ module Parser =
     open Interpret.ARMv4
     open Common.State
     open Common.Error
+    open Common.Types
 
     /// Wrapper for instructions, including unresolved references.
     type Instruction = 
@@ -49,74 +50,74 @@ module Parser =
             | T_MOV (c,s) :: T_REG rd :: T_COMMA :: T_INT i :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(movI c s rd i))]) t
             | T_MOV (c,s) :: T_REG rd :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(movR c s rd rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(movR c s rd rm z i T_I))]) t
             | T_MOV (c,s) :: T_REG rd :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(movR c s rd rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(movR c s rd rm z rs T_R))]) t
             | T_MOV (c,s) :: T_REG rd :: T_COMMA :: T_REG rm :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(movR c s rd rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(movR c s rd rm T_LSL 0 T_I))]) t
 
             | T_MVN (c,s) :: T_REG rd :: T_COMMA :: T_INT i :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(mvnI c s rd i))]) t
             | T_MVN (c,s) :: T_REG rd :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(mvnR c s rd rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(mvnR c s rd rm z i T_I))]) t
             | T_MVN (c,s) :: T_REG rd :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(mvnR c s rd rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(mvnR c s rd rm z rs T_R))]) t
             | T_MVN (c,s) :: T_REG rd :: T_COMMA :: T_REG rm :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(mvnR c s rd rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(mvnR c s rd rm T_LSL 0 T_I))]) t
 
             | T_ADD (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_INT i :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(addI c s rd rn i))]) t
             | T_ADD (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(addR c s rd rn rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(addR c s rd rn rm z i T_I))]) t
             | T_ADD (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(addR c s rd rn rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(addR c s rd rn rm z rs T_R))]) t
             | T_ADD (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(addR c s rd rn rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(addR c s rd rn rm T_LSL 0 T_I))]) t
 
             | T_ADC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_INT i :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(adcI c s rd rn i))]) t
             | T_ADC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(adcR c s rd rn rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(adcR c s rd rn rm z i T_I))]) t
             | T_ADC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(adcR c s rd rn rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(adcR c s rd rn rm z rs T_R))]) t
             | T_ADC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(adcR c s rd rn rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(adcR c s rd rn rm T_LSL 0 T_I))]) t
 
             | T_SUB (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_INT i :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(subI c s rd rn i))]) t
             | T_SUB (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(subR c s rd rn rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(subR c s rd rn rm z i T_I))]) t
             | T_SUB (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(subR c s rd rn rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(subR c s rd rn rm z rs T_R))]) t
             | T_SUB (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(subR c s rd rn rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(subR c s rd rn rm T_LSL 0 T_I))]) t
 
             | T_SBC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_INT i :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(sbcI c s rd rn i))]) t
             | T_SBC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(sbcR c s rd rn rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(sbcR c s rd rn rm z i T_I))]) t
             | T_SBC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(sbcR c s rd rn rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(sbcR c s rd rn rm z rs T_R))]) t
             | T_SBC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(sbcR c s rd rn rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(sbcR c s rd rn rm T_LSL 0 T_I))]) t
 
             | T_RSB (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_INT i :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(rsbI c s rd rn i))]) t
             | T_RSB (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(rsbR c s rd rn rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(rsbR c s rd rn rm z i T_I))]) t
             | T_RSB (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(rsbR c s rd rn rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(rsbR c s rd rn rm z rs T_R))]) t
             | T_RSB (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(rsbR c s rd rn rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(rsbR c s rd rn rm T_LSL 0 T_I))]) t
 
             | T_RSC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_INT i :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(rscI c s rd rn i))]) t
             | T_RSC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(rscR c s rd rn rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(rscR c s rd rn rm z i T_I))]) t
             | T_RSC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(rscR c s rd rn rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(rscR c s rd rn rm z rs T_R))]) t
             | T_RSC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(rscR c s rd rn rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(rscR c s rd rn rm T_LSL 0 T_I))]) t
 
             | T_MUL (c,s) :: T_REG rd :: T_COMMA :: T_REG rm :: T_COMMA :: T_REG rs :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(mulR c s rd rm rs))]) t
@@ -128,85 +129,85 @@ module Parser =
             | T_AND (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_INT i :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(andI c s rd rn i))]) t
             | T_AND (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(andR c s rd rn rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(andR c s rd rn rm z i T_I))]) t
             | T_AND (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(andR c s rd rn rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(andR c s rd rn rm z rs T_R))]) t
             | T_AND (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(andR c s rd rn rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(andR c s rd rn rm T_LSL 0 T_I))]) t
 
             | T_ORR (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_INT i :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(orrI c s rd rn i))]) t
             | T_ORR (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(orrR c s rd rn rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(orrR c s rd rn rm z i T_I))]) t
             | T_ORR (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(orrR c s rd rn rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(orrR c s rd rn rm z rs T_R))]) t
             | T_ORR (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(orrR c s rd rn rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(orrR c s rd rn rm T_LSL 0 T_I))]) t
 
             | T_EOR (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_INT i :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(eorI c s rd rn i))]) t
             | T_EOR (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(eorR c s rd rn rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(eorR c s rd rn rm z i T_I))]) t
             | T_EOR (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(eorR c s rd rn rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(eorR c s rd rn rm z rs T_R))]) t
             | T_EOR (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(eorR c s rd rn rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(eorR c s rd rn rm T_LSL 0 T_I))]) t
 
             | T_BIC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_INT i :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(bicI c s rd rn i))]) t
             | T_BIC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(bicR c s rd rn rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(bicR c s rd rn rm z i T_I))]) t
             | T_BIC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(bicR c s rd rn rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(bicR c s rd rn rm z rs T_R))]) t
             | T_BIC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(bicR c s rd rn rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(bicR c s rd rn rm T_LSL 0 T_I))]) t
 
             // COMPARISON
             | T_CMP c :: T_REG rn :: T_COMMA :: T_INT i :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(cmpI c rn i))]) t
             | T_CMP c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(cmpR c rn rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(cmpR c rn rm z i T_I))]) t
             | T_CMP c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(cmpR c rn rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(cmpR c rn rm z rs T_R))]) t
             | T_CMP c :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(cmpR c rn rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(cmpR c rn rm T_LSL 0 T_I))]) t
 
             | T_CMN c :: T_REG rn :: T_COMMA :: T_INT i :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(cmnI c rn i))]) t
             | T_CMN c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(cmnR c rn rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(cmnR c rn rm z i T_I))]) t
             | T_CMN c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(cmnR c rn rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(cmnR c rn rm z rs T_R))]) t
             | T_CMN c :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(cmnR c rn rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(cmnR c rn rm T_LSL 0 T_I))]) t
 
             | T_TST c :: T_REG rn :: T_COMMA :: T_INT i :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(tstI c rn i))]) t
             | T_TST c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(tstR c rn rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(tstR c rn rm z i T_I))]) t
             | T_TST c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(tstR c rn rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(tstR c rn rm z rs T_R))]) t
             | T_TST c :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(tstR c rn rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(tstR c rn rm T_LSL 0 T_I))]) t
 
             | T_TEQ c :: T_REG rn :: T_COMMA :: T_INT i :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(teqI c rn i))]) t
             | T_TEQ c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(teqR c rn rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(teqR c rn rm z i T_I))]) t
             | T_TEQ c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(teqR c rn rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(teqR c rn rm z rs T_R))]) t
             | T_TEQ c :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(teqR c rn rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(teqR c rn rm T_LSL 0 T_I))]) t
 
             // BITWISE
             | T_CLZ c :: T_REG rn :: T_COMMA :: T_INT i :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(tstI c rn i))]) t
             | T_CLZ c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(tstR c rn rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(tstR c rn rm z i T_I))]) t
             | T_CLZ c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(tstR c rn rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(tstR c rn rm z rs T_R))]) t
             | T_CLZ c :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(tstR c rn rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(tstR c rn rm T_LSL 0 T_I))]) t
 
             | T_SHIFT (T_LSL,(c,s)) :: T_REG rd :: T_COMMA :: T_REG rm :: T_COMMA :: T_REG rn :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(lslR c s rd rm rn))]) t
@@ -237,22 +238,22 @@ module Parser =
 
             // LOAD SINGLE
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrWaR c rd rn rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrWaR c rd rn rm z i T_I))]) t
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrWaR c rd rn rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrWaR c rd rn rm z rs T_R))]) t
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_INT i :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(ldrWaI c rd rn i))]) t
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrWaR c rd rn rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrWaR c rd rn rm T_LSL 0 T_I))]) t
 
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrBaR c rd rn rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrBaR c rd rn rm z i T_I))]) t
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrBaR c rd rn rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrBaR c rd rn rm z rs T_R))]) t
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_INT i :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(ldrBaI c rd rn i))]) t
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrBaR c rd rn rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrBaR c rd rn rm T_LSL 0 T_I))]) t
 
             | T_LDR c :: T_REG rd :: T_COMMA :: T_EQUAL :: T_LABEL s :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, LabelRef(lsaRef c rd s ldrWL))]) t
@@ -263,17 +264,17 @@ module Parser =
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_INT i :: T_R_BRAC :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(ldrWbI c false rd rn i))]) t
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_R_BRAC :: T_EXCL :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrWbR c true rd rn rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrWbR c true rd rn rm T_LSL 0 T_I))]) t
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_R_BRAC :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrWbR c false rd rn rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrWbR c false rd rn rm T_LSL 0 T_I))]) t
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: T_R_BRAC :: T_EXCL :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrWbR c true rd rn rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrWbR c true rd rn rm z i T_I))]) t
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: T_R_BRAC :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrWbR c false rd rn rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrWbR c false rd rn rm z i T_I))]) t
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: T_R_BRAC :: T_EXCL :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrWbR c true rd rn rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrWbR c true rd rn rm z rs T_R))]) t
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: T_R_BRAC :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrWbR c false rd rn rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrWbR c false rd rn rm z rs T_R))]) t
 
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_EQUAL :: T_LABEL s :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, LabelRef(lsaRef c rd s ldrBL))]) t
@@ -284,36 +285,36 @@ module Parser =
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_INT i :: T_R_BRAC :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(ldrBbI c false rd rn i))]) t
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_R_BRAC :: T_EXCL :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrBbR c true rd rn rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrBbR c true rd rn rm T_LSL 0 T_I))]) t
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_R_BRAC :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrBbR c false rd rn rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrBbR c false rd rn rm T_LSL 0 T_I))]) t
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: T_R_BRAC :: T_EXCL :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrBbR c true rd rn rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrBbR c true rd rn rm z i T_I))]) t
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: T_R_BRAC :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrBbR c false rd rn rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrBbR c false rd rn rm z i T_I))]) t
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: T_R_BRAC :: T_EXCL :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrBbR c true rd rn rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrBbR c true rd rn rm z rs T_R))]) t
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: T_R_BRAC :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrBbR c false rd rn rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(ldrBbR c false rd rn rm z rs T_R))]) t
 
             // STORE SINGLE
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(strWaR c rd rn rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(strWaR c rd rn rm z i T_I))]) t
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(strWaR c rd rn rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(strWaR c rd rn rm z rs T_R))]) t
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_INT i :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(strWaI c rd rn i))]) t
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(strWaR c rd rn rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(strWaR c rd rn rm T_LSL 0 T_I))]) t
 
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(strBaR c rd rn rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(strBaR c rd rn rm z i T_I))]) t
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(strBaR c rd rn rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(strBaR c rd rn rm z rs T_R))]) t
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_INT i :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(strBaI c rd rn i))]) t
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(strBaR c rd rn rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(strBaR c rd rn rm T_LSL 0 T_I))]) t
 
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(strWbI c false rd rn 0))]) t
@@ -322,17 +323,17 @@ module Parser =
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_INT i :: T_R_BRAC :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(strWbI c false rd rn i))]) t
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_R_BRAC :: T_EXCL :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(strWbR c true rd rn rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(strWbR c true rd rn rm T_LSL 0 T_I))]) t
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_R_BRAC :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(strWbR c false rd rn rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(strWbR c false rd rn rm T_LSL 0 T_I))]) t
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: T_R_BRAC :: T_EXCL :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(strWbR c true rd rn rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(strWbR c true rd rn rm z i T_I))]) t
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: T_R_BRAC :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(strWbR c false rd rn rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(strWbR c false rd rn rm z i T_I))]) t
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: T_R_BRAC :: T_EXCL :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(strWbR c true rd rn rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(strWbR c true rd rn rm z rs T_R))]) t
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: T_R_BRAC :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(strWbR c false rd rn rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(strWbR c false rd rn rm z rs T_R))]) t
 
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(strBbI c false rd rn 0))]) t
@@ -341,17 +342,17 @@ module Parser =
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_INT i :: T_R_BRAC :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(strBbI c false rd rn i))]) t
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_R_BRAC :: T_EXCL :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(strBbR c true rd rn rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(strBbR c true rd rn rm T_LSL 0 T_I))]) t
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_R_BRAC :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(strBbR c false rd rn rm T_LSL 0 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(strBbR c false rd rn rm T_LSL 0 T_I))]) t
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: T_R_BRAC :: T_EXCL :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(strBbR c true rd rn rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(strBbR c true rd rn rm z i T_I))]) t
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: T_R_BRAC :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(strBbR c false rd rn rm z i 'i'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(strBbR c false rd rn rm z i T_I))]) t
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: T_R_BRAC :: T_EXCL :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(strBbR c true rd rn rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(strBbR c true rd rn rm z rs T_R))]) t
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: T_R_BRAC :: t ->
-                parseRec (mem+4) labels (outLst@[(mem, Instr(strBbR c false rd rn rm z rs 'r'))]) t
+                parseRec (mem+4) labels (outLst@[(mem, Instr(strBbR c false rd rn rm z rs T_R))]) t
 
 
             // DIRECTIVES

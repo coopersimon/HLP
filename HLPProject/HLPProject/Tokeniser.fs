@@ -6,7 +6,7 @@ module Tokeniser =
     open System.Text.RegularExpressions
     open Common.Conditions
     open Common.State
-    //open Common.Error
+    open Common.Types
 
     
     (***TOKENS***)
@@ -15,30 +15,7 @@ module Tokeniser =
         // Add to equals override
         // Add to stringToToken function
 
-    // INTERPRETATION/PARSING TOKENS:
-    // These shouldn't be in this module. They will get moved out soon.
-
-    /// Shift tokens.
-    type shiftOp =
-        | T_ASR
-        | T_LSL
-        | T_LSR
-        | T_ROR
-        | T_RRX
-        | T_NIL // Ideally this shouldn't exist.
-
-    /// Load/Store Multiple tokens.
-    type stackOrder =
-        | S_IA
-        | S_IB
-        | S_DA
-        | S_DB
-
-    /// Operand type tokens.
-    type opType =
-        | T_I
-        | T_R
-
+    
     /// Add tokens here! Format: "T_x"
     [<CustomEquality; NoComparison>]
     type Token =
