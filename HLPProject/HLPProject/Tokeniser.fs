@@ -86,6 +86,9 @@ module Tokeniser =
         | T_R_BRAC
         | T_EXCL
         | T_EQUAL
+        | T_L_CBR
+        | T_R_CBR
+        | T_DASH
         | T_ERROR of string
 
         override x.Equals yobj =
@@ -184,12 +187,12 @@ module Tokeniser =
 
     // match load multiple instruction with stack suffix.
     let (|LDM_MATCH|_|) str =
-        let m = Regex.Match(str, @"^LDM"+cond+stackSfx+"$", RegexOptions.IgnoreCase)
+        let m = Regex.Match(str, @"^LDM"+stackSfx+cond+"$", RegexOptions.IgnoreCase)
         if m.Success then Some(matchCond m.Groups.[1].Value, matchLDM m.Groups.[2].Value) else None
         
     // match load multiple instruction with stack suffix.
     let (|STM_MATCH|_|) str =
-        let m = Regex.Match(str, @"^STM"+cond+stackSfx+"$", RegexOptions.IgnoreCase)
+        let m = Regex.Match(str, @"^STM"+stackSfx+cond+"$", RegexOptions.IgnoreCase)
         if m.Success then Some(matchCond m.Groups.[1].Value, matchSTM m.Groups.[2].Value) else None
 
     // match a valid register
@@ -239,6 +242,9 @@ module Tokeniser =
         | "]" -> T_R_BRAC
         | "!" -> T_EXCL
         | "=" -> T_EQUAL
+        | "{" -> T_L_CBR
+        | "}" -> T_R_CBR
+        | "-" -> T_DASH
         | DEC_LIT_MATCH i -> T_INT i
         | HEX_LIT_MATCH i -> T_INT i
         // instructions
@@ -300,7 +306,7 @@ module Tokeniser =
 
     /// Take in string and output list of tokens.
     let tokenise (source: string) =
-        Regex.Split(source, @"([,\[\]!=])|[ \t\n\r\f]+|;.*")
+        Regex.Split(source, @"([,\[\]!={}-])|[ \t\n\r\f]+|;.*")
         |> Array.toList
         |> List.filter (fun s -> s <> "")
         |> List.map stringToToken

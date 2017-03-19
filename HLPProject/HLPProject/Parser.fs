@@ -16,6 +16,46 @@ module Parser =
         | Instr of (Common.State.StateHandle -> Common.State.StateHandle)
         | Terminate
 
+
+    let private resolveRefs labels endMem instrLst =
+        /// Replaces placeholder branch and end references with correct instructions.
+        let rec resolveRec labels endMem outLst = function
+            | (m, LabelRef(f))::t -> match f labels with
+                                     | Ok(h) -> resolveRec labels endMem (outLst@[(m, h)]) t
+                                     | Err(s) -> Err(s)
+            | (m, EndRef(f))::t -> resolveRec labels endMem (outLst@[(m, f endMem)]) t
+            | h::t -> resolveRec labels endMem (outLst@[h]) t
+            | [] -> Ok(outLst)
+        resolveRec labels endMem [] instrLst
+
+
+    /// Make a list of registers for LDM/STM, from token list.
+    let private regList tokLst =
+        /// Gets register range {Rx-Ry}
+        let rec regRange r1 r2 outLst =
+            match r1 < r2 with
+            | true -> regRange (r1+1) r2 (outLst@[r1])
+            | false when r1=r2 -> Ok(outLst@[r1])
+            | false -> Err("Register range invalid.")
+
+        /// Gets register list from {}, for LDM/STM
+        let rec regRec outLst = function
+            | T_REG r :: T_COMMA :: t -> regRec (outLst@[r]) t
+            | T_REG r1 :: T_DASH :: T_REG r2 :: T_COMMA :: t ->
+                match regRange r1 r2 [] with
+                | Ok(lst) -> regRec (outLst@lst) t
+                | Err(s) -> Err(s)
+            | T_REG r :: T_R_CBR :: t -> Ok(outLst@[r], t)
+            | T_REG r1 :: T_DASH :: T_REG r2 :: T_R_CBR :: t ->
+                match regRange r1 r2 [] with
+                | Ok(lst) -> Ok(outLst@lst, t)
+                | Err(s) -> Err(s)
+            | T_ERROR s :: t -> Err(sprintf "Invalid input string: %s." s)
+            | tok :: t -> Err(sprintf "Unexpected token: %A. Followed by: %s." tok (errorList t))
+            | [] -> Err(sprintf "Incomplete register range.")
+        regRec [] tokLst
+
+
     /// Parses a list of tokens into a memory map of instructions.
     let parser tokLst =
         /// Function that resolves branch.
@@ -33,15 +73,6 @@ module Parser =
         /// Function that resolves end.
         let endRef c endMem =
             Instr(endI c (endMem-4))
-
-        /// Replaces placeholder branch and end references with correct instructions.
-        let rec resolveRefs labels endMem outLst = function
-            | (m, LabelRef(f))::t -> match f labels with
-                                     | Ok(h) -> resolveRefs labels endMem (outLst@[(m, h)]) t
-                                     | Err(s) -> Err(s)
-            | (m, EndRef(f))::t -> resolveRefs labels endMem (outLst@[(m, f endMem)]) t
-            | h::t -> resolveRefs labels endMem (outLst@[h]) t
-            | [] -> Ok(outLst)
 
         /// Construct a list of instructions.
         let rec parseRec mem labels outLst = function
@@ -354,6 +385,73 @@ module Parser =
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: T_R_BRAC :: t ->
                 parseRec (mem+4) labels (outLst@[(mem, Instr(strBbR c false rd rn rm z rs T_R))]) t
 
+            // LOAD MULTIPLE
+            | T_LDM (c,S_IA) :: T_REG rn :: T_COMMA :: t ->
+                match regList t with
+                | Ok(rl, tokLst) -> parseRec (mem+4) labels (outLst@[(mem, Instr(ldmIA c false rn rl))]) tokLst
+                | Err(s) -> Err(s)
+            | T_LDM (c,S_IA) :: T_REG rn :: T_EXCL :: T_COMMA :: t ->
+                match regList t with
+                | Ok(rl, tokLst) -> parseRec (mem+4) labels (outLst@[(mem, Instr(ldmIA c true rn rl))]) tokLst
+                | Err(s) -> Err(s)
+            | T_LDM (c,S_IB) :: T_REG rn :: T_COMMA :: t ->
+                match regList t with
+                | Ok(rl, tokLst) -> parseRec (mem+4) labels (outLst@[(mem, Instr(ldmIB c false rn rl))]) tokLst
+                | Err(s) -> Err(s)
+            | T_LDM (c,S_IB) :: T_REG rn :: T_EXCL :: T_COMMA :: t ->
+                match regList t with
+                | Ok(rl, tokLst) -> parseRec (mem+4) labels (outLst@[(mem, Instr(ldmIB c true rn rl))]) tokLst
+                | Err(s) -> Err(s)
+            | T_LDM (c,S_DA) :: T_REG rn :: T_COMMA :: t ->
+                match regList t with
+                | Ok(rl, tokLst) -> parseRec (mem+4) labels (outLst@[(mem, Instr(ldmDA c false rn rl))]) tokLst
+                | Err(s) -> Err(s)
+            | T_LDM (c,S_DA) :: T_REG rn :: T_EXCL :: T_COMMA :: t ->
+                match regList t with
+                | Ok(rl, tokLst) -> parseRec (mem+4) labels (outLst@[(mem, Instr(ldmDA c true rn rl))]) tokLst
+                | Err(s) -> Err(s)
+            | T_LDM (c,S_DB) :: T_REG rn :: T_COMMA :: t ->
+                match regList t with
+                | Ok(rl, tokLst) -> parseRec (mem+4) labels (outLst@[(mem, Instr(ldmDB c false rn rl))]) tokLst
+                | Err(s) -> Err(s)
+            | T_LDM (c,S_DB) :: T_REG rn :: T_EXCL :: T_COMMA :: t ->
+                match regList t with
+                | Ok(rl, tokLst) -> parseRec (mem+4) labels (outLst@[(mem, Instr(ldmDB c true rn rl))]) tokLst
+                | Err(s) -> Err(s)
+
+            // STORE MULTIPLE
+            | T_STM (c,S_IA) :: T_REG rn :: T_COMMA :: t ->
+                match regList t with
+                | Ok(rl, tokLst) -> parseRec (mem+4) labels (outLst@[(mem, Instr(stmIA c false rn rl))]) tokLst
+                | Err(s) -> Err(s)
+            | T_STM (c,S_IA) :: T_REG rn :: T_EXCL :: T_COMMA :: t ->
+                match regList t with
+                | Ok(rl, tokLst) -> parseRec (mem+4) labels (outLst@[(mem, Instr(stmIA c true rn rl))]) tokLst
+                | Err(s) -> Err(s)
+            | T_STM (c,S_IB) :: T_REG rn :: T_COMMA :: t ->
+                match regList t with
+                | Ok(rl, tokLst) -> parseRec (mem+4) labels (outLst@[(mem, Instr(stmIB c false rn rl))]) tokLst
+                | Err(s) -> Err(s)
+            | T_STM (c,S_IB) :: T_REG rn :: T_EXCL :: T_COMMA :: t ->
+                match regList t with
+                | Ok(rl, tokLst) -> parseRec (mem+4) labels (outLst@[(mem, Instr(stmIB c true rn rl))]) tokLst
+                | Err(s) -> Err(s)
+            | T_STM (c,S_DA) :: T_REG rn :: T_COMMA :: t ->
+                match regList t with
+                | Ok(rl, tokLst) -> parseRec (mem+4) labels (outLst@[(mem, Instr(stmDA c false rn rl))]) tokLst
+                | Err(s) -> Err(s)
+            | T_STM (c,S_DA) :: T_REG rn :: T_EXCL :: T_COMMA :: t ->
+                match regList t with
+                | Ok(rl, tokLst) -> parseRec (mem+4) labels (outLst@[(mem, Instr(stmDA c true rn rl))]) tokLst
+                | Err(s) -> Err(s)
+            | T_STM (c,S_DB) :: T_REG rn :: T_COMMA :: t ->
+                match regList t with
+                | Ok(rl, tokLst) -> parseRec (mem+4) labels (outLst@[(mem, Instr(stmDB c false rn rl))]) tokLst
+                | Err(s) -> Err(s)
+            | T_STM (c,S_DB) :: T_REG rn :: T_EXCL :: T_COMMA :: t ->
+                match regList t with
+                | Ok(rl, tokLst) -> parseRec (mem+4) labels (outLst@[(mem, Instr(stmDB c true rn rl))]) tokLst
+                | Err(s) -> Err(s)
 
             // DIRECTIVES
             | T_LABEL s :: T_EQU :: T_INT i :: t ->
@@ -370,7 +468,7 @@ module Parser =
 
             | T_LABEL s :: t -> parseRec mem (Map.add s (mem) labels) outLst t
 
-            | [] -> resolveRefs labels mem [] (outLst@[(mem, Terminate)])
+            | [] -> resolveRefs labels mem (outLst@[(mem, Terminate)])
 
             | T_ERROR s :: t -> Err(sprintf "Invalid input string: %s." s)
             | tok :: t -> Err(sprintf "Unexpected token: %A. Followed by: %s." tok (errorList t))
