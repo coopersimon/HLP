@@ -4798,6 +4798,7 @@ function newState(oldState, inString) {
 }
 
 (function (args) {
+<<<<<<< HEAD
     var inString = "MOV R1, #5";
     var oState = initState;
     var nState = newState(oState, inString);
@@ -4813,6 +4814,30 @@ function newState(oldState, inString) {
     }
 
     return 0;
+=======
+  var state = initState;
+  var inString = "MOV R5, #2";
+
+  var newState = function (instr) {
+    return interpret(state, instr);
+  }(parser(tokenise(inString)));
+
+  var regs = document.getElementById("regs");
+  var registerString = table(ofArray$1([op_PercentEquals("class", "table table-striped"), thead(ofArray$1([tr(ofArray$1([th(op_Splice("Register")), th(op_Splice("Value"))]))])), tbody(toList(delay(function () {
+    return map(function (i) {
+      return tr(ofArray$1([th(op_Splice(fsFormat("R%A")(function (x) {
+        return x;
+      })(i))), th(op_Splice(fsFormat("%A")(function (x) {
+        return x;
+      })(readReg(newState, i))))]));
+    }, range(1, 15));
+  })))]));
+  regs.innerHTML = Html.toString(registerString);
+  var submitHtml = fsFormat("%A")(function (x) {
+    console.log(x);
+  })(regs);
+  return 0;
+>>>>>>> Added CodeMirror
 })(process.argv.slice(2));
 
 })));
