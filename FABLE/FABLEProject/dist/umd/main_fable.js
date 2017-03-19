@@ -54,8 +54,12 @@ function FableArray(t, isTypedArray) {
     }
     return new NonDeclaredType("Array", def, genArg);
 }
-
-
+function Tuple(ts) {
+    return new NonDeclaredType("Tuple", null, ts);
+}
+function GenericParam(definition) {
+    return new NonDeclaredType("GenericParam", definition);
+}
 
 function makeGeneric(typeDef, genArgs) {
     return new NonDeclaredType("GenericType", typeDef, genArgs);
@@ -197,7 +201,7 @@ function compareUnions(x, y) {
     }
 }
 
-function ofArray$1(args, base) {
+function ofArray(args, base) {
     var acc = base || new List();
     for (var i = args.length - 1; i >= 0; i--) {
         acc = new List(args[i], acc);
@@ -281,6 +285,16 @@ var List = (function () {
     return List;
 }());
 
+var GenericComparer = (function () {
+    function GenericComparer(f) {
+        this.Compare = f || compare;
+    }
+    GenericComparer.prototype[_Symbol.reflection] = function () {
+        return { interfaces: ["System.IComparer"] };
+    };
+    return GenericComparer;
+}());
+
 var Enumerator = (function () {
     function Enumerator(iter) {
         this.iter = iter;
@@ -306,7 +320,7 @@ var Enumerator = (function () {
 
 
 function toList(xs) {
-    return foldBack(function (x, acc) {
+    return foldBack$1(function (x, acc) {
         return new List(x, acc);
     }, xs, new List());
 }
@@ -315,11 +329,41 @@ function toList(xs) {
 
 
 
-
+function concat(xs) {
+    return delay(function () {
+        var iter = xs[Symbol.iterator]();
+        var output = null;
+        return unfold(function (innerIter) {
+            var hasFinished = false;
+            while (!hasFinished) {
+                if (innerIter == null) {
+                    var cur = iter.next();
+                    if (!cur.done) {
+                        innerIter = cur.value[Symbol.iterator]();
+                    }
+                    else {
+                        hasFinished = true;
+                    }
+                }
+                else {
+                    var cur = innerIter.next();
+                    if (!cur.done) {
+                        output = cur.value;
+                        hasFinished = true;
+                    }
+                    else {
+                        innerIter = null;
+                    }
+                }
+            }
+            return innerIter != null && output != null ? [output, innerIter] : null;
+        }, null);
+    });
+}
 
 
 function compareWith(f, xs, ys) {
-    var nonZero = tryFind(function (i) { return i != 0; }, map2(function (x, y) { return f(x, y); }, xs, ys));
+    var nonZero = tryFind$1(function (i) { return i != 0; }, map2(function (x, y) { return f(x, y); }, xs, ys));
     return nonZero != null ? nonZero : count(xs) - count(ys);
 }
 function delay(f) {
@@ -338,7 +382,7 @@ function delay(f) {
 
 
 
-function fold(f, acc, xs) {
+function fold$1(f, acc, xs) {
     if (Array.isArray(xs) || ArrayBuffer.isView(xs)) {
         return xs.reduce(f, acc);
     }
@@ -353,7 +397,7 @@ function fold(f, acc, xs) {
         return acc;
     }
 }
-function foldBack(f, xs, acc) {
+function foldBack$1(f, xs, acc) {
     var arr = Array.isArray(xs) || ArrayBuffer.isView(xs) ? xs : Array.from(xs);
     for (var i = arr.length - 1; i >= 0; i--) {
         acc = f(arr[i], acc, i);
@@ -384,9 +428,9 @@ function initialize(n, f) {
 function count(xs) {
     return Array.isArray(xs) || ArrayBuffer.isView(xs)
         ? xs.length
-        : fold(function (acc, x) { return acc + 1; }, 0, xs);
+        : fold$1(function (acc, x) { return acc + 1; }, 0, xs);
 }
-function map(f, xs) {
+function map$1(f, xs) {
     return delay(function () { return unfold(function (iter) {
         var cur = iter.next();
         return !cur.done ? [f(cur.value), iter] : null;
@@ -449,7 +493,7 @@ function replicate(n, x) {
 
 
 
-function tryFind(f, xs, defaultValue) {
+function tryFind$1(f, xs, defaultValue) {
     for (var i = 0, iter = xs[Symbol.iterator]();; i++) {
         var cur = iter.next();
         if (cur.done)
@@ -484,90 +528,6 @@ function unfold(f, acc) {
         _a;
     var _a;
 }
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-var StateHandle = function () {
-    function StateHandle(caseName, fields) {
-        _classCallCheck(this, StateHandle);
-
-        this.Case = caseName;
-        this.Fields = fields;
-    }
-
-    _createClass(StateHandle, [{
-        key: _Symbol.reflection,
-        value: function () {
-            return {
-                type: "Common.State.StateHandle",
-                interfaces: ["FSharpUnion", "System.IEquatable", "System.IComparable"],
-                cases: {
-                    S: [FableArray(Int32Array, true), "boolean", "boolean", "boolean", "boolean"]
-                }
-            };
-        }
-    }, {
-        key: "Equals",
-        value: function (other) {
-            return equalsUnions(this, other);
-        }
-    }, {
-        key: "CompareTo",
-        value: function (other) {
-            return compareUnions(this, other);
-        }
-    }]);
-
-    return StateHandle;
-}();
-setType("Common.State.StateHandle", StateHandle);
-var initState = function () {
-    var regs = Int32Array.from(replicate(16, 0));
-    return new StateHandle("S", [regs, false, false, false, false]);
-}();
-function readReg(_arg1, r) {
-    return _arg1.Fields[0][r];
-}
-function writeReg(_arg1, r, v) {
-    var newRegs = Int32Array.from(mapIndexed(function (i, x) {
-        return r === i ? v : x;
-    }, _arg1.Fields[0]));
-    return new StateHandle("S", [newRegs, _arg1.Fields[1], _arg1.Fields[2], _arg1.Fields[3], _arg1.Fields[4]]);
-}
-function readPC(_arg1) {
-    return _arg1.Fields[0][15];
-}
-
-function incPC(_arg1) {
-    var newRegs = Int32Array.from(mapIndexed(function (i, x) {
-        return i === 15 ? 4 : x;
-    }, _arg1.Fields[0]));
-    return new StateHandle("S", [newRegs, _arg1.Fields[1], _arg1.Fields[2], _arg1.Fields[3], _arg1.Fields[4]]);
-}
-function readNFlag(_arg1) {
-    return _arg1.Fields[1];
-}
-function readZFlag(_arg1) {
-    return _arg1.Fields[2];
-}
-function readCFlag(_arg1) {
-    return _arg1.Fields[3];
-}
-function readVFlag(_arg1) {
-    return _arg1.Fields[4];
-}
-
-var GenericComparer = (function () {
-    function GenericComparer(f) {
-        this.Compare = f || compare;
-    }
-    GenericComparer.prototype[_Symbol.reflection] = function () {
-        return { interfaces: ["System.IComparer"] };
-    };
-    return GenericComparer;
-}());
 
 var MapTree = (function () {
     function MapTree(caseName, fields) {
@@ -748,7 +708,7 @@ function tree_collapseLHS(stack) {
             return stack;
         }
         else if (stack.head.Case === "MapNode") {
-            return tree_collapseLHS(ofArray$1([
+            return tree_collapseLHS(ofArray([
                 stack.head.Fields[2],
                 new MapTree("MapOne", [stack.head.Fields[0], stack.head.Fields[1]]),
                 stack.head.Fields[3]
@@ -827,10 +787,10 @@ var FableMap = (function () {
         return this[Symbol.iterator]();
     };
     FableMap.prototype.keys = function () {
-        return map(function (kv) { return kv[0]; }, this);
+        return map$1(function (kv) { return kv[0]; }, this);
     };
     FableMap.prototype.values = function () {
-        return map(function (kv) { return kv[1]; }, this);
+        return map$1(function (kv) { return kv[1]; }, this);
     };
     FableMap.prototype.get = function (k) {
         return tree_find(this.comparer, k, this.tree);
@@ -872,63 +832,142 @@ function create(ie, comparer) {
     comparer = comparer || new GenericComparer();
     return from(comparer, ie ? tree_ofSeq(comparer, ie) : tree_empty());
 }
+function add(k, v, map$$1) {
+    return from(map$$1.comparer, tree_add(map$$1.comparer, k, v, map$$1.tree));
+}
 
 
 
 
 
-
-function tryFind$1(k, map$$1) {
+function tryFind$$1(k, map$$1) {
     return tree_tryFind(map$$1.comparer, k, map$$1.tree);
 }
 
-function interpret(state, instr) {
-    interpret: while (true) {
-        var matchValue = tryFind$1(readPC(state), instr);
-
-        if (matchValue == null) {
-            return state;
-        } else {
-            state = matchValue(incPC(state));
-            instr = instr;
-            continue interpret;
-        }
-    }
+function append$1(xs, ys) {
+    return fold$1(function (acc, x) { return new List(x, acc); }, ys, reverse$1(xs));
 }
 
+
+
 function filter$2(f, xs) {
-    return reverse$1(fold(function (acc, x) { return f(x) ? new List(x, acc) : acc; }, new List(), xs));
+    return reverse$1(fold$1(function (acc, x) { return f(x) ? new List(x, acc) : acc; }, new List(), xs));
 }
 
 
 function map$2(f, xs) {
-    return reverse$1(fold(function (acc, x) { return new List(f(x), acc); }, new List(), xs));
+    return reverse$1(fold$1(function (acc, x) { return new List(f(x), acc); }, new List(), xs));
 }
 
 function partition$2(f, xs) {
-    return fold(function (acc, x) {
+    return fold$1(function (acc, x) {
         var lacc = acc[0], racc = acc[1];
         return f(x) ? [new List(x, lacc), racc] : [lacc, new List(x, racc)];
     }, [new List(), new List()], reverse$1(xs));
 }
 
 function reverse$1(xs) {
-    return fold(function (acc, x) { return new List(x, acc); }, new List(), xs);
+    return fold$1(function (acc, x) { return new List(x, acc); }, new List(), xs);
 }
 
-function movI(c, r, i, state) {
-    if (c(state)) {
-        return writeReg(state, r, i);
-    } else {
-        return state;
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var StateHandle = function () {
+    function StateHandle(caseName, fields) {
+        _classCallCheck(this, StateHandle);
+
+        this.Case = caseName;
+        this.Fields = fields;
     }
+
+    _createClass(StateHandle, [{
+        key: _Symbol.reflection,
+        value: function () {
+            return {
+                type: "Common.State.StateHandle",
+                interfaces: ["FSharpUnion", "System.IEquatable", "System.IComparable"],
+                cases: {
+                    S: [FableArray(Int32Array, true), "boolean", "boolean", "boolean", "boolean", makeGeneric(FableMap, {
+                        Key: "number",
+                        Value: "number"
+                    })]
+                }
+            };
+        }
+    }, {
+        key: "Equals",
+        value: function (other) {
+            return equalsUnions(this, other);
+        }
+    }, {
+        key: "CompareTo",
+        value: function (other) {
+            return compareUnions(this, other);
+        }
+    }]);
+
+    return StateHandle;
+}();
+setType("Common.State.StateHandle", StateHandle);
+var initState = function () {
+    var regs = Int32Array.from(replicate(16, 0));
+    return new StateHandle("S", [regs, false, false, false, false, create(null, new GenericComparer(compare))]);
+}();
+var initStateVisual = function () {
+    var regs0to12 = Int32Array.from(replicate(13, 0));
+    var regs13to15 = new Int32Array([-16777216, 0, 0]);
+    var regs = Int32Array.from(concat(ofArray([regs0to12, regs13to15])));
+    return new StateHandle("S", [regs, false, false, false, false, create(null, new GenericComparer(compare))]);
+}();
+function readReg(r, _arg1) {
+    return _arg1.Fields[0][r];
 }
-function movR(c, r1, r2, state) {
-    if (c(state)) {
-        return writeReg(state, r1, readReg(state, r2));
-    } else {
-        return state;
-    }
+function writeReg(r, v, _arg1) {
+    var newRegs = Int32Array.from(mapIndexed(function (i, x) {
+        return r === i ? v : x;
+    }, _arg1.Fields[0]));
+    return new StateHandle("S", [newRegs, _arg1.Fields[1], _arg1.Fields[2], _arg1.Fields[3], _arg1.Fields[4], _arg1.Fields[5]]);
+}
+function readPC(_arg1) {
+    return _arg1.Fields[0][15];
+}
+function writePC(v, _arg1) {
+    var newRegs = Int32Array.from(mapIndexed(function (i, x) {
+        return i === 15 ? v : x;
+    }, _arg1.Fields[0]));
+    return new StateHandle("S", [newRegs, _arg1.Fields[1], _arg1.Fields[2], _arg1.Fields[3], _arg1.Fields[4], _arg1.Fields[5]]);
+}
+function incPC(_arg1) {
+    var newRegs = Int32Array.from(mapIndexed(function (i, x) {
+        return i === 15 ? x + 4 : x;
+    }, _arg1.Fields[0]));
+    return new StateHandle("S", [newRegs, _arg1.Fields[1], _arg1.Fields[2], _arg1.Fields[3], _arg1.Fields[4], _arg1.Fields[5]]);
+}
+function readNFlag(_arg1) {
+    return _arg1.Fields[1];
+}
+function readZFlag(_arg1) {
+    return _arg1.Fields[2];
+}
+function readCFlag(_arg1) {
+    return _arg1.Fields[3];
+}
+function readVFlag(_arg1) {
+    return _arg1.Fields[4];
+}
+function writeNFlag(n, _arg1) {
+    return new StateHandle("S", [_arg1.Fields[0], n, _arg1.Fields[2], _arg1.Fields[3], _arg1.Fields[4], _arg1.Fields[5]]);
+}
+function writeZFlag(z, _arg1) {
+    return new StateHandle("S", [_arg1.Fields[0], _arg1.Fields[1], z, _arg1.Fields[3], _arg1.Fields[4], _arg1.Fields[5]]);
+}
+function writeCFlag(c, _arg1) {
+    return new StateHandle("S", [_arg1.Fields[0], _arg1.Fields[1], _arg1.Fields[2], c, _arg1.Fields[4], _arg1.Fields[5]]);
+}
+function writeVFlag(v, _arg1) {
+    return new StateHandle("S", [_arg1.Fields[0], _arg1.Fields[1], _arg1.Fields[2], _arg1.Fields[3], v, _arg1.Fields[5]]);
 }
 
 function create$1(pattern, options) {
@@ -937,9 +976,7 @@ function create$1(pattern, options) {
     flags += options & 2 ? "m" : "";
     return new RegExp(pattern, flags);
 }
-function escape(str) {
-    return str.replace(/[\-\[\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
-}
+
 
 
 function match(str, pattern, options) {
@@ -949,58 +986,19 @@ function match(str, pattern, options) {
         : reg = create$1(pattern, options);
     return reg.exec(str);
 }
-function matches(str, pattern, options) {
-    if (options === void 0) { options = 0; }
-    var reg = str instanceof RegExp
-        ? (reg = str, str = pattern, reg.lastIndex = options, reg)
-        : reg = create$1(pattern, options);
-    if (!reg.global)
-        throw new Error("Non-global RegExp");
-    var m;
-    var matches = [];
-    while ((m = reg.exec(str)) !== null)
-        matches.push(m);
-    return matches;
-}
 
-function replace$1(reg, input, replacement, limit, offset) {
+
+
+function split$1(reg, input, limit, offset) {
     if (offset === void 0) { offset = 0; }
-    function replacer() {
-        var res = arguments[0];
-        if (limit !== 0) {
-            limit--;
-            var match_1 = [];
-            var len = arguments.length;
-            for (var i = 0; i < len - 2; i++)
-                match_1.push(arguments[i]);
-            match_1.index = arguments[len - 2];
-            match_1.input = arguments[len - 1];
-            res = replacement(match_1);
-        }
-        return res;
-    }
     if (typeof reg == "string") {
         var tmp = reg;
         reg = create$1(input, limit);
         input = tmp;
         limit = undefined;
     }
-    if (typeof replacement == "function") {
-        limit = limit == null ? -1 : limit;
-        return input.substring(0, offset) + input.substring(offset).replace(reg, replacer);
-    }
-    else {
-        if (limit != null) {
-            var m = void 0;
-            var sub1 = input.substring(offset);
-            var _matches = matches(reg, sub1);
-            var sub2 = matches.length > limit ? (m = _matches[limit - 1], sub1.substring(0, m.index + m[0].length)) : sub1;
-            return input.substring(0, offset) + sub2.replace(reg, replacement) + input.substring(offset + sub2.length);
-        }
-        else {
-            return input.replace(reg, replacement);
-        }
-    }
+    input = input.substring(offset);
+    return input.split(reg, limit);
 }
 
 var Long = (function () {
@@ -1645,60 +1643,96 @@ function padLeft(str, len, ch, isRight) {
 function replicate$2(n, x) {
     return initialize$2(n, function () { return x; });
 }
-function split$$1(str, splitters, count, removeEmpty) {
-    count = typeof count == "number" ? count : null;
-    removeEmpty = typeof removeEmpty == "number" ? removeEmpty : null;
-    if (count < 0)
-        throw new Error("Count cannot be less than zero");
-    if (count === 0)
-        return [];
-    splitters = Array.isArray(splitters) ? splitters : getRestParams(arguments, 1);
-    splitters = splitters.map(function (x) { return escape(x); });
-    splitters = splitters.length > 0 ? splitters : [" "];
-    var m;
-    var i = 0;
-    var splits = [];
-    var reg = new RegExp(splitters.join("|"), "g");
-    while ((count == null || count > 1) && (m = reg.exec(str)) !== null) {
-        if (!removeEmpty || (m.index - i) > 0) {
-            count = count != null ? count - 1 : count;
-            splits.push(str.substring(i, m.index));
-        }
-        i = reg.lastIndex;
+
+var _createClass$1 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _classCallCheck$1(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var _Error = function () {
+    function _Error(caseName, fields) {
+        _classCallCheck$1(this, _Error);
+
+        this.Case = caseName;
+        this.Fields = fields;
     }
-    if (!removeEmpty || (str.length - i) > 0)
-        splits.push(str.substring(i));
-    return splits;
+
+    _createClass$1(_Error, [{
+        key: _Symbol.reflection,
+        value: function () {
+            return {
+                type: "Common.Error.Error",
+                interfaces: ["FSharpUnion", "System.IEquatable", "System.IComparable"],
+                cases: {
+                    Err: ["string"],
+                    Ok: [GenericParam("a")]
+                }
+            };
+        }
+    }, {
+        key: "Equals",
+        value: function (other) {
+            return equalsUnions(this, other);
+        }
+    }, {
+        key: "CompareTo",
+        value: function (other) {
+            return compareUnions(this, other);
+        }
+    }]);
+
+    return _Error;
+}();
+
+setType("Common.Error.Error", _Error);
+function wrapErr(f, x) {
+    if (x.Case === "Err") {
+        return new _Error("Err", [x.Fields[0]]);
+    } else {
+        return f(x.Fields[0]);
+    }
 }
+function errorList(lst) {
+    var addToStr = function addToStr(lst_1) {
+        return function (n) {
+            var matchValue = n < 5;
 
-function parser(tokLst) {
-    var parseRec = function parseRec(ml) {
-        return function (_arg1) {
-            var $var11 = _arg1.tail == null ? [2] : _arg1.head.Case === "T_MOV" ? _arg1.tail.tail != null ? _arg1.tail.head.Case === "T_REG" ? _arg1.tail.tail.tail != null ? _arg1.tail.tail.head.Case === "T_COMMA" ? _arg1.tail.tail.tail.tail != null ? _arg1.tail.tail.tail.head.Case === "T_INT" ? [0, _arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail] : _arg1.tail.tail.tail.head.Case === "T_REG" ? [1, _arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail] : [3] : [3] : [3] : [3] : [3] : [3] : [3];
-
-            switch ($var11[0]) {
-                case 0:
-                    return new List([ml, function (state) {
-                        return movI($var11[1], $var11[3], $var11[2], state);
-                    }], parseRec(ml + 4)($var11[4]));
-
-                case 1:
-                    return new List([ml, function (state_1) {
-                        return movR($var11[1], $var11[2], $var11[3], state_1);
-                    }], parseRec(ml + 4)($var11[4]));
-
-                case 2:
-                    return new List();
-
-                case 3:
-                    return fsFormat("unhandled parse error!")(function (x) {
-                        throw new Error(x);
-                    });
+            if (matchValue) {
+                if (lst_1.tail == null) {
+                    return "";
+                } else {
+                    return fsFormat("%A")(function (x) {
+                        return x;
+                    })(lst_1.head) + "; " + addToStr(lst_1.tail)(n + 1);
+                }
+            } else {
+                return "";
             }
         };
     };
 
-    return create(parseRec(0)(tokLst), new GenericComparer(compare));
+    return addToStr(lst)(0);
+}
+
+function interpret(state, instr) {
+    interpret: while (true) {
+        var matchValue = tryFind$$1(readPC(state), instr);
+
+        if (matchValue == null) {
+            return new _Error("Err", [fsFormat("Instruction does not exist at address %A.")(function (x) {
+                return x;
+            })(readPC(state))]);
+        } else if (matchValue.Case === "Terminate") {
+            return new _Error("Ok", [state]);
+        } else if (matchValue.Case === "LabelRef") {
+            return new _Error("Err", ["Unresolved label (branch/adr) - this should have been resolved in the parser."]);
+        } else if (matchValue.Case === "EndRef") {
+            return new _Error("Err", ["Unresolved termination - this should have been resolved in the parser."]);
+        } else {
+            state = incPC(matchValue.Fields[0](state));
+            instr = instr;
+            continue interpret;
+        }
+    }
 }
 
 function checkAL(state) {
@@ -1757,159 +1791,189 @@ function checkLE(state) {
     }
 }
 
-var _createClass$1 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+var _createClass$3 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-function _classCallCheck$1(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+function _classCallCheck$3(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-var cond = "(|EQ|NE|CS|HS|CC|LO|MI|PL|VS|VC|HI|LS|GE|LT|GT|LE|AL)$";
-function matchCond(_arg1) {
-    switch (_arg1) {
-        case "EQ":
-            return function (state) {
-                return checkEQ(state);
-            };
-
-        case "NE":
-            return function (state_1) {
-                return checkNE(state_1);
-            };
-
-        case "CS":
-            return function (state_2) {
-                return checkCS(state_2);
-            };
-
-        case "HS":
-            return function (state_3) {
-                return checkCS(state_3);
-            };
-
-        case "CC":
-            return function (state_4) {
-                return checkCC(state_4);
-            };
-
-        case "LO":
-            return function (state_5) {
-                return checkCC(state_5);
-            };
-
-        case "MI":
-            return function (state_6) {
-                return checkMI(state_6);
-            };
-
-        case "PL":
-            return function (state_7) {
-                return checkPL(state_7);
-            };
-
-        case "VS":
-            return function (state_8) {
-                return checkVS(state_8);
-            };
-
-        case "VC":
-            return function (state_9) {
-                return checkVC(state_9);
-            };
-
-        case "HI":
-            return function (state_10) {
-                return checkHI(state_10);
-            };
-
-        case "GE":
-            return function (state_11) {
-                return checkGE(state_11);
-            };
-
-        case "LT":
-            return function (state_12) {
-                return checkLT(state_12);
-            };
-
-        case "GT":
-            return function (state_13) {
-                return checkGT(state_13);
-            };
-
-        case "LE":
-            return function (state_14) {
-                return checkLE(state_14);
-            };
-
-        case "AL":
-            return function (state_15) {
-                return checkAL(state_15);
-            };
-
-        case "":
-            return function (state_16) {
-                return checkAL(state_16);
-            };
-
-        default:
-            return function (state_17) {
-                return checkAL(state_17);
-            };
-    }
-}
-var Token = function () {
-    function Token(caseName, fields) {
-        _classCallCheck$1(this, Token);
+var shiftOp = function () {
+    function shiftOp(caseName, fields) {
+        _classCallCheck$3(this, shiftOp);
 
         this.Case = caseName;
         this.Fields = fields;
     }
 
-    _createClass$1(Token, [{
+    _createClass$3(shiftOp, [{
+        key: _Symbol.reflection,
+        value: function () {
+            return {
+                type: "Parse.Tokeniser.shiftOp",
+                interfaces: ["FSharpUnion", "System.IEquatable", "System.IComparable"],
+                cases: {
+                    T_ASR: [],
+                    T_LSL: [],
+                    T_LSR: [],
+                    T_NIL: [],
+                    T_ROR: [],
+                    T_RRX: []
+                }
+            };
+        }
+    }, {
+        key: "Equals",
+        value: function (other) {
+            return equalsUnions(this, other);
+        }
+    }, {
+        key: "CompareTo",
+        value: function (other) {
+            return compareUnions(this, other);
+        }
+    }]);
+
+    return shiftOp;
+}();
+setType("Parse.Tokeniser.shiftOp", shiftOp);
+var stackOrder = function () {
+    function stackOrder(caseName, fields) {
+        _classCallCheck$3(this, stackOrder);
+
+        this.Case = caseName;
+        this.Fields = fields;
+    }
+
+    _createClass$3(stackOrder, [{
+        key: _Symbol.reflection,
+        value: function () {
+            return {
+                type: "Parse.Tokeniser.stackOrder",
+                interfaces: ["FSharpUnion", "System.IEquatable", "System.IComparable"],
+                cases: {
+                    S_DA: [],
+                    S_DB: [],
+                    S_IA: [],
+                    S_IB: []
+                }
+            };
+        }
+    }, {
+        key: "Equals",
+        value: function (other) {
+            return equalsUnions(this, other);
+        }
+    }, {
+        key: "CompareTo",
+        value: function (other) {
+            return compareUnions(this, other);
+        }
+    }]);
+
+    return stackOrder;
+}();
+setType("Parse.Tokeniser.stackOrder", stackOrder);
+var opType = function () {
+    function opType(caseName, fields) {
+        _classCallCheck$3(this, opType);
+
+        this.Case = caseName;
+        this.Fields = fields;
+    }
+
+    _createClass$3(opType, [{
+        key: _Symbol.reflection,
+        value: function () {
+            return {
+                type: "Parse.Tokeniser.opType",
+                interfaces: ["FSharpUnion", "System.IEquatable", "System.IComparable"],
+                cases: {
+                    T_I: [],
+                    T_R: []
+                }
+            };
+        }
+    }, {
+        key: "Equals",
+        value: function (other) {
+            return equalsUnions(this, other);
+        }
+    }, {
+        key: "CompareTo",
+        value: function (other) {
+            return compareUnions(this, other);
+        }
+    }]);
+
+    return opType;
+}();
+setType("Parse.Tokeniser.opType", opType);
+var Token = function () {
+    function Token(caseName, fields) {
+        _classCallCheck$3(this, Token);
+
+        this.Case = caseName;
+        this.Fields = fields;
+    }
+
+    _createClass$3(Token, [{
         key: _Symbol.reflection,
         value: function () {
             return {
                 type: "Parse.Tokeniser.Token",
                 interfaces: ["FSharpUnion"],
                 cases: {
-                    T_ADC: ["function"],
-                    T_ADD: ["function"],
+                    T_ADC: ["function", "boolean"],
+                    T_ADD: ["function", "boolean"],
                     T_ADR: ["function"],
-                    T_AND: ["function"],
+                    T_AND: ["function", "boolean"],
                     T_B: ["function"],
-                    T_BIC: ["function"],
+                    T_BIC: ["function", "boolean"],
                     T_BL: ["function"],
                     T_BX: ["function"],
+                    T_CLZ: ["function"],
                     T_CMN: ["function"],
                     T_CMP: ["function"],
                     T_COMMA: [],
-                    T_EOR: ["function"],
-                    T_ERROR: [],
+                    T_DCD: [],
+                    T_END: ["function"],
+                    T_EOR: ["function", "boolean"],
+                    T_EQU: [],
+                    T_ERROR: ["string"],
+                    T_EXCL: [],
+                    T_FILL: [],
                     T_INT: ["number"],
                     T_LABEL: ["string"],
-                    T_LDM: ["function"],
+                    T_LDM: ["function", stackOrder],
                     T_LDR: ["function"],
-                    T_MLA: ["function"],
-                    T_MOV: ["function"],
+                    T_LDRB: ["function"],
+                    T_LDRH: ["function"],
+                    T_L_BRAC: [],
+                    T_MLA: ["function", "boolean"],
+                    T_MOV: ["function", "boolean"],
                     T_MRS: ["function"],
                     T_MSR: ["function"],
-                    T_MUL: ["function"],
-                    T_MVN: ["function"],
+                    T_MUL: ["function", "boolean"],
+                    T_MVN: ["function", "boolean"],
                     T_NOP: ["function"],
-                    T_ORR: ["function"],
+                    T_ORR: ["function", "boolean"],
                     T_REG: ["number"],
-                    T_RSB: ["function"],
-                    T_RSC: ["function"],
-                    T_SBC: ["function"],
-                    T_SMLAL: ["function"],
-                    T_SMULL: ["function"],
-                    T_STM: ["function"],
+                    T_RSB: ["function", "boolean"],
+                    T_RSC: ["function", "boolean"],
+                    T_R_BRAC: [],
+                    T_SBC: ["function", "boolean"],
+                    T_SHIFT: [shiftOp, Tuple(["function", "boolean"])],
+                    T_SMLAL: ["function", "boolean"],
+                    T_SMULL: ["function", "boolean"],
+                    T_STM: ["function", stackOrder],
                     T_STR: ["function"],
-                    T_SUB: ["function"],
+                    T_STRB: ["function"],
+                    T_STRH: ["function"],
+                    T_SUB: ["function", "boolean"],
                     T_SWI: ["function"],
                     T_SWP: ["function"],
                     T_TEQ: ["function"],
                     T_TST: ["function"],
-                    T_UMLAL: ["function"],
-                    T_UMULL: ["function"]
+                    T_UMLAL: ["function", "boolean"],
+                    T_UMULL: ["function", "boolean"]
                 }
             };
         }
@@ -1920,32 +1984,40 @@ var Token = function () {
 
             if (yobj instanceof Token) {
                 var matchValue = [this, yobj];
-                var $var10 = matchValue[0].Case === "T_REG" ? matchValue[1].Case === "T_REG" ? [0, matchValue[0].Fields[0], matchValue[1].Fields[0]] : [8] : matchValue[0].Case === "T_INT" ? matchValue[1].Case === "T_INT" ? [1, matchValue[0].Fields[0], matchValue[1].Fields[0]] : [8] : matchValue[0].Case === "T_COMMA" ? matchValue[1].Case === "T_COMMA" ? [2] : [8] : matchValue[0].Case === "T_ERROR" ? matchValue[1].Case === "T_ERROR" ? [3] : [8] : matchValue[0].Case === "T_MOV" ? matchValue[1].Case === "T_MOV" ? [4, matchValue[0].Fields[0], matchValue[1].Fields[0]] : [8] : matchValue[0].Case === "T_MVN" ? matchValue[1].Case === "T_MVN" ? [5, matchValue[0].Fields[0], matchValue[1].Fields[0]] : [8] : matchValue[0].Case === "T_MRS" ? matchValue[1].Case === "T_MRS" ? [6, matchValue[0].Fields[0], matchValue[1].Fields[0]] : [8] : matchValue[0].Case === "T_MSR" ? matchValue[1].Case === "T_MSR" ? [7, matchValue[0].Fields[0], matchValue[1].Fields[0]] : [8] : [8];
+                var $var4 = matchValue[0].Case === "T_REG" ? matchValue[1].Case === "T_REG" ? [0, matchValue[0].Fields[0], matchValue[1].Fields[0]] : [8] : matchValue[0].Case === "T_INT" ? matchValue[1].Case === "T_INT" ? [1, matchValue[0].Fields[0], matchValue[1].Fields[0]] : [8] : matchValue[0].Case === "T_COMMA" ? matchValue[1].Case === "T_COMMA" ? [2] : [8] : matchValue[0].Case === "T_ERROR" ? matchValue[1].Case === "T_ERROR" ? [3, matchValue[0].Fields[0], matchValue[1].Fields[0]] : [8] : matchValue[0].Case === "T_MOV" ? matchValue[1].Case === "T_MOV" ? [4, matchValue[0].Fields[0], matchValue[1].Fields[0], matchValue[0].Fields[1], matchValue[1].Fields[1]] : [8] : matchValue[0].Case === "T_MVN" ? matchValue[1].Case === "T_MVN" ? [5, matchValue[0].Fields[0], matchValue[1].Fields[0], matchValue[0].Fields[1], matchValue[1].Fields[1]] : [8] : matchValue[0].Case === "T_MRS" ? matchValue[1].Case === "T_MRS" ? [6, matchValue[0].Fields[0], matchValue[1].Fields[0]] : [8] : matchValue[0].Case === "T_MSR" ? matchValue[1].Case === "T_MSR" ? [7, matchValue[0].Fields[0], matchValue[1].Fields[0]] : [8] : [8];
 
-                switch ($var10[0]) {
+                switch ($var4[0]) {
                     case 0:
-                        return $var10[1] === $var10[2];
+                        return $var4[1] === $var4[2];
 
                     case 1:
-                        return $var10[1] === $var10[2];
+                        return $var4[1] === $var4[2];
 
                     case 2:
                         return true;
 
                     case 3:
-                        return true;
+                        return $var4[1] === $var4[2];
 
                     case 4:
-                        return $var10[1](state) === $var10[2](state);
+                        if ($var4[1](state) === $var4[2](state)) {
+                            return $var4[3] === $var4[4];
+                        } else {
+                            return false;
+                        }
 
                     case 5:
-                        return $var10[1](state) === $var10[2](state);
+                        if ($var4[1](state) === $var4[2](state)) {
+                            return $var4[3] === $var4[4];
+                        } else {
+                            return false;
+                        }
 
                     case 6:
-                        return $var10[1](state) === $var10[2](state);
+                        return $var4[1](state) === $var4[2](state);
 
                     case 7:
-                        return $var10[1](state) === $var10[2](state);
+                        return $var4[1](state) === $var4[2](state);
 
                     case 8:
                         return false;
@@ -1959,29 +2031,12 @@ var Token = function () {
     return Token;
 }();
 setType("Parse.Tokeniser.Token", Token);
+var cond = "(|EQ|NE|CS|HS|CC|LO|MI|PL|VS|VC|HI|LS|GE|LT|GT|LE|AL)";
+var setFlags = "(|S)";
+var stackSfx = "(IA|IB|DA|DB|FD|FA|ED|EA)";
 
-function _INSTR_MATCH___(pattern, str) {
-    var m = match(str, pattern + cond);
-
-    if (m != null) {
-        return matchCond(m[1]);
-    } else {
-        return null;
-    }
-}
-
-function _REG_MATCH___(str) {
-    var m = match(str, "^R([0-9]|1[0-5])$");
-
-    if (m != null) {
-        return Number.parseInt(m[1]);
-    } else {
-        return null;
-    }
-}
-
-function _COMMA_MATCH___(str) {
-    var m = match(str, "^,$");
+function _TOKEN_MATCH___(pattern, str) {
+    var m = match(str, pattern, 1);
 
     if (m != null) {
         return {};
@@ -1990,8 +2045,303 @@ function _COMMA_MATCH___(str) {
     }
 }
 
+function matchCond(_arg1) {
+    var activePatternResult297 = _TOKEN_MATCH___("EQ", _arg1);
+
+    if (activePatternResult297 != null) {
+        return function (state) {
+            return checkEQ(state);
+        };
+    } else {
+        var activePatternResult295 = _TOKEN_MATCH___("NE", _arg1);
+
+        if (activePatternResult295 != null) {
+            return function (state_1) {
+                return checkNE(state_1);
+            };
+        } else {
+            var activePatternResult293 = _TOKEN_MATCH___("CS", _arg1);
+
+            if (activePatternResult293 != null) {
+                return function (state_2) {
+                    return checkCS(state_2);
+                };
+            } else {
+                var activePatternResult291 = _TOKEN_MATCH___("HS", _arg1);
+
+                if (activePatternResult291 != null) {
+                    return function (state_3) {
+                        return checkCS(state_3);
+                    };
+                } else {
+                    var activePatternResult289 = _TOKEN_MATCH___("CC", _arg1);
+
+                    if (activePatternResult289 != null) {
+                        return function (state_4) {
+                            return checkCC(state_4);
+                        };
+                    } else {
+                        var activePatternResult287 = _TOKEN_MATCH___("LO", _arg1);
+
+                        if (activePatternResult287 != null) {
+                            return function (state_5) {
+                                return checkCC(state_5);
+                            };
+                        } else {
+                            var activePatternResult285 = _TOKEN_MATCH___("MI", _arg1);
+
+                            if (activePatternResult285 != null) {
+                                return function (state_6) {
+                                    return checkMI(state_6);
+                                };
+                            } else {
+                                var activePatternResult283 = _TOKEN_MATCH___("PL", _arg1);
+
+                                if (activePatternResult283 != null) {
+                                    return function (state_7) {
+                                        return checkPL(state_7);
+                                    };
+                                } else {
+                                    var activePatternResult281 = _TOKEN_MATCH___("VS", _arg1);
+
+                                    if (activePatternResult281 != null) {
+                                        return function (state_8) {
+                                            return checkVS(state_8);
+                                        };
+                                    } else {
+                                        var activePatternResult279 = _TOKEN_MATCH___("VC", _arg1);
+
+                                        if (activePatternResult279 != null) {
+                                            return function (state_9) {
+                                                return checkVC(state_9);
+                                            };
+                                        } else {
+                                            var activePatternResult277 = _TOKEN_MATCH___("HI", _arg1);
+
+                                            if (activePatternResult277 != null) {
+                                                return function (state_10) {
+                                                    return checkHI(state_10);
+                                                };
+                                            } else {
+                                                var activePatternResult275 = _TOKEN_MATCH___("GE", _arg1);
+
+                                                if (activePatternResult275 != null) {
+                                                    return function (state_11) {
+                                                        return checkGE(state_11);
+                                                    };
+                                                } else {
+                                                    var activePatternResult273 = _TOKEN_MATCH___("LT", _arg1);
+
+                                                    if (activePatternResult273 != null) {
+                                                        return function (state_12) {
+                                                            return checkLT(state_12);
+                                                        };
+                                                    } else {
+                                                        var activePatternResult271 = _TOKEN_MATCH___("GT", _arg1);
+
+                                                        if (activePatternResult271 != null) {
+                                                            return function (state_13) {
+                                                                return checkGT(state_13);
+                                                            };
+                                                        } else {
+                                                            var activePatternResult269 = _TOKEN_MATCH___("LE", _arg1);
+
+                                                            if (activePatternResult269 != null) {
+                                                                return function (state_14) {
+                                                                    return checkLE(state_14);
+                                                                };
+                                                            } else {
+                                                                var activePatternResult267 = _TOKEN_MATCH___("AL", _arg1);
+
+                                                                if (activePatternResult267 != null) {
+                                                                    return function (state_15) {
+                                                                        return checkAL(state_15);
+                                                                    };
+                                                                } else {
+                                                                    return function (state_16) {
+                                                                        return checkAL(state_16);
+                                                                    };
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+function matchS(_arg1) {
+    var activePatternResult300 = _TOKEN_MATCH___("S", _arg1);
+
+    if (activePatternResult300 != null) {
+        return true;
+    } else {
+        return false;
+    }
+}
+function matchLDM(_arg1) {
+    var activePatternResult317 = _TOKEN_MATCH___("IA", _arg1);
+
+    if (activePatternResult317 != null) {
+        return new stackOrder("S_IA", []);
+    } else {
+        var activePatternResult315 = _TOKEN_MATCH___("IB", _arg1);
+
+        if (activePatternResult315 != null) {
+            return new stackOrder("S_IB", []);
+        } else {
+            var activePatternResult313 = _TOKEN_MATCH___("DA", _arg1);
+
+            if (activePatternResult313 != null) {
+                return new stackOrder("S_DA", []);
+            } else {
+                var activePatternResult311 = _TOKEN_MATCH___("DB", _arg1);
+
+                if (activePatternResult311 != null) {
+                    return new stackOrder("S_DB", []);
+                } else {
+                    var activePatternResult309 = _TOKEN_MATCH___("FD", _arg1);
+
+                    if (activePatternResult309 != null) {
+                        return new stackOrder("S_IA", []);
+                    } else {
+                        var activePatternResult307 = _TOKEN_MATCH___("ED", _arg1);
+
+                        if (activePatternResult307 != null) {
+                            return new stackOrder("S_IB", []);
+                        } else {
+                            var activePatternResult305 = _TOKEN_MATCH___("FA", _arg1);
+
+                            if (activePatternResult305 != null) {
+                                return new stackOrder("S_DA", []);
+                            } else {
+                                var activePatternResult303 = _TOKEN_MATCH___("EA", _arg1);
+
+                                if (activePatternResult303 != null) {
+                                    return new stackOrder("S_DB", []);
+                                } else {
+                                    return new stackOrder("S_IA", []);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+function matchSTM(_arg1) {
+    var activePatternResult334 = _TOKEN_MATCH___("IA", _arg1);
+
+    if (activePatternResult334 != null) {
+        return new stackOrder("S_IA", []);
+    } else {
+        var activePatternResult332 = _TOKEN_MATCH___("IB", _arg1);
+
+        if (activePatternResult332 != null) {
+            return new stackOrder("S_IB", []);
+        } else {
+            var activePatternResult330 = _TOKEN_MATCH___("DA", _arg1);
+
+            if (activePatternResult330 != null) {
+                return new stackOrder("S_DA", []);
+            } else {
+                var activePatternResult328 = _TOKEN_MATCH___("DB", _arg1);
+
+                if (activePatternResult328 != null) {
+                    return new stackOrder("S_DB", []);
+                } else {
+                    var activePatternResult326 = _TOKEN_MATCH___("EA", _arg1);
+
+                    if (activePatternResult326 != null) {
+                        return new stackOrder("S_IA", []);
+                    } else {
+                        var activePatternResult324 = _TOKEN_MATCH___("FA", _arg1);
+
+                        if (activePatternResult324 != null) {
+                            return new stackOrder("S_IB", []);
+                        } else {
+                            var activePatternResult322 = _TOKEN_MATCH___("ED", _arg1);
+
+                            if (activePatternResult322 != null) {
+                                return new stackOrder("S_DA", []);
+                            } else {
+                                var activePatternResult320 = _TOKEN_MATCH___("FD", _arg1);
+
+                                if (activePatternResult320 != null) {
+                                    return new stackOrder("S_DB", []);
+                                } else {
+                                    return new stackOrder("S_IA", []);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+function _INSTR_MATCH___(pattern, str) {
+    var m = match(str, pattern + cond + "$", 1);
+
+    if (m != null) {
+        return matchCond(m[1]);
+    } else {
+        return null;
+    }
+}
+
+function _INSTR_S_MATCH___(pattern, str) {
+    var m = match(str, pattern + cond + setFlags + "$", 1);
+
+    if (m != null) {
+        return [matchCond(m[1]), matchS(m[2])];
+    } else {
+        return null;
+    }
+}
+
+function _LDM_MATCH___(str) {
+    var m = match(str, "^LDM" + cond + stackSfx + "$", 1);
+
+    if (m != null) {
+        return [matchCond(m[1]), matchLDM(m[2])];
+    } else {
+        return null;
+    }
+}
+
+function _STM_MATCH___(str) {
+    var m = match(str, "^STM" + cond + stackSfx + "$", 1);
+
+    if (m != null) {
+        return [matchCond(m[1]), matchSTM(m[2])];
+    } else {
+        return null;
+    }
+}
+
+function _REG_MATCH___(str) {
+    var m = match(str, "^R([0-9]|1[0-5])$", 1);
+
+    if (m != null) {
+        return Number.parseInt(m[1]);
+    } else {
+        return null;
+    }
+}
+
 function _LABEL_MATCH___(str) {
-    var m = match(str, "^([a-zA-Z][a-zA-Z0-9]*):$");
+    var m = match(str, "^([a-zA-Z_][a-zA-Z0-9_]*)$");
 
     if (m != null) {
         return m[1];
@@ -2021,82 +2371,472 @@ function _HEX_LIT_MATCH___(str) {
 }
 
 function stringToToken(_arg1) {
-    var activePatternResult172 = _REG_MATCH___(_arg1);
+    var activePatternResult503 = _REG_MATCH___(_arg1);
 
-    if (activePatternResult172 != null) {
-        return new Token("T_REG", [activePatternResult172]);
+    if (activePatternResult503 != null) {
+        return new Token("T_REG", [activePatternResult503]);
     } else {
-        var activePatternResult171 = _COMMA_MATCH___(_arg1);
+        var activePatternResult502 = _TOKEN_MATCH___("^a1$", _arg1);
 
-        if (activePatternResult171 != null) {
-            return new Token("T_COMMA", []);
+        if (activePatternResult502 != null) {
+            return new Token("T_REG", [0]);
         } else {
-            var activePatternResult170 = _LABEL_MATCH___(_arg1);
+            var activePatternResult500 = _TOKEN_MATCH___("^a2$", _arg1);
 
-            if (activePatternResult170 != null) {
-                return new Token("T_LABEL", [activePatternResult170]);
+            if (activePatternResult500 != null) {
+                return new Token("T_REG", [1]);
             } else {
-                var activePatternResult169 = _DEC_LIT_MATCH___(_arg1);
+                var activePatternResult498 = _TOKEN_MATCH___("^a3$", _arg1);
 
-                if (activePatternResult169 != null) {
-                    return new Token("T_INT", [activePatternResult169]);
+                if (activePatternResult498 != null) {
+                    return new Token("T_REG", [2]);
                 } else {
-                    var activePatternResult168 = _HEX_LIT_MATCH___(_arg1);
+                    var activePatternResult496 = _TOKEN_MATCH___("^a4$", _arg1);
 
-                    if (activePatternResult168 != null) {
-                        return new Token("T_INT", [activePatternResult168]);
+                    if (activePatternResult496 != null) {
+                        return new Token("T_REG", [3]);
                     } else {
-                        var activePatternResult167 = _INSTR_MATCH___("^MOV", _arg1);
+                        var activePatternResult494 = _TOKEN_MATCH___("^v1$", _arg1);
 
-                        if (activePatternResult167 != null) {
-                            return new Token("T_MOV", [activePatternResult167]);
+                        if (activePatternResult494 != null) {
+                            return new Token("T_REG", [4]);
                         } else {
-                            var activePatternResult165 = _INSTR_MATCH___("^MVN", _arg1);
+                            var activePatternResult492 = _TOKEN_MATCH___("^v2$", _arg1);
 
-                            if (activePatternResult165 != null) {
-                                return new Token("T_MVN", [activePatternResult165]);
+                            if (activePatternResult492 != null) {
+                                return new Token("T_REG", [5]);
                             } else {
-                                var activePatternResult163 = _INSTR_MATCH___("^MRS", _arg1);
+                                var activePatternResult490 = _TOKEN_MATCH___("^v3$", _arg1);
 
-                                if (activePatternResult163 != null) {
-                                    return new Token("T_MRS", [activePatternResult163]);
+                                if (activePatternResult490 != null) {
+                                    return new Token("T_REG", [6]);
                                 } else {
-                                    var activePatternResult161 = _INSTR_MATCH___("^MSR", _arg1);
+                                    var activePatternResult488 = _TOKEN_MATCH___("^v4$", _arg1);
 
-                                    if (activePatternResult161 != null) {
-                                        return new Token("T_MSR", [activePatternResult161]);
+                                    if (activePatternResult488 != null) {
+                                        return new Token("T_REG", [7]);
                                     } else {
-                                        var activePatternResult159 = _INSTR_MATCH___("^ADD", _arg1);
+                                        var activePatternResult486 = _TOKEN_MATCH___("^v5$", _arg1);
 
-                                        if (activePatternResult159 != null) {
-                                            return new Token("T_ADD", [activePatternResult159]);
+                                        if (activePatternResult486 != null) {
+                                            return new Token("T_REG", [8]);
                                         } else {
-                                            var activePatternResult157 = _INSTR_MATCH___("^ADC", _arg1);
+                                            var activePatternResult484 = _TOKEN_MATCH___("^v6$", _arg1);
 
-                                            if (activePatternResult157 != null) {
-                                                return new Token("T_ADC", [activePatternResult157]);
+                                            if (activePatternResult484 != null) {
+                                                return new Token("T_REG", [9]);
                                             } else {
-                                                var activePatternResult155 = _INSTR_MATCH___("^SUB", _arg1);
+                                                var activePatternResult482 = _TOKEN_MATCH___("^v7$", _arg1);
 
-                                                if (activePatternResult155 != null) {
-                                                    return new Token("T_SUB", [activePatternResult155]);
+                                                if (activePatternResult482 != null) {
+                                                    return new Token("T_REG", [10]);
                                                 } else {
-                                                    var activePatternResult153 = _INSTR_MATCH___("^SBC", _arg1);
+                                                    var activePatternResult480 = _TOKEN_MATCH___("^v8$", _arg1);
 
-                                                    if (activePatternResult153 != null) {
-                                                        return new Token("T_SBC", [activePatternResult153]);
+                                                    if (activePatternResult480 != null) {
+                                                        return new Token("T_REG", [11]);
                                                     } else {
-                                                        var activePatternResult151 = _INSTR_MATCH___("^RSB", _arg1);
+                                                        var activePatternResult478 = _TOKEN_MATCH___("^sb$", _arg1);
 
-                                                        if (activePatternResult151 != null) {
-                                                            return new Token("T_RSB", [activePatternResult151]);
+                                                        if (activePatternResult478 != null) {
+                                                            return new Token("T_REG", [9]);
                                                         } else {
-                                                            var activePatternResult149 = _INSTR_MATCH___("^RSC", _arg1);
+                                                            var activePatternResult476 = _TOKEN_MATCH___("^sl$", _arg1);
 
-                                                            if (activePatternResult149 != null) {
-                                                                return new Token("T_RSC", [activePatternResult149]);
+                                                            if (activePatternResult476 != null) {
+                                                                return new Token("T_REG", [10]);
                                                             } else {
-                                                                return new Token("T_ERROR", []);
+                                                                var activePatternResult474 = _TOKEN_MATCH___("^fp$", _arg1);
+
+                                                                if (activePatternResult474 != null) {
+                                                                    return new Token("T_REG", [11]);
+                                                                } else {
+                                                                    var activePatternResult472 = _TOKEN_MATCH___("^ip$", _arg1);
+
+                                                                    if (activePatternResult472 != null) {
+                                                                        return new Token("T_REG", [12]);
+                                                                    } else {
+                                                                        var activePatternResult470 = _TOKEN_MATCH___("^sp$", _arg1);
+
+                                                                        if (activePatternResult470 != null) {
+                                                                            return new Token("T_REG", [13]);
+                                                                        } else {
+                                                                            var activePatternResult468 = _TOKEN_MATCH___("^lr$", _arg1);
+
+                                                                            if (activePatternResult468 != null) {
+                                                                                return new Token("T_REG", [14]);
+                                                                            } else {
+                                                                                var activePatternResult466 = _TOKEN_MATCH___("^pc$", _arg1);
+
+                                                                                if (activePatternResult466 != null) {
+                                                                                    return new Token("T_REG", [15]);
+                                                                                } else if (_arg1 === ",") {
+                                                                                    return new Token("T_COMMA", []);
+                                                                                } else if (_arg1 === "[") {
+                                                                                    return new Token("T_L_BRAC", []);
+                                                                                } else if (_arg1 === "]") {
+                                                                                    return new Token("T_R_BRAC", []);
+                                                                                } else if (_arg1 === "!") {
+                                                                                    return new Token("T_EXCL", []);
+                                                                                } else {
+                                                                                    var activePatternResult464 = _DEC_LIT_MATCH___(_arg1);
+
+                                                                                    if (activePatternResult464 != null) {
+                                                                                        return new Token("T_INT", [activePatternResult464]);
+                                                                                    } else {
+                                                                                        var activePatternResult463 = _HEX_LIT_MATCH___(_arg1);
+
+                                                                                        if (activePatternResult463 != null) {
+                                                                                            return new Token("T_INT", [activePatternResult463]);
+                                                                                        } else {
+                                                                                            var activePatternResult462 = _INSTR_S_MATCH___("^MOV", _arg1);
+
+                                                                                            if (activePatternResult462 != null) {
+                                                                                                return function (tupledArg) {
+                                                                                                    return new Token("T_MOV", [tupledArg[0], tupledArg[1]]);
+                                                                                                }(activePatternResult462);
+                                                                                            } else {
+                                                                                                var activePatternResult460 = _INSTR_S_MATCH___("^MVN", _arg1);
+
+                                                                                                if (activePatternResult460 != null) {
+                                                                                                    return function (tupledArg_1) {
+                                                                                                        return new Token("T_MVN", [tupledArg_1[0], tupledArg_1[1]]);
+                                                                                                    }(activePatternResult460);
+                                                                                                } else {
+                                                                                                    var activePatternResult458 = _INSTR_MATCH___("^MRS", _arg1);
+
+                                                                                                    if (activePatternResult458 != null) {
+                                                                                                        return new Token("T_MRS", [activePatternResult458]);
+                                                                                                    } else {
+                                                                                                        var activePatternResult456 = _INSTR_MATCH___("^MSR", _arg1);
+
+                                                                                                        if (activePatternResult456 != null) {
+                                                                                                            return new Token("T_MSR", [activePatternResult456]);
+                                                                                                        } else {
+                                                                                                            var activePatternResult454 = _INSTR_S_MATCH___("^ADD", _arg1);
+
+                                                                                                            if (activePatternResult454 != null) {
+                                                                                                                return function (tupledArg_2) {
+                                                                                                                    return new Token("T_ADD", [tupledArg_2[0], tupledArg_2[1]]);
+                                                                                                                }(activePatternResult454);
+                                                                                                            } else {
+                                                                                                                var activePatternResult452 = _INSTR_S_MATCH___("^ADC", _arg1);
+
+                                                                                                                if (activePatternResult452 != null) {
+                                                                                                                    return function (tupledArg_3) {
+                                                                                                                        return new Token("T_ADC", [tupledArg_3[0], tupledArg_3[1]]);
+                                                                                                                    }(activePatternResult452);
+                                                                                                                } else {
+                                                                                                                    var activePatternResult450 = _INSTR_S_MATCH___("^SUB", _arg1);
+
+                                                                                                                    if (activePatternResult450 != null) {
+                                                                                                                        return function (tupledArg_4) {
+                                                                                                                            return new Token("T_SUB", [tupledArg_4[0], tupledArg_4[1]]);
+                                                                                                                        }(activePatternResult450);
+                                                                                                                    } else {
+                                                                                                                        var activePatternResult448 = _INSTR_S_MATCH___("^SBC", _arg1);
+
+                                                                                                                        if (activePatternResult448 != null) {
+                                                                                                                            return function (tupledArg_5) {
+                                                                                                                                return new Token("T_SBC", [tupledArg_5[0], tupledArg_5[1]]);
+                                                                                                                            }(activePatternResult448);
+                                                                                                                        } else {
+                                                                                                                            var activePatternResult446 = _INSTR_S_MATCH___("^RSB", _arg1);
+
+                                                                                                                            if (activePatternResult446 != null) {
+                                                                                                                                return function (tupledArg_6) {
+                                                                                                                                    return new Token("T_RSB", [tupledArg_6[0], tupledArg_6[1]]);
+                                                                                                                                }(activePatternResult446);
+                                                                                                                            } else {
+                                                                                                                                var activePatternResult444 = _INSTR_S_MATCH___("^RSC", _arg1);
+
+                                                                                                                                if (activePatternResult444 != null) {
+                                                                                                                                    return function (tupledArg_7) {
+                                                                                                                                        return new Token("T_RSC", [tupledArg_7[0], tupledArg_7[1]]);
+                                                                                                                                    }(activePatternResult444);
+                                                                                                                                } else {
+                                                                                                                                    var activePatternResult442 = _INSTR_S_MATCH___("^MUL", _arg1);
+
+                                                                                                                                    if (activePatternResult442 != null) {
+                                                                                                                                        return function (tupledArg_8) {
+                                                                                                                                            return new Token("T_MUL", [tupledArg_8[0], tupledArg_8[1]]);
+                                                                                                                                        }(activePatternResult442);
+                                                                                                                                    } else {
+                                                                                                                                        var activePatternResult440 = _INSTR_S_MATCH___("^MLA", _arg1);
+
+                                                                                                                                        if (activePatternResult440 != null) {
+                                                                                                                                            return function (tupledArg_9) {
+                                                                                                                                                return new Token("T_MLA", [tupledArg_9[0], tupledArg_9[1]]);
+                                                                                                                                            }(activePatternResult440);
+                                                                                                                                        } else {
+                                                                                                                                            var activePatternResult438 = _INSTR_S_MATCH___("^UMULL", _arg1);
+
+                                                                                                                                            if (activePatternResult438 != null) {
+                                                                                                                                                return function (tupledArg_10) {
+                                                                                                                                                    return new Token("T_UMULL", [tupledArg_10[0], tupledArg_10[1]]);
+                                                                                                                                                }(activePatternResult438);
+                                                                                                                                            } else {
+                                                                                                                                                var activePatternResult436 = _INSTR_S_MATCH___("^UMLAL", _arg1);
+
+                                                                                                                                                if (activePatternResult436 != null) {
+                                                                                                                                                    return function (tupledArg_11) {
+                                                                                                                                                        return new Token("T_UMLAL", [tupledArg_11[0], tupledArg_11[1]]);
+                                                                                                                                                    }(activePatternResult436);
+                                                                                                                                                } else {
+                                                                                                                                                    var activePatternResult434 = _INSTR_S_MATCH___("^SMULL", _arg1);
+
+                                                                                                                                                    if (activePatternResult434 != null) {
+                                                                                                                                                        return function (tupledArg_12) {
+                                                                                                                                                            return new Token("T_SMULL", [tupledArg_12[0], tupledArg_12[1]]);
+                                                                                                                                                        }(activePatternResult434);
+                                                                                                                                                    } else {
+                                                                                                                                                        var activePatternResult432 = _INSTR_S_MATCH___("^SMLAL", _arg1);
+
+                                                                                                                                                        if (activePatternResult432 != null) {
+                                                                                                                                                            return function (tupledArg_13) {
+                                                                                                                                                                return new Token("T_SMLAL", [tupledArg_13[0], tupledArg_13[1]]);
+                                                                                                                                                            }(activePatternResult432);
+                                                                                                                                                        } else {
+                                                                                                                                                            var activePatternResult430 = _INSTR_S_MATCH___("^AND", _arg1);
+
+                                                                                                                                                            if (activePatternResult430 != null) {
+                                                                                                                                                                return function (tupledArg_14) {
+                                                                                                                                                                    return new Token("T_AND", [tupledArg_14[0], tupledArg_14[1]]);
+                                                                                                                                                                }(activePatternResult430);
+                                                                                                                                                            } else {
+                                                                                                                                                                var activePatternResult428 = _INSTR_S_MATCH___("^ORR", _arg1);
+
+                                                                                                                                                                if (activePatternResult428 != null) {
+                                                                                                                                                                    return function (tupledArg_15) {
+                                                                                                                                                                        return new Token("T_ORR", [tupledArg_15[0], tupledArg_15[1]]);
+                                                                                                                                                                    }(activePatternResult428);
+                                                                                                                                                                } else {
+                                                                                                                                                                    var activePatternResult426 = _INSTR_S_MATCH___("^EOR", _arg1);
+
+                                                                                                                                                                    if (activePatternResult426 != null) {
+                                                                                                                                                                        return function (tupledArg_16) {
+                                                                                                                                                                            return new Token("T_EOR", [tupledArg_16[0], tupledArg_16[1]]);
+                                                                                                                                                                        }(activePatternResult426);
+                                                                                                                                                                    } else {
+                                                                                                                                                                        var activePatternResult424 = _INSTR_S_MATCH___("^BIC", _arg1);
+
+                                                                                                                                                                        if (activePatternResult424 != null) {
+                                                                                                                                                                            return function (tupledArg_17) {
+                                                                                                                                                                                return new Token("T_BIC", [tupledArg_17[0], tupledArg_17[1]]);
+                                                                                                                                                                            }(activePatternResult424);
+                                                                                                                                                                        } else {
+                                                                                                                                                                            var activePatternResult422 = _INSTR_MATCH___("^CMP", _arg1);
+
+                                                                                                                                                                            if (activePatternResult422 != null) {
+                                                                                                                                                                                return new Token("T_CMP", [activePatternResult422]);
+                                                                                                                                                                            } else {
+                                                                                                                                                                                var activePatternResult420 = _INSTR_MATCH___("^CMN", _arg1);
+
+                                                                                                                                                                                if (activePatternResult420 != null) {
+                                                                                                                                                                                    return new Token("T_CMN", [activePatternResult420]);
+                                                                                                                                                                                } else {
+                                                                                                                                                                                    var activePatternResult418 = _INSTR_MATCH___("^TST", _arg1);
+
+                                                                                                                                                                                    if (activePatternResult418 != null) {
+                                                                                                                                                                                        return new Token("T_TST", [activePatternResult418]);
+                                                                                                                                                                                    } else {
+                                                                                                                                                                                        var activePatternResult416 = _INSTR_MATCH___("^TEQ", _arg1);
+
+                                                                                                                                                                                        if (activePatternResult416 != null) {
+                                                                                                                                                                                            return new Token("T_TEQ", [activePatternResult416]);
+                                                                                                                                                                                        } else {
+                                                                                                                                                                                            var activePatternResult414 = _INSTR_MATCH___("^B", _arg1);
+
+                                                                                                                                                                                            if (activePatternResult414 != null) {
+                                                                                                                                                                                                return new Token("T_B", [activePatternResult414]);
+                                                                                                                                                                                            } else {
+                                                                                                                                                                                                var activePatternResult412 = _INSTR_MATCH___("^BL", _arg1);
+
+                                                                                                                                                                                                if (activePatternResult412 != null) {
+                                                                                                                                                                                                    return new Token("T_BL", [activePatternResult412]);
+                                                                                                                                                                                                } else {
+                                                                                                                                                                                                    var activePatternResult410 = _INSTR_MATCH___("^BX", _arg1);
+
+                                                                                                                                                                                                    if (activePatternResult410 != null) {
+                                                                                                                                                                                                        return new Token("T_BX", [activePatternResult410]);
+                                                                                                                                                                                                    } else {
+                                                                                                                                                                                                        var activePatternResult408 = _INSTR_MATCH___("^LDR", _arg1);
+
+                                                                                                                                                                                                        if (activePatternResult408 != null) {
+                                                                                                                                                                                                            return new Token("T_LDR", [activePatternResult408]);
+                                                                                                                                                                                                        } else {
+                                                                                                                                                                                                            var activePatternResult406 = _INSTR_MATCH___("^LDRB", _arg1);
+
+                                                                                                                                                                                                            if (activePatternResult406 != null) {
+                                                                                                                                                                                                                return new Token("T_LDRB", [activePatternResult406]);
+                                                                                                                                                                                                            } else {
+                                                                                                                                                                                                                var activePatternResult404 = _INSTR_MATCH___("^LDRH", _arg1);
+
+                                                                                                                                                                                                                if (activePatternResult404 != null) {
+                                                                                                                                                                                                                    return new Token("T_LDRH", [activePatternResult404]);
+                                                                                                                                                                                                                } else {
+                                                                                                                                                                                                                    var activePatternResult402 = _LDM_MATCH___(_arg1);
+
+                                                                                                                                                                                                                    if (activePatternResult402 != null) {
+                                                                                                                                                                                                                        return function (tupledArg_18) {
+                                                                                                                                                                                                                            return new Token("T_LDM", [tupledArg_18[0], tupledArg_18[1]]);
+                                                                                                                                                                                                                        }(activePatternResult402);
+                                                                                                                                                                                                                    } else {
+                                                                                                                                                                                                                        var activePatternResult401 = _INSTR_MATCH___("^STR", _arg1);
+
+                                                                                                                                                                                                                        if (activePatternResult401 != null) {
+                                                                                                                                                                                                                            return new Token("T_STR", [activePatternResult401]);
+                                                                                                                                                                                                                        } else {
+                                                                                                                                                                                                                            var activePatternResult399 = _INSTR_MATCH___("^STRB", _arg1);
+
+                                                                                                                                                                                                                            if (activePatternResult399 != null) {
+                                                                                                                                                                                                                                return new Token("T_STRB", [activePatternResult399]);
+                                                                                                                                                                                                                            } else {
+                                                                                                                                                                                                                                var activePatternResult397 = _INSTR_MATCH___("^STRH", _arg1);
+
+                                                                                                                                                                                                                                if (activePatternResult397 != null) {
+                                                                                                                                                                                                                                    return new Token("T_STRH", [activePatternResult397]);
+                                                                                                                                                                                                                                } else {
+                                                                                                                                                                                                                                    var activePatternResult395 = _STM_MATCH___(_arg1);
+
+                                                                                                                                                                                                                                    if (activePatternResult395 != null) {
+                                                                                                                                                                                                                                        return function (tupledArg_19) {
+                                                                                                                                                                                                                                            return new Token("T_STM", [tupledArg_19[0], tupledArg_19[1]]);
+                                                                                                                                                                                                                                        }(activePatternResult395);
+                                                                                                                                                                                                                                    } else {
+                                                                                                                                                                                                                                        var activePatternResult394 = _INSTR_MATCH___("^SWP", _arg1);
+
+                                                                                                                                                                                                                                        if (activePatternResult394 != null) {
+                                                                                                                                                                                                                                            return new Token("T_SWP", [activePatternResult394]);
+                                                                                                                                                                                                                                        } else {
+                                                                                                                                                                                                                                            var activePatternResult392 = _INSTR_MATCH___("^SWI", _arg1);
+
+                                                                                                                                                                                                                                            if (activePatternResult392 != null) {
+                                                                                                                                                                                                                                                return new Token("T_SWI", [activePatternResult392]);
+                                                                                                                                                                                                                                            } else {
+                                                                                                                                                                                                                                                var activePatternResult390 = _INSTR_MATCH___("^NOP", _arg1);
+
+                                                                                                                                                                                                                                                if (activePatternResult390 != null) {
+                                                                                                                                                                                                                                                    return new Token("T_NOP", [activePatternResult390]);
+                                                                                                                                                                                                                                                } else {
+                                                                                                                                                                                                                                                    var activePatternResult388 = _INSTR_MATCH___("^ADR", _arg1);
+
+                                                                                                                                                                                                                                                    if (activePatternResult388 != null) {
+                                                                                                                                                                                                                                                        return new Token("T_ADR", [activePatternResult388]);
+                                                                                                                                                                                                                                                    } else {
+                                                                                                                                                                                                                                                        var activePatternResult386 = _INSTR_MATCH___("^END", _arg1);
+
+                                                                                                                                                                                                                                                        if (activePatternResult386 != null) {
+                                                                                                                                                                                                                                                            return new Token("T_END", [activePatternResult386]);
+                                                                                                                                                                                                                                                        } else {
+                                                                                                                                                                                                                                                            var activePatternResult384 = _INSTR_MATCH___("^CLZ", _arg1);
+
+                                                                                                                                                                                                                                                            if (activePatternResult384 != null) {
+                                                                                                                                                                                                                                                                return new Token("T_CLZ", [activePatternResult384]);
+                                                                                                                                                                                                                                                            } else {
+                                                                                                                                                                                                                                                                var activePatternResult382 = _TOKEN_MATCH___("^DCD$", _arg1);
+
+                                                                                                                                                                                                                                                                if (activePatternResult382 != null) {
+                                                                                                                                                                                                                                                                    return new Token("T_DCD", []);
+                                                                                                                                                                                                                                                                } else {
+                                                                                                                                                                                                                                                                    var activePatternResult380 = _TOKEN_MATCH___("^EQU$", _arg1);
+
+                                                                                                                                                                                                                                                                    if (activePatternResult380 != null) {
+                                                                                                                                                                                                                                                                        return new Token("T_EQU", []);
+                                                                                                                                                                                                                                                                    } else {
+                                                                                                                                                                                                                                                                        var activePatternResult378 = _TOKEN_MATCH___("^FILL$", _arg1);
+
+                                                                                                                                                                                                                                                                        if (activePatternResult378 != null) {
+                                                                                                                                                                                                                                                                            return new Token("T_FILL", []);
+                                                                                                                                                                                                                                                                        } else {
+                                                                                                                                                                                                                                                                            var activePatternResult376 = _INSTR_S_MATCH___("^ASR", _arg1);
+
+                                                                                                                                                                                                                                                                            if (activePatternResult376 != null) {
+                                                                                                                                                                                                                                                                                return new Token("T_SHIFT", [new shiftOp("T_ASR", []), activePatternResult376]);
+                                                                                                                                                                                                                                                                            } else {
+                                                                                                                                                                                                                                                                                var activePatternResult374 = _INSTR_S_MATCH___("^LSL", _arg1);
+
+                                                                                                                                                                                                                                                                                if (activePatternResult374 != null) {
+                                                                                                                                                                                                                                                                                    return new Token("T_SHIFT", [new shiftOp("T_LSL", []), activePatternResult374]);
+                                                                                                                                                                                                                                                                                } else {
+                                                                                                                                                                                                                                                                                    var activePatternResult372 = _INSTR_S_MATCH___("^LSR", _arg1);
+
+                                                                                                                                                                                                                                                                                    if (activePatternResult372 != null) {
+                                                                                                                                                                                                                                                                                        return new Token("T_SHIFT", [new shiftOp("T_LSR", []), activePatternResult372]);
+                                                                                                                                                                                                                                                                                    } else {
+                                                                                                                                                                                                                                                                                        var activePatternResult370 = _INSTR_S_MATCH___("^ROR", _arg1);
+
+                                                                                                                                                                                                                                                                                        if (activePatternResult370 != null) {
+                                                                                                                                                                                                                                                                                            return new Token("T_SHIFT", [new shiftOp("T_ROR", []), activePatternResult370]);
+                                                                                                                                                                                                                                                                                        } else {
+                                                                                                                                                                                                                                                                                            var activePatternResult368 = _INSTR_S_MATCH___("^RRX", _arg1);
+
+                                                                                                                                                                                                                                                                                            if (activePatternResult368 != null) {
+                                                                                                                                                                                                                                                                                                return new Token("T_SHIFT", [new shiftOp("T_RRX", []), activePatternResult368]);
+                                                                                                                                                                                                                                                                                            } else {
+                                                                                                                                                                                                                                                                                                var activePatternResult366 = _LABEL_MATCH___(_arg1);
+
+                                                                                                                                                                                                                                                                                                if (activePatternResult366 != null) {
+                                                                                                                                                                                                                                                                                                    return new Token("T_LABEL", [activePatternResult366]);
+                                                                                                                                                                                                                                                                                                } else {
+                                                                                                                                                                                                                                                                                                    return new Token("T_ERROR", [_arg1]);
+                                                                                                                                                                                                                                                                                                }
+                                                                                                                                                                                                                                                                                            }
+                                                                                                                                                                                                                                                                                        }
+                                                                                                                                                                                                                                                                                    }
+                                                                                                                                                                                                                                                                                }
+                                                                                                                                                                                                                                                                            }
+                                                                                                                                                                                                                                                                        }
+                                                                                                                                                                                                                                                                    }
+                                                                                                                                                                                                                                                                }
+                                                                                                                                                                                                                                                            }
+                                                                                                                                                                                                                                                        }
+                                                                                                                                                                                                                                                    }
+                                                                                                                                                                                                                                                }
+                                                                                                                                                                                                                                            }
+                                                                                                                                                                                                                                        }
+                                                                                                                                                                                                                                    }
+                                                                                                                                                                                                                                }
+                                                                                                                                                                                                                            }
+                                                                                                                                                                                                                        }
+                                                                                                                                                                                                                    }
+                                                                                                                                                                                                                }
+                                                                                                                                                                                                            }
+                                                                                                                                                                                                        }
+                                                                                                                                                                                                    }
+                                                                                                                                                                                                }
+                                                                                                                                                                                            }
+                                                                                                                                                                                        }
+                                                                                                                                                                                    }
+                                                                                                                                                                                }
+                                                                                                                                                                            }
+                                                                                                                                                                        }
+                                                                                                                                                                    }
+                                                                                                                                                                }
+                                                                                                                                                            }
+                                                                                                                                                        }
+                                                                                                                                                    }
+                                                                                                                                                }
+                                                                                                                                            }
+                                                                                                                                        }
+                                                                                                                                    }
+                                                                                                                                }
+                                                                                                                            }
+                                                                                                                        }
+                                                                                                                    }
+                                                                                                                }
+                                                                                                            }
+                                                                                                        }
+                                                                                                    }
+                                                                                                }
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
                                                             }
                                                         }
                                                     }
@@ -2113,31 +2853,1994 @@ function stringToToken(_arg1) {
         }
     }
 }
-function tokenise(s) {
-    var rgx = create$1(",");
-    var sC = replace$1(rgx, s, " , ");
+function tokenise(source) {
     return function (list) {
         return map$2(function (_arg1) {
             return stringToToken(_arg1);
         }, list);
-    }(filter$2(function (s_1) {
-        return s_1 !== "";
-    }, toList(split$$1(sC, " ", "\t", "\n", "\r", "\f"))));
+    }(filter$2(function (s) {
+        return s !== "";
+    }, filter$2(function (s_1) {
+        return s_1 != null;
+    }, toList(split$1(source, "([,\\[\\]!])|[\\ \\t\\n\\r\\f]+|;.*")))));
 }
+
+function shiftI(inst, r, n, state) {
+    if (inst.Case === "T_LSR") {
+        if (n >= 1 ? n <= 32 : false) {
+            if (n === 32) {
+                return 0;
+            } else {
+                return ~~~~((readReg(r, state) >>> 0) / (Math.pow(2, n) >>> 0));
+            }
+        } else {
+            throw new Error("Invalid n.");
+        }
+    } else if (inst.Case === "T_ASR") {
+        if (n >= 1 ? n <= 32 : false) {
+            return ~~(readReg(r, state) / ~~Math.pow(2, n));
+        } else {
+            throw new Error("Invalid n.");
+        }
+    } else if (inst.Case === "T_ROR") {
+        if (n >= 1 ? n <= 31 : false) {
+            return readReg(r, state) >> n;
+        } else {
+            throw new Error("Invalid n.");
+        }
+    } else if (inst.Case === "T_RRX") {
+        var matchValue = readCFlag(state);
+
+        if (matchValue) {
+            return ~~(readReg(r, state) / 2) + 1 << 31;
+        } else {
+            return ~~(readReg(r, state) / 2);
+        }
+    } else if (inst.Case === "T_NIL") {
+        return readReg(r, state);
+    } else if (n >= 0 ? n <= 31 : false) {
+        return readReg(r, state) << n;
+    } else {
+        throw new Error("Invalid n.");
+    }
+}
+function shiftR(inst, r, rn, state) {
+    return shiftI(inst, r, readReg(rn, state), state);
+}
+function shiftSetCI(s, inst, r, n, state) {
+    if (inst.Case === "T_LSR") {
+        if (s) {
+            return writeCFlag((readReg(r, state) >> n - 1) % 2 !== 0, state);
+        } else {
+            return state;
+        }
+    } else if (inst.Case === "T_ASR") {
+        if (s) {
+            return writeCFlag((readReg(r, state) >> n - 1) % 2 !== 0, state);
+        } else {
+            return state;
+        }
+    } else if (inst.Case === "T_ROR") {
+        if (s) {
+            return writeCFlag((readReg(r, state) >> n - 1) % 2 !== 0, state);
+        } else {
+            return state;
+        }
+    } else if (inst.Case === "T_RRX") {
+        if (s) {
+            return writeCFlag(readReg(r, state) % 2 !== 0, state);
+        } else {
+            return state;
+        }
+    } else if (inst.Case === "T_NIL") {
+        return state;
+    } else if (s) {
+        return writeCFlag((readReg(r, state) >> 32 - n) % 2 !== 0, state);
+    } else {
+        return state;
+    }
+}
+function shiftSetCR(s, inst, r, rn, state) {
+    return shiftSetCI(s, inst, r, readReg(rn, state), state);
+}
+function setNZ(result, state) {
+    return writeZFlag(result === 0, writeNFlag(result < 0, state));
+}
+function setC(in1, in2, state) {
+    return writeCFlag(!in1.add(in2).shr(32).mod(fromBits(2, 0, false)).Equals(fromBits(0, 0, false)), state);
+}
+function conv64(i) {
+    return fromNumber(i, false).and(fromBits(4294967295, 0, false));
+}
+function setV(in1, in2, state) {
+    var cin = conv64(in1 * 2).add(conv64(in2 * 2)).shr(32).mod(fromBits(2, 0, false));
+    var cout = conv64(in1).add(conv64(in2)).shr(32).mod(fromBits(2, 0, false));
+    return writeVFlag(!cin.Equals(cout), state);
+}
+function movI(c, s, rd, i, state) {
+    var matchValue = [c(state), s];
+
+    if (matchValue[0]) {
+        if (matchValue[1]) {
+            return function (arg20_) {
+                return writeReg(rd, i, arg20_);
+            }(function (state_1) {
+                return setNZ(i, state_1);
+            }(state));
+        } else {
+            return writeReg(rd, i, state);
+        }
+    } else {
+        return state;
+    }
+}
+function movR(c, s, rd, rm, rsinst, nORrn, rstype, state) {
+    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+
+    if (c(state)) {
+        if (rstype === "i") {
+            return function (state_1) {
+                return movI(c, s, rd, op2, state_1);
+            }(shiftSetCI(s, rsinst, rm, nORrn, state));
+        } else if (rstype === "r") {
+            return function (state_2) {
+                return movI(c, s, rd, op2, state_2);
+            }(shiftSetCR(s, rsinst, rm, nORrn, state));
+        } else {
+            return movI(c, s, rd, op2, state);
+        }
+    } else {
+        return state;
+    }
+}
+function mvnI(c, s, rd, i, state) {
+    return movI(c, s, rd, ~i, state);
+}
+function mvnR(c, s, rd, rm, rsinst, nORrn, rstype, state) {
+    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+
+    if (c(state)) {
+        if (rstype === "i") {
+            return function (state_1) {
+                return mvnI(c, s, rd, op2, state_1);
+            }(shiftSetCI(s, rsinst, rm, nORrn, state));
+        } else if (rstype === "r") {
+            return function (state_2) {
+                return mvnI(c, s, rd, op2, state_2);
+            }(shiftSetCR(s, rsinst, rm, nORrn, state));
+        } else {
+            return mvnI(c, s, rd, op2, state);
+        }
+    } else {
+        return state;
+    }
+}
+function addI(c, s, rd, rn, i, state) {
+    var matchValue = [c(state), s];
+
+    if (matchValue[0]) {
+        if (matchValue[1]) {
+            return function () {
+                var v = readReg(rn, state) + i;
+                return function (arg20_) {
+                    return writeReg(rd, v, arg20_);
+                };
+            }()(function () {
+                var in1 = readReg(rn, state);
+                return function (state_1) {
+                    return setV(in1, i, state_1);
+                };
+            }()(setC(conv64(readReg(rn, state)), conv64(i), setNZ(readReg(rn, state) + i, state))));
+        } else {
+            return writeReg(rd, readReg(rn, state) + i, state);
+        }
+    } else {
+        return state;
+    }
+}
+function addR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state) {
+    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+    return addI(c, s, rd, rn, op2, state);
+}
+function adcI(c, s, rd, rn, i, state) {
+    var matchValue = [c(state), s, readCFlag(state)];
+
+    if (matchValue[0]) {
+        if (matchValue[1]) {
+            if (matchValue[2]) {
+                return function () {
+                    var v = readReg(rn, state) + i + 1;
+                    return function (arg20_) {
+                        return writeReg(rd, v, arg20_);
+                    };
+                }()(setV(readReg(rn, state), i + 1, setC(conv64(readReg(rn, state)), conv64(i).add(fromBits(1, 0, false)), setNZ(readReg(rn, state) + i + 1, state))));
+            } else {
+                return function () {
+                    var v_1 = readReg(rn, state) + i;
+                    return function (arg20__1) {
+                        return writeReg(rd, v_1, arg20__1);
+                    };
+                }()(function () {
+                    var in1 = readReg(rn, state);
+                    return function (state_1) {
+                        return setV(in1, i, state_1);
+                    };
+                }()(setC(conv64(readReg(rn, state)), conv64(i), setNZ(readReg(rn, state) + i, state))));
+            }
+        } else if (matchValue[2]) {
+            return writeReg(rd, readReg(rn, state) + i + 1, state);
+        } else {
+            return writeReg(rd, readReg(rn, state) + i, state);
+        }
+    } else {
+        return state;
+    }
+}
+function adcR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state) {
+    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+    return adcI(c, s, rd, rn, op2, state);
+}
+function subI(c, s, rd, rn, i, state) {
+    var matchValue = [c(state), s];
+
+    if (matchValue[0]) {
+        if (matchValue[1]) {
+            return function () {
+                var v = readReg(rn, state) - i;
+                return function (arg20_) {
+                    return writeReg(rd, v, arg20_);
+                };
+            }()(setV(readReg(rn, state), -i, setC(conv64(readReg(rn, state)), conv64(~i).add(fromBits(1, 0, false)), setNZ(readReg(rn, state) - i, state))));
+        } else {
+            return writeReg(rd, readReg(rn, state) - i, state);
+        }
+    } else {
+        return state;
+    }
+}
+function subR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state) {
+    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+    return subI(c, s, rd, rn, op2, state);
+}
+function sbcI(c, s, rd, rn, i, state) {
+    var matchValue = [c(state), s, readCFlag(state)];
+
+    if (matchValue[0]) {
+        if (matchValue[1]) {
+            if (matchValue[2]) {
+                return function () {
+                    var v = readReg(rn, state) - i;
+                    return function (arg20_) {
+                        return writeReg(rd, v, arg20_);
+                    };
+                }()(setV(readReg(rn, state), -i, setC(conv64(readReg(rn, state)), conv64(~i).add(fromBits(1, 0, false)), setNZ(readReg(rn, state) - i, state))));
+            } else {
+                return function () {
+                    var v_1 = readReg(rn, state) - i - 1;
+                    return function (arg20__1) {
+                        return writeReg(rd, v_1, arg20__1);
+                    };
+                }()(setV(readReg(rn, state), -i - 1, setC(conv64(readReg(rn, state)), conv64(~i), setNZ(readReg(rn, state) - i - 1, state))));
+            }
+        } else if (matchValue[2]) {
+            return writeReg(rd, readReg(rn, state) - i, state);
+        } else {
+            return writeReg(rd, readReg(rn, state) - i - 1, state);
+        }
+    } else {
+        return state;
+    }
+}
+function sbcR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state) {
+    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+    return sbcI(c, s, rd, rn, op2, state);
+}
+function rsbI(c, s, rd, rn, i, state) {
+    var matchValue = [c(state), s];
+
+    if (matchValue[0]) {
+        if (matchValue[1]) {
+            return function () {
+                var v = i - readReg(rn, state);
+                return function (arg20_) {
+                    return writeReg(rd, v, arg20_);
+                };
+            }()(function () {
+                var in1 = -readReg(rn, state);
+                return function (state_1) {
+                    return setV(in1, i, state_1);
+                };
+            }()(setC(conv64(~readReg(rn, state)).add(fromBits(1, 0, false)), conv64(i), setNZ(i - readReg(rn, state), state))));
+        } else {
+            return writeReg(rd, i - readReg(rn, state), state);
+        }
+    } else {
+        return state;
+    }
+}
+function rsbR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state) {
+    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+    return rsbI(c, s, rd, rn, op2, state);
+}
+function rscI(c, s, rd, rn, i, state) {
+    var matchValue = [c(state), s, readCFlag(state)];
+
+    if (matchValue[0]) {
+        if (matchValue[1]) {
+            if (matchValue[2]) {
+                return function () {
+                    var v = i - readReg(rn, state);
+                    return function (arg20_) {
+                        return writeReg(rd, v, arg20_);
+                    };
+                }()(function () {
+                    var in1 = -readReg(rn, state);
+                    return function (state_1) {
+                        return setV(in1, i, state_1);
+                    };
+                }()(setC(conv64(~readReg(rn, state)).add(fromBits(1, 0, false)), conv64(i), setNZ(i - readReg(rn, state), state))));
+            } else {
+                return function () {
+                    var v_1 = i - readReg(rn, state) - 1;
+                    return function (arg20__1) {
+                        return writeReg(rd, v_1, arg20__1);
+                    };
+                }()(function () {
+                    var in1_1 = -readReg(rn, state) - 1;
+                    return function (state_2) {
+                        return setV(in1_1, i, state_2);
+                    };
+                }()(setC(conv64(~readReg(rn, state)), conv64(i), setNZ(i - readReg(rn, state) - 1, state))));
+            }
+        } else if (matchValue[2]) {
+            return writeReg(rd, i - readReg(rn, state), state);
+        } else {
+            return writeReg(rd, i - readReg(rn, state) - 1, state);
+        }
+    } else {
+        return state;
+    }
+}
+function rscR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state) {
+    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+    return rscI(c, s, rd, rn, op2, state);
+}
+function cmpI(c, rn, i, state) {
+    var matchValue = c(state);
+
+    if (matchValue) {
+        return setV(readReg(rn, state), -i, setC(conv64(readReg(rn, state)), conv64(~i).add(fromBits(1, 0, false)), setNZ(readReg(rn, state) - i, state)));
+    } else {
+        return state;
+    }
+}
+function cmpR(c, rn, rm, rsinst, nORrn, rstype, state) {
+    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+    return cmpI(c, rn, op2, state);
+}
+function cmnI(c, rn, i, state) {
+    var matchValue = c(state);
+
+    if (matchValue) {
+        return function () {
+            var in1 = readReg(rn, state);
+            return function (state_1) {
+                return setV(in1, i, state_1);
+            };
+        }()(setC(conv64(readReg(rn, state)), conv64(i), setNZ(readReg(rn, state) + i, state)));
+    } else {
+        return state;
+    }
+}
+function cmnR(c, rn, rm, rsinst, nORrn, rstype, state) {
+    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+    return cmnI(c, rn, op2, state);
+}
+function mulR(c, s, rd, rm, rs, state) {
+    var res = readReg(rm, state) * readReg(rs, state);
+    var matchValue = [c(state), s];
+
+    if (matchValue[0]) {
+        if (matchValue[1]) {
+            return function (arg20_) {
+                return writeReg(rd, res, arg20_);
+            }(function (state_1) {
+                return setNZ(res, state_1);
+            }(state));
+        } else {
+            return writeReg(rd, res, state);
+        }
+    } else {
+        return state;
+    }
+}
+function mlaR(c, s, rd, rm, rs, rn, state) {
+    var res = readReg(rm, state) * readReg(rs, state) + readReg(rn, state);
+    var matchValue = [c(state), s];
+
+    if (matchValue[0]) {
+        if (matchValue[1]) {
+            return function (arg20_) {
+                return writeReg(rd, res, arg20_);
+            }(function (state_1) {
+                return setNZ(res, state_1);
+            }(state));
+        } else {
+            return writeReg(rd, res, state);
+        }
+    } else {
+        return state;
+    }
+}
+function andI(c, s, rd, rn, i, state) {
+    var matchValue = [c(state), s];
+
+    if (matchValue[0]) {
+        if (matchValue[1]) {
+            return function () {
+                var v = readReg(rn, state) & i;
+                return function (arg20_) {
+                    return writeReg(rd, v, arg20_);
+                };
+            }()(setNZ(readReg(rn, state) & i, state));
+        } else {
+            return writeReg(rd, readReg(rn, state) & i, state);
+        }
+    } else {
+        return state;
+    }
+}
+function andR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state) {
+    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+
+    if (c(state)) {
+        if (rstype === "i") {
+            return function (state_1) {
+                return andI(c, s, rd, rn, op2, state_1);
+            }(shiftSetCI(s, rsinst, rm, nORrn, state));
+        } else if (rstype === "r") {
+            return function (state_2) {
+                return andI(c, s, rd, rn, op2, state_2);
+            }(shiftSetCR(s, rsinst, rm, nORrn, state));
+        } else {
+            return andI(c, s, rd, rn, op2, state);
+        }
+    } else {
+        return state;
+    }
+}
+function orrI(c, s, rd, rn, i, state) {
+    var matchValue = [c(state), s];
+
+    if (matchValue[0]) {
+        if (matchValue[1]) {
+            return function () {
+                var v = readReg(rn, state) | i;
+                return function (arg20_) {
+                    return writeReg(rd, v, arg20_);
+                };
+            }()(setNZ(readReg(rn, state) | i, state));
+        } else {
+            return writeReg(rd, readReg(rn, state) | i, state);
+        }
+    } else {
+        return state;
+    }
+}
+function orrR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state) {
+    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+
+    if (c(state)) {
+        if (rstype === "i") {
+            return function (state_1) {
+                return orrI(c, s, rd, rn, op2, state_1);
+            }(shiftSetCI(s, rsinst, rm, nORrn, state));
+        } else if (rstype === "r") {
+            return function (state_2) {
+                return orrI(c, s, rd, rn, op2, state_2);
+            }(shiftSetCR(s, rsinst, rm, nORrn, state));
+        } else {
+            return orrI(c, s, rd, rn, op2, state);
+        }
+    } else {
+        return state;
+    }
+}
+function eorI(c, s, rd, rn, i, state) {
+    var matchValue = [c(state), s];
+
+    if (matchValue[0]) {
+        if (matchValue[1]) {
+            return function () {
+                var v = readReg(rn, state) ^ i;
+                return function (arg20_) {
+                    return writeReg(rd, v, arg20_);
+                };
+            }()(setNZ(readReg(rn, state) ^ i, state));
+        } else {
+            return writeReg(rd, readReg(rn, state) ^ i, state);
+        }
+    } else {
+        return state;
+    }
+}
+function eorR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state) {
+    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+
+    if (c(state)) {
+        if (rstype === "i") {
+            return function (state_1) {
+                return eorI(c, s, rd, rn, op2, state_1);
+            }(shiftSetCI(s, rsinst, rm, nORrn, state));
+        } else if (rstype === "r") {
+            return function (state_2) {
+                return eorI(c, s, rd, rn, op2, state_2);
+            }(shiftSetCR(s, rsinst, rm, nORrn, state));
+        } else {
+            return eorI(c, s, rd, rn, op2, state);
+        }
+    } else {
+        return state;
+    }
+}
+function bicI(c, s, rd, rn, i, state) {
+    return andI(c, s, rd, rn, ~i, state);
+}
+function bicR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state) {
+    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+
+    if (c(state)) {
+        if (rstype === "i") {
+            return function (state_1) {
+                return bicI(c, s, rd, rn, op2, state_1);
+            }(shiftSetCI(s, rsinst, rm, nORrn, state));
+        } else if (rstype === "r") {
+            return function (state_2) {
+                return bicI(c, s, rd, rn, op2, state_2);
+            }(shiftSetCR(s, rsinst, rm, nORrn, state));
+        } else {
+            return bicI(c, s, rd, rn, op2, state);
+        }
+    } else {
+        return state;
+    }
+}
+function tstI(c, rn, i, state) {
+    var matchValue = c(state);
+
+    if (matchValue) {
+        return setNZ(readReg(rn, state) & i, state);
+    } else {
+        return state;
+    }
+}
+function tstR(c, rn, rm, rsinst, nORrn, rstype, state) {
+    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+
+    if (c(state)) {
+        if (rstype === "i") {
+            return function (state_1) {
+                return tstI(c, rn, op2, state_1);
+            }(shiftSetCI(true, rsinst, rm, nORrn, state));
+        } else if (rstype === "r") {
+            return function (state_2) {
+                return tstI(c, rn, op2, state_2);
+            }(shiftSetCR(true, rsinst, rm, nORrn, state));
+        } else {
+            return tstI(c, rn, op2, state);
+        }
+    } else {
+        return state;
+    }
+}
+function teqI(c, rn, i, state) {
+    var matchValue = c(state);
+
+    if (matchValue) {
+        return setNZ(readReg(rn, state) ^ i, state);
+    } else {
+        return state;
+    }
+}
+function teqR(c, rn, rm, rsinst, nORrn, rstype, state) {
+    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+
+    if (c(state)) {
+        if (rstype === "i") {
+            return function (state_1) {
+                return teqI(c, rn, op2, state_1);
+            }(shiftSetCI(true, rsinst, rm, nORrn, state));
+        } else if (rstype === "r") {
+            return function (state_2) {
+                return teqI(c, rn, op2, state_2);
+            }(shiftSetCR(true, rsinst, rm, nORrn, state));
+        } else {
+            return teqI(c, rn, op2, state);
+        }
+    } else {
+        return state;
+    }
+}
+
+function lslR(c, s, rd, rm, rn, state) {
+    var op2 = shiftR(new shiftOp("T_LSL", []), rm, rn, state);
+    var matchValue = [c(state), s];
+
+    if (matchValue[0]) {
+        if (matchValue[1]) {
+            return function (arg20_) {
+                return writeReg(rd, op2, arg20_);
+            }(function () {
+                var inst = new shiftOp("T_LSL", []);
+                return function (state_1) {
+                    return shiftSetCR(s, inst, rm, rn, state_1);
+                };
+            }()(function (state_2) {
+                return setNZ(op2, state_2);
+            }(state)));
+        } else {
+            return writeReg(rd, op2, state);
+        }
+    } else {
+        return state;
+    }
+}
+function lsrR(c, s, rd, rm, rn, state) {
+    var op2 = shiftR(new shiftOp("T_LSR", []), rm, rn, state);
+    var matchValue = [c(state), s];
+
+    if (matchValue[0]) {
+        if (matchValue[1]) {
+            return function (arg20_) {
+                return writeReg(rd, op2, arg20_);
+            }(function () {
+                var inst = new shiftOp("T_LSR", []);
+                return function (state_1) {
+                    return shiftSetCR(s, inst, rm, rn, state_1);
+                };
+            }()(function (state_2) {
+                return setNZ(op2, state_2);
+            }(state)));
+        } else {
+            return writeReg(rd, op2, state);
+        }
+    } else {
+        return state;
+    }
+}
+function asrR(c, s, rd, rm, rn, state) {
+    var op2 = shiftR(new shiftOp("T_ASR", []), rm, rn, state);
+    var matchValue = [c(state), s];
+
+    if (matchValue[0]) {
+        if (matchValue[1]) {
+            return function (arg20_) {
+                return writeReg(rd, op2, arg20_);
+            }(function () {
+                var inst = new shiftOp("T_ASR", []);
+                return function (state_1) {
+                    return shiftSetCR(s, inst, rm, rn, state_1);
+                };
+            }()(function (state_2) {
+                return setNZ(op2, state_2);
+            }(state)));
+        } else {
+            return writeReg(rd, op2, state);
+        }
+    } else {
+        return state;
+    }
+}
+function rorR(c, s, rd, rm, rn, state) {
+    var op2 = shiftR(new shiftOp("T_ROR", []), rm, rn, state);
+    var matchValue = [c(state), s];
+
+    if (matchValue[0]) {
+        if (matchValue[1]) {
+            return function (arg20_) {
+                return writeReg(rd, op2, arg20_);
+            }(function () {
+                var inst = new shiftOp("T_ROR", []);
+                return function (state_1) {
+                    return shiftSetCR(s, inst, rm, rn, state_1);
+                };
+            }()(function (state_2) {
+                return setNZ(op2, state_2);
+            }(state)));
+        } else {
+            return writeReg(rd, op2, state);
+        }
+    } else {
+        return state;
+    }
+}
+function rrxR(c, s, rd, rm, state) {
+    var op2 = shiftR(new shiftOp("T_RRX", []), rm, 1, state);
+    var matchValue = [c(state), s];
+
+    if (matchValue[0]) {
+        if (matchValue[1]) {
+            return function (arg20_) {
+                return writeReg(rd, op2, arg20_);
+            }(function () {
+                var inst = new shiftOp("T_RRX", []);
+                var rn = 1;
+                return function (state_1) {
+                    return shiftSetCR(s, inst, rm, rn, state_1);
+                };
+            }()(function (state_2) {
+                return setNZ(op2, state_2);
+            }(state)));
+        } else {
+            return writeReg(rd, op2, state);
+        }
+    } else {
+        return state;
+    }
+}
+function b(c, label, state) {
+    if (c(state)) {
+        return writePC(label, state);
+    } else {
+        return state;
+    }
+}
+function bl(c, label, state) {
+    if (c(state)) {
+        return function (arg10_) {
+            return writePC(label, arg10_);
+        }(writeReg(14, readPC(state), state));
+    } else {
+        return state;
+    }
+}
+function bx(c, rm, state) {
+    if (c(state)) {
+        return writePC(readReg(rm, state) - 4, state);
+    } else {
+        return state;
+    }
+}
+
+
+function adr(c, rd, label, state) {
+    if (c(state)) {
+        return writeReg(rd, label, state);
+    } else {
+        return state;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function endI(c, finalInstAddr, state) {
+    if (c(state)) {
+        return writePC(finalInstAddr, state);
+    } else {
+        return state;
+    }
+}
+
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
 var _createClass$2 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 function _classCallCheck$2(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
+var Instruction = function () {
+    function Instruction(caseName, fields) {
+        _classCallCheck$2(this, Instruction);
+
+        this.Case = caseName;
+        this.Fields = fields;
+    }
+
+    _createClass$2(Instruction, [{
+        key: _Symbol.reflection,
+        value: function () {
+            return {
+                type: "Parse.Parser.Instruction",
+                interfaces: ["FSharpUnion"],
+                cases: {
+                    EndRef: ["function"],
+                    Instr: ["function"],
+                    LabelRef: ["function"],
+                    Terminate: []
+                }
+            };
+        }
+    }]);
+
+    return Instruction;
+}();
+setType("Parse.Parser.Instruction", Instruction);
+function parser(tokLst) {
+    var branchRef = function branchRef(c) {
+        return function (s) {
+            return function (bInst) {
+                return function (labels) {
+                    var matchValue = tryFind$$1(s, labels);
+
+                    if (matchValue == null) {
+                        return new _Error("Err", [fsFormat("Label undefined: %s.")(function (x) {
+                            return x;
+                        })(s)]);
+                    } else {
+                        return new _Error("Ok", [new Instruction("Instr", [bInst(c)(matchValue - 4)])]);
+                    }
+                };
+            };
+        };
+    };
+
+    var adrRef = function adrRef(c_1) {
+        return function (rd) {
+            return function (s_1) {
+                return function (labels_1) {
+                    var matchValue_1 = tryFind$$1(s_1, labels_1);
+
+                    if (matchValue_1 == null) {
+                        return new _Error("Err", [fsFormat("Label undefined: %s.")(function (x) {
+                            return x;
+                        })(s_1)]);
+                    } else {
+                        return new _Error("Ok", [new Instruction("Instr", [function (state) {
+                            return adr(c_1, rd, matchValue_1, state);
+                        }])]);
+                    }
+                };
+            };
+        };
+    };
+
+    var endRef = function endRef(c_2) {
+        return function (endMem) {
+            return new Instruction("Instr", [function () {
+                var finalInstAddr = endMem - 4;
+                return function (state_1) {
+                    return endI(c_2, finalInstAddr, state_1);
+                };
+            }()]);
+        };
+    };
+
+    var resolveRefs = function resolveRefs(labels_2) {
+        return function (endMem_1) {
+            return function (outLst) {
+                return function (_arg1) {
+                    resolveRefs: while (true) {
+                        if (_arg1.tail == null) {
+                            return new _Error("Ok", [outLst]);
+                        } else if (_arg1.head[1].Case === "LabelRef") {
+                            var matchValue_2 = _arg1.head[1].Fields[0](labels_2);
+
+                            if (matchValue_2.Case === "Err") {
+                                return new _Error("Err", [matchValue_2.Fields[0]]);
+                            } else {
+                                labels_2 = labels_2;
+                                endMem_1 = endMem_1;
+                                outLst = append$1(outLst, ofArray([[_arg1.head[0], matchValue_2.Fields[0]]]));
+                                _arg1 = _arg1.tail;
+                                continue resolveRefs;
+                            }
+                        } else if (_arg1.head[1].Case === "EndRef") {
+                            labels_2 = labels_2;
+                            var $var485 = endMem_1;
+                            outLst = append$1(outLst, ofArray([[_arg1.head[0], _arg1.head[1].Fields[0](endMem_1)]]));
+                            _arg1 = _arg1.tail;
+                            endMem_1 = $var485;
+                            continue resolveRefs;
+                        } else {
+                            labels_2 = labels_2;
+                            endMem_1 = endMem_1;
+                            outLst = append$1(outLst, ofArray([_arg1.head]));
+                            _arg1 = _arg1.tail;
+                            continue resolveRefs;
+                        }
+                    }
+                };
+            };
+        };
+    };
+
+    var parseRec = function parseRec(mem) {
+        return function (labels_3) {
+            return function (outLst_1) {
+                return function (_arg2) {
+                    var _loop = function _loop() {
+                        var $var474 = _arg2.tail == null ? [81] : _arg2.head.Case === "T_MOV" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail != null ? _arg2.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.head.Case === "T_INT" ? [0, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail] : _arg2.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.head.Case === "T_SHIFT" ? _arg2.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_INT" ? [1, _arg2.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.head.Fields[0]] : _arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_REG" ? [2, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.head.Fields[0]] : [3, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail] : [3, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail] : [3, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail] : [3, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail] : [3, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail] : [3, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Case === "T_MVN" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail != null ? _arg2.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.head.Case === "T_INT" ? [4, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail] : _arg2.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.head.Case === "T_SHIFT" ? _arg2.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_INT" ? [5, _arg2.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.head.Fields[0]] : _arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_REG" ? [6, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.head.Fields[0]] : [7, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail] : [7, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail] : [7, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail] : [7, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail] : [7, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail] : [7, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Case === "T_ADD" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail != null ? _arg2.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.head.Case === "T_INT" ? [8, _arg2.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : _arg2.tail.tail.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT" ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT" ? [9, _arg2.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]] : _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG" ? [10, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]] : [11, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [11, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [11, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [11, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [11, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [11, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Case === "T_ADC" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail != null ? _arg2.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.head.Case === "T_INT" ? [12, _arg2.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : _arg2.tail.tail.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT" ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT" ? [13, _arg2.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]] : _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG" ? [14, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]] : [15, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [15, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [15, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [15, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [15, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [15, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Case === "T_SUB" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail != null ? _arg2.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.head.Case === "T_INT" ? [16, _arg2.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : _arg2.tail.tail.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT" ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT" ? [17, _arg2.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]] : _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG" ? [18, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]] : [19, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [19, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [19, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [19, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [19, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [19, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Case === "T_SBC" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail != null ? _arg2.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.head.Case === "T_INT" ? [20, _arg2.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : _arg2.tail.tail.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT" ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT" ? [21, _arg2.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]] : _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG" ? [22, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]] : [23, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [23, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [23, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [23, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [23, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [23, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Case === "T_RSB" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail != null ? _arg2.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.head.Case === "T_INT" ? [24, _arg2.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : _arg2.tail.tail.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT" ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT" ? [25, _arg2.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]] : _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG" ? [26, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]] : [27, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [27, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [27, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [27, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [27, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [27, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Case === "T_RSC" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail != null ? _arg2.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.head.Case === "T_INT" ? [28, _arg2.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : _arg2.tail.tail.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT" ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT" ? [29, _arg2.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]] : _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG" ? [30, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]] : [31, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [31, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [31, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [31, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [31, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [31, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Case === "T_MUL" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail != null ? _arg2.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.head.Case === "T_REG" ? [32, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Case === "T_MLA" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail != null ? _arg2.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG" ? [33, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Case === "T_AND" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail != null ? _arg2.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.head.Case === "T_INT" ? [34, _arg2.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : _arg2.tail.tail.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT" ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT" ? [35, _arg2.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]] : _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG" ? [36, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]] : [37, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [37, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [37, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [37, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [37, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [37, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Case === "T_ORR" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail != null ? _arg2.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.head.Case === "T_INT" ? [38, _arg2.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : _arg2.tail.tail.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT" ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT" ? [39, _arg2.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]] : _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG" ? [40, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]] : [41, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [41, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [41, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [41, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [41, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [41, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Case === "T_EOR" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail != null ? _arg2.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.head.Case === "T_INT" ? [42, _arg2.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : _arg2.tail.tail.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT" ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT" ? [43, _arg2.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]] : _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG" ? [44, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]] : [45, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [45, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [45, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [45, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [45, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [45, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Case === "T_BIC" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail != null ? _arg2.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.head.Case === "T_INT" ? [46, _arg2.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : _arg2.tail.tail.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT" ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT" ? [47, _arg2.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]] : _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG" ? [48, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]] : [49, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [49, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [49, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [49, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [49, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [49, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Case === "T_CMP" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail != null ? _arg2.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.head.Case === "T_INT" ? [50, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : _arg2.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.head.Case === "T_SHIFT" ? _arg2.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_INT" ? [51, _arg2.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.head.Fields[0]] : _arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_REG" ? [52, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.head.Fields[0]] : [53, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [53, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [53, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [53, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [53, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [53, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Case === "T_CMN" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail != null ? _arg2.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.head.Case === "T_INT" ? [54, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : _arg2.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.head.Case === "T_SHIFT" ? _arg2.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_INT" ? [55, _arg2.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.head.Fields[0]] : _arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_REG" ? [56, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.head.Fields[0]] : [57, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [57, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [57, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [57, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [57, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [57, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Case === "T_TST" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail != null ? _arg2.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.head.Case === "T_INT" ? [58, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : _arg2.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.head.Case === "T_SHIFT" ? _arg2.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_INT" ? [59, _arg2.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.head.Fields[0]] : _arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_REG" ? [60, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.head.Fields[0]] : [61, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [61, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [61, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [61, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [61, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [61, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Case === "T_TEQ" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail != null ? _arg2.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.head.Case === "T_INT" ? [62, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : _arg2.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.head.Case === "T_SHIFT" ? _arg2.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_INT" ? [63, _arg2.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.head.Fields[0]] : _arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_REG" ? [64, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.head.Fields[0]] : [65, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [65, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [65, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [65, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [65, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [65, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Case === "T_CLZ" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail != null ? _arg2.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.head.Case === "T_INT" ? [66, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : _arg2.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.head.Case === "T_SHIFT" ? _arg2.tail.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_INT" ? [67, _arg2.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.head.Fields[0]] : _arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_REG" ? [68, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.tail.tail, _arg2.tail.tail.tail.tail.tail.head.Fields[0]] : [69, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [69, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [69, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [69, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [69, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [69, _arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Case === "T_SHIFT" ? _arg2.head.Fields[0].Case === "T_LSL" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail != null ? _arg2.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.head.Case === "T_REG" ? [70, _arg2.head.Fields[1][0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1][1], _arg2.tail.tail.tail.tail.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Fields[0].Case === "T_LSR" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail != null ? _arg2.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.head.Case === "T_REG" ? [71, _arg2.head.Fields[1][0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1][1], _arg2.tail.tail.tail.tail.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Fields[0].Case === "T_ASR" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail != null ? _arg2.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.head.Case === "T_REG" ? [72, _arg2.head.Fields[1][0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1][1], _arg2.tail.tail.tail.tail.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Fields[0].Case === "T_ROR" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail != null ? _arg2.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.tail.tail.head.Case === "T_REG" ? [73, _arg2.head.Fields[1][0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1][1], _arg2.tail.tail.tail.tail.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Fields[0].Case === "T_RRX" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail != null ? _arg2.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.head.Case === "T_REG" ? [74, _arg2.head.Fields[1][0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1][1], _arg2.tail.tail.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Case === "T_B" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_LABEL" ? [75, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Case === "T_BL" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_LABEL" ? [76, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Case === "T_BX" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_REG" ? [77, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Case === "T_ADR" ? _arg2.tail.tail != null ? _arg2.tail.head.Case === "T_REG" ? _arg2.tail.tail.tail != null ? _arg2.tail.tail.head.Case === "T_COMMA" ? _arg2.tail.tail.tail.tail != null ? _arg2.tail.tail.tail.head.Case === "T_LABEL" ? [78, _arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.tail] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : [83, _arg2.tail, _arg2.head] : _arg2.head.Case === "T_END" ? [79, _arg2.head.Fields[0], _arg2.tail] : _arg2.head.Case === "T_LABEL" ? [80, _arg2.head.Fields[0], _arg2.tail] : _arg2.head.Case === "T_ERROR" ? [82, _arg2.head.Fields[0], _arg2.tail] : [83, _arg2.tail, _arg2.head];
+
+                        switch ($var474[0]) {
+                            case 0:
+                                var $var486 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function (state_2) {
+                                    return movI($var474[1], $var474[4], $var474[3], $var474[2], state_2);
+                                }])]]));
+                                _arg2 = $var474[5];
+                                mem = $var486;
+                                return "continue|parseRec";
+
+                            case 1:
+                                var $var487 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype = "i";
+                                    return function (state_3) {
+                                        return movR($var474[1], $var474[5], $var474[3], $var474[4], $var474[7], $var474[2], rstype, state_3);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[6];
+                                mem = $var487;
+                                return "continue|parseRec";
+
+                            case 2:
+                                var $var488 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_1 = "r";
+                                    return function (state_4) {
+                                        return movR($var474[1], $var474[5], $var474[2], $var474[3], $var474[7], $var474[4], rstype_1, state_4);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[6];
+                                mem = $var488;
+                                return "continue|parseRec";
+
+                            case 3:
+                                var $var489 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rsinst = new shiftOp("T_LSL", []);
+                                    var nORrn = 0;
+                                    var rstype_2 = "i";
+                                    return function (state_5) {
+                                        return movR($var474[1], $var474[4], $var474[2], $var474[3], rsinst, nORrn, rstype_2, state_5);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[5];
+                                mem = $var489;
+                                return "continue|parseRec";
+
+                            case 4:
+                                var $var490 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function (state_6) {
+                                    return mvnI($var474[1], $var474[4], $var474[3], $var474[2], state_6);
+                                }])]]));
+                                _arg2 = $var474[5];
+                                mem = $var490;
+                                return "continue|parseRec";
+
+                            case 5:
+                                var $var491 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_3 = "i";
+                                    return function (state_7) {
+                                        return mvnR($var474[1], $var474[5], $var474[3], $var474[4], $var474[7], $var474[2], rstype_3, state_7);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[6];
+                                mem = $var491;
+                                return "continue|parseRec";
+
+                            case 6:
+                                var $var492 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_4 = "r";
+                                    return function (state_8) {
+                                        return mvnR($var474[1], $var474[5], $var474[2], $var474[3], $var474[7], $var474[4], rstype_4, state_8);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[6];
+                                mem = $var492;
+                                return "continue|parseRec";
+
+                            case 7:
+                                var $var493 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rsinst_1 = new shiftOp("T_LSL", []);
+                                    var nORrn_1 = 0;
+                                    var rstype_5 = "i";
+                                    return function (state_9) {
+                                        return mvnR($var474[1], $var474[4], $var474[2], $var474[3], rsinst_1, nORrn_1, rstype_5, state_9);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[5];
+                                mem = $var493;
+                                return "continue|parseRec";
+
+                            case 8:
+                                var $var494 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function (state_10) {
+                                    return addI($var474[1], $var474[5], $var474[3], $var474[4], $var474[2], state_10);
+                                }])]]));
+                                _arg2 = $var474[6];
+                                mem = $var494;
+                                return "continue|parseRec";
+
+                            case 9:
+                                var $var495 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_6 = "i";
+                                    return function (state_11) {
+                                        return addR($var474[1], $var474[6], $var474[3], $var474[5], $var474[4], $var474[8], $var474[2], rstype_6, state_11);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[7];
+                                mem = $var495;
+                                return "continue|parseRec";
+
+                            case 10:
+                                var $var496 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_7 = "r";
+                                    return function (state_12) {
+                                        return addR($var474[1], $var474[6], $var474[2], $var474[4], $var474[3], $var474[8], $var474[5], rstype_7, state_12);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[7];
+                                mem = $var496;
+                                return "continue|parseRec";
+
+                            case 11:
+                                var $var497 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rsinst_2 = new shiftOp("T_LSL", []);
+                                    var nORrn_2 = 0;
+                                    var rstype_8 = "i";
+                                    return function (state_13) {
+                                        return addR($var474[1], $var474[5], $var474[2], $var474[4], $var474[3], rsinst_2, nORrn_2, rstype_8, state_13);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[6];
+                                mem = $var497;
+                                return "continue|parseRec";
+
+                            case 12:
+                                var $var498 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function (state_14) {
+                                    return adcI($var474[1], $var474[5], $var474[3], $var474[4], $var474[2], state_14);
+                                }])]]));
+                                _arg2 = $var474[6];
+                                mem = $var498;
+                                return "continue|parseRec";
+
+                            case 13:
+                                var $var499 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_9 = "i";
+                                    return function (state_15) {
+                                        return adcR($var474[1], $var474[6], $var474[3], $var474[5], $var474[4], $var474[8], $var474[2], rstype_9, state_15);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[7];
+                                mem = $var499;
+                                return "continue|parseRec";
+
+                            case 14:
+                                var $var500 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_10 = "r";
+                                    return function (state_16) {
+                                        return adcR($var474[1], $var474[6], $var474[2], $var474[4], $var474[3], $var474[8], $var474[5], rstype_10, state_16);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[7];
+                                mem = $var500;
+                                return "continue|parseRec";
+
+                            case 15:
+                                var $var501 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rsinst_3 = new shiftOp("T_LSL", []);
+                                    var nORrn_3 = 0;
+                                    var rstype_11 = "i";
+                                    return function (state_17) {
+                                        return adcR($var474[1], $var474[5], $var474[2], $var474[4], $var474[3], rsinst_3, nORrn_3, rstype_11, state_17);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[6];
+                                mem = $var501;
+                                return "continue|parseRec";
+
+                            case 16:
+                                var $var502 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function (state_18) {
+                                    return subI($var474[1], $var474[5], $var474[3], $var474[4], $var474[2], state_18);
+                                }])]]));
+                                _arg2 = $var474[6];
+                                mem = $var502;
+                                return "continue|parseRec";
+
+                            case 17:
+                                var $var503 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_12 = "i";
+                                    return function (state_19) {
+                                        return subR($var474[1], $var474[6], $var474[3], $var474[5], $var474[4], $var474[8], $var474[2], rstype_12, state_19);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[7];
+                                mem = $var503;
+                                return "continue|parseRec";
+
+                            case 18:
+                                var $var504 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_13 = "r";
+                                    return function (state_20) {
+                                        return subR($var474[1], $var474[6], $var474[2], $var474[4], $var474[3], $var474[8], $var474[5], rstype_13, state_20);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[7];
+                                mem = $var504;
+                                return "continue|parseRec";
+
+                            case 19:
+                                var $var505 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rsinst_4 = new shiftOp("T_LSL", []);
+                                    var nORrn_4 = 0;
+                                    var rstype_14 = "i";
+                                    return function (state_21) {
+                                        return subR($var474[1], $var474[5], $var474[2], $var474[4], $var474[3], rsinst_4, nORrn_4, rstype_14, state_21);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[6];
+                                mem = $var505;
+                                return "continue|parseRec";
+
+                            case 20:
+                                var $var506 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function (state_22) {
+                                    return sbcI($var474[1], $var474[5], $var474[3], $var474[4], $var474[2], state_22);
+                                }])]]));
+                                _arg2 = $var474[6];
+                                mem = $var506;
+                                return "continue|parseRec";
+
+                            case 21:
+                                var $var507 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_15 = "i";
+                                    return function (state_23) {
+                                        return sbcR($var474[1], $var474[6], $var474[3], $var474[5], $var474[4], $var474[8], $var474[2], rstype_15, state_23);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[7];
+                                mem = $var507;
+                                return "continue|parseRec";
+
+                            case 22:
+                                var $var508 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_16 = "r";
+                                    return function (state_24) {
+                                        return sbcR($var474[1], $var474[6], $var474[2], $var474[4], $var474[3], $var474[8], $var474[5], rstype_16, state_24);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[7];
+                                mem = $var508;
+                                return "continue|parseRec";
+
+                            case 23:
+                                var $var509 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rsinst_5 = new shiftOp("T_LSL", []);
+                                    var nORrn_5 = 0;
+                                    var rstype_17 = "i";
+                                    return function (state_25) {
+                                        return sbcR($var474[1], $var474[5], $var474[2], $var474[4], $var474[3], rsinst_5, nORrn_5, rstype_17, state_25);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[6];
+                                mem = $var509;
+                                return "continue|parseRec";
+
+                            case 24:
+                                var $var510 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function (state_26) {
+                                    return rsbI($var474[1], $var474[5], $var474[3], $var474[4], $var474[2], state_26);
+                                }])]]));
+                                _arg2 = $var474[6];
+                                mem = $var510;
+                                return "continue|parseRec";
+
+                            case 25:
+                                var $var511 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_18 = "i";
+                                    return function (state_27) {
+                                        return rsbR($var474[1], $var474[6], $var474[3], $var474[5], $var474[4], $var474[8], $var474[2], rstype_18, state_27);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[7];
+                                mem = $var511;
+                                return "continue|parseRec";
+
+                            case 26:
+                                var $var512 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_19 = "r";
+                                    return function (state_28) {
+                                        return rsbR($var474[1], $var474[6], $var474[2], $var474[4], $var474[3], $var474[8], $var474[5], rstype_19, state_28);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[7];
+                                mem = $var512;
+                                return "continue|parseRec";
+
+                            case 27:
+                                var $var513 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rsinst_6 = new shiftOp("T_LSL", []);
+                                    var nORrn_6 = 0;
+                                    var rstype_20 = "i";
+                                    return function (state_29) {
+                                        return rsbR($var474[1], $var474[5], $var474[2], $var474[4], $var474[3], rsinst_6, nORrn_6, rstype_20, state_29);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[6];
+                                mem = $var513;
+                                return "continue|parseRec";
+
+                            case 28:
+                                var $var514 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function (state_30) {
+                                    return rscI($var474[1], $var474[5], $var474[3], $var474[4], $var474[2], state_30);
+                                }])]]));
+                                _arg2 = $var474[6];
+                                mem = $var514;
+                                return "continue|parseRec";
+
+                            case 29:
+                                var $var515 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_21 = "i";
+                                    return function (state_31) {
+                                        return rscR($var474[1], $var474[6], $var474[3], $var474[5], $var474[4], $var474[8], $var474[2], rstype_21, state_31);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[7];
+                                mem = $var515;
+                                return "continue|parseRec";
+
+                            case 30:
+                                var $var516 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_22 = "r";
+                                    return function (state_32) {
+                                        return rscR($var474[1], $var474[6], $var474[2], $var474[4], $var474[3], $var474[8], $var474[5], rstype_22, state_32);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[7];
+                                mem = $var516;
+                                return "continue|parseRec";
+
+                            case 31:
+                                var $var517 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rsinst_7 = new shiftOp("T_LSL", []);
+                                    var nORrn_7 = 0;
+                                    var rstype_23 = "i";
+                                    return function (state_33) {
+                                        return rscR($var474[1], $var474[5], $var474[2], $var474[4], $var474[3], rsinst_7, nORrn_7, rstype_23, state_33);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[6];
+                                mem = $var517;
+                                return "continue|parseRec";
+
+                            case 32:
+                                var $var518 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function (state_34) {
+                                    return mulR($var474[1], $var474[5], $var474[2], $var474[3], $var474[4], state_34);
+                                }])]]));
+                                _arg2 = $var474[6];
+                                mem = $var518;
+                                return "continue|parseRec";
+
+                            case 33:
+                                var $var519 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function (state_35) {
+                                    return mlaR($var474[1], $var474[6], $var474[2], $var474[3], $var474[5], $var474[4], state_35);
+                                }])]]));
+                                _arg2 = $var474[7];
+                                mem = $var519;
+                                return "continue|parseRec";
+
+                            case 34:
+                                var $var520 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function (state_36) {
+                                    return andI($var474[1], $var474[5], $var474[3], $var474[4], $var474[2], state_36);
+                                }])]]));
+                                _arg2 = $var474[6];
+                                mem = $var520;
+                                return "continue|parseRec";
+
+                            case 35:
+                                var $var521 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_24 = "i";
+                                    return function (state_37) {
+                                        return andR($var474[1], $var474[6], $var474[3], $var474[5], $var474[4], $var474[8], $var474[2], rstype_24, state_37);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[7];
+                                mem = $var521;
+                                return "continue|parseRec";
+
+                            case 36:
+                                var $var522 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_25 = "r";
+                                    return function (state_38) {
+                                        return andR($var474[1], $var474[6], $var474[2], $var474[4], $var474[3], $var474[8], $var474[5], rstype_25, state_38);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[7];
+                                mem = $var522;
+                                return "continue|parseRec";
+
+                            case 37:
+                                var $var523 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rsinst_8 = new shiftOp("T_LSL", []);
+                                    var nORrn_8 = 0;
+                                    var rstype_26 = "i";
+                                    return function (state_39) {
+                                        return andR($var474[1], $var474[5], $var474[2], $var474[4], $var474[3], rsinst_8, nORrn_8, rstype_26, state_39);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[6];
+                                mem = $var523;
+                                return "continue|parseRec";
+
+                            case 38:
+                                var $var524 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function (state_40) {
+                                    return orrI($var474[1], $var474[5], $var474[3], $var474[4], $var474[2], state_40);
+                                }])]]));
+                                _arg2 = $var474[6];
+                                mem = $var524;
+                                return "continue|parseRec";
+
+                            case 39:
+                                var $var525 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_27 = "i";
+                                    return function (state_41) {
+                                        return orrR($var474[1], $var474[6], $var474[3], $var474[5], $var474[4], $var474[8], $var474[2], rstype_27, state_41);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[7];
+                                mem = $var525;
+                                return "continue|parseRec";
+
+                            case 40:
+                                var $var526 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_28 = "r";
+                                    return function (state_42) {
+                                        return orrR($var474[1], $var474[6], $var474[2], $var474[4], $var474[3], $var474[8], $var474[5], rstype_28, state_42);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[7];
+                                mem = $var526;
+                                return "continue|parseRec";
+
+                            case 41:
+                                var $var527 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rsinst_9 = new shiftOp("T_LSL", []);
+                                    var nORrn_9 = 0;
+                                    var rstype_29 = "i";
+                                    return function (state_43) {
+                                        return orrR($var474[1], $var474[5], $var474[2], $var474[4], $var474[3], rsinst_9, nORrn_9, rstype_29, state_43);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[6];
+                                mem = $var527;
+                                return "continue|parseRec";
+
+                            case 42:
+                                var $var528 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function (state_44) {
+                                    return eorI($var474[1], $var474[5], $var474[3], $var474[4], $var474[2], state_44);
+                                }])]]));
+                                _arg2 = $var474[6];
+                                mem = $var528;
+                                return "continue|parseRec";
+
+                            case 43:
+                                var $var529 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_30 = "i";
+                                    return function (state_45) {
+                                        return eorR($var474[1], $var474[6], $var474[3], $var474[5], $var474[4], $var474[8], $var474[2], rstype_30, state_45);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[7];
+                                mem = $var529;
+                                return "continue|parseRec";
+
+                            case 44:
+                                var $var530 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_31 = "r";
+                                    return function (state_46) {
+                                        return eorR($var474[1], $var474[6], $var474[2], $var474[4], $var474[3], $var474[8], $var474[5], rstype_31, state_46);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[7];
+                                mem = $var530;
+                                return "continue|parseRec";
+
+                            case 45:
+                                var $var531 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rsinst_10 = new shiftOp("T_LSL", []);
+                                    var nORrn_10 = 0;
+                                    var rstype_32 = "i";
+                                    return function (state_47) {
+                                        return eorR($var474[1], $var474[5], $var474[2], $var474[4], $var474[3], rsinst_10, nORrn_10, rstype_32, state_47);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[6];
+                                mem = $var531;
+                                return "continue|parseRec";
+
+                            case 46:
+                                var $var532 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function (state_48) {
+                                    return bicI($var474[1], $var474[5], $var474[3], $var474[4], $var474[2], state_48);
+                                }])]]));
+                                _arg2 = $var474[6];
+                                mem = $var532;
+                                return "continue|parseRec";
+
+                            case 47:
+                                var $var533 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_33 = "i";
+                                    return function (state_49) {
+                                        return bicR($var474[1], $var474[6], $var474[3], $var474[5], $var474[4], $var474[8], $var474[2], rstype_33, state_49);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[7];
+                                mem = $var533;
+                                return "continue|parseRec";
+
+                            case 48:
+                                var $var534 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_34 = "r";
+                                    return function (state_50) {
+                                        return bicR($var474[1], $var474[6], $var474[2], $var474[4], $var474[3], $var474[8], $var474[5], rstype_34, state_50);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[7];
+                                mem = $var534;
+                                return "continue|parseRec";
+
+                            case 49:
+                                var $var535 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rsinst_11 = new shiftOp("T_LSL", []);
+                                    var nORrn_11 = 0;
+                                    var rstype_35 = "i";
+                                    return function (state_51) {
+                                        return bicR($var474[1], $var474[5], $var474[2], $var474[4], $var474[3], rsinst_11, nORrn_11, rstype_35, state_51);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[6];
+                                mem = $var535;
+                                return "continue|parseRec";
+
+                            case 50:
+                                var $var536 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function (state_52) {
+                                    return cmpI($var474[1], $var474[3], $var474[2], state_52);
+                                }])]]));
+                                _arg2 = $var474[4];
+                                mem = $var536;
+                                return "continue|parseRec";
+
+                            case 51:
+                                var $var537 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_36 = "i";
+                                    return function (state_53) {
+                                        return cmpR($var474[1], $var474[4], $var474[3], $var474[6], $var474[2], rstype_36, state_53);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[5];
+                                mem = $var537;
+                                return "continue|parseRec";
+
+                            case 52:
+                                var $var538 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_37 = "r";
+                                    return function (state_54) {
+                                        return cmpR($var474[1], $var474[3], $var474[2], $var474[6], $var474[4], rstype_37, state_54);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[5];
+                                mem = $var538;
+                                return "continue|parseRec";
+
+                            case 53:
+                                var $var539 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rsinst_12 = new shiftOp("T_LSL", []);
+                                    var nORrn_12 = 0;
+                                    var rstype_38 = "i";
+                                    return function (state_55) {
+                                        return cmpR($var474[1], $var474[3], $var474[2], rsinst_12, nORrn_12, rstype_38, state_55);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[4];
+                                mem = $var539;
+                                return "continue|parseRec";
+
+                            case 54:
+                                var $var540 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function (state_56) {
+                                    return cmnI($var474[1], $var474[3], $var474[2], state_56);
+                                }])]]));
+                                _arg2 = $var474[4];
+                                mem = $var540;
+                                return "continue|parseRec";
+
+                            case 55:
+                                var $var541 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_39 = "i";
+                                    return function (state_57) {
+                                        return cmnR($var474[1], $var474[4], $var474[3], $var474[6], $var474[2], rstype_39, state_57);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[5];
+                                mem = $var541;
+                                return "continue|parseRec";
+
+                            case 56:
+                                var $var542 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_40 = "r";
+                                    return function (state_58) {
+                                        return cmnR($var474[1], $var474[3], $var474[2], $var474[6], $var474[4], rstype_40, state_58);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[5];
+                                mem = $var542;
+                                return "continue|parseRec";
+
+                            case 57:
+                                var $var543 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rsinst_13 = new shiftOp("T_LSL", []);
+                                    var nORrn_13 = 0;
+                                    var rstype_41 = "i";
+                                    return function (state_59) {
+                                        return cmnR($var474[1], $var474[3], $var474[2], rsinst_13, nORrn_13, rstype_41, state_59);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[4];
+                                mem = $var543;
+                                return "continue|parseRec";
+
+                            case 58:
+                                var $var544 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function (state_60) {
+                                    return tstI($var474[1], $var474[3], $var474[2], state_60);
+                                }])]]));
+                                _arg2 = $var474[4];
+                                mem = $var544;
+                                return "continue|parseRec";
+
+                            case 59:
+                                var $var545 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_42 = "i";
+                                    return function (state_61) {
+                                        return tstR($var474[1], $var474[4], $var474[3], $var474[6], $var474[2], rstype_42, state_61);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[5];
+                                mem = $var545;
+                                return "continue|parseRec";
+
+                            case 60:
+                                var $var546 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_43 = "r";
+                                    return function (state_62) {
+                                        return tstR($var474[1], $var474[3], $var474[2], $var474[6], $var474[4], rstype_43, state_62);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[5];
+                                mem = $var546;
+                                return "continue|parseRec";
+
+                            case 61:
+                                var $var547 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rsinst_14 = new shiftOp("T_LSL", []);
+                                    var nORrn_14 = 0;
+                                    var rstype_44 = "i";
+                                    return function (state_63) {
+                                        return tstR($var474[1], $var474[3], $var474[2], rsinst_14, nORrn_14, rstype_44, state_63);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[4];
+                                mem = $var547;
+                                return "continue|parseRec";
+
+                            case 62:
+                                var $var548 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function (state_64) {
+                                    return teqI($var474[1], $var474[3], $var474[2], state_64);
+                                }])]]));
+                                _arg2 = $var474[4];
+                                mem = $var548;
+                                return "continue|parseRec";
+
+                            case 63:
+                                var $var549 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_45 = "i";
+                                    return function (state_65) {
+                                        return teqR($var474[1], $var474[4], $var474[3], $var474[6], $var474[2], rstype_45, state_65);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[5];
+                                mem = $var549;
+                                return "continue|parseRec";
+
+                            case 64:
+                                var $var550 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_46 = "r";
+                                    return function (state_66) {
+                                        return teqR($var474[1], $var474[3], $var474[2], $var474[6], $var474[4], rstype_46, state_66);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[5];
+                                mem = $var550;
+                                return "continue|parseRec";
+
+                            case 65:
+                                var $var551 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rsinst_15 = new shiftOp("T_LSL", []);
+                                    var nORrn_15 = 0;
+                                    var rstype_47 = "i";
+                                    return function (state_67) {
+                                        return teqR($var474[1], $var474[3], $var474[2], rsinst_15, nORrn_15, rstype_47, state_67);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[4];
+                                mem = $var551;
+                                return "continue|parseRec";
+
+                            case 66:
+                                var $var552 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function (state_68) {
+                                    return tstI($var474[1], $var474[3], $var474[2], state_68);
+                                }])]]));
+                                _arg2 = $var474[4];
+                                mem = $var552;
+                                return "continue|parseRec";
+
+                            case 67:
+                                var $var553 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_48 = "i";
+                                    return function (state_69) {
+                                        return tstR($var474[1], $var474[4], $var474[3], $var474[6], $var474[2], rstype_48, state_69);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[5];
+                                mem = $var553;
+                                return "continue|parseRec";
+
+                            case 68:
+                                var $var554 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rstype_49 = "r";
+                                    return function (state_70) {
+                                        return tstR($var474[1], $var474[3], $var474[2], $var474[6], $var474[4], rstype_49, state_70);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[5];
+                                mem = $var554;
+                                return "continue|parseRec";
+
+                            case 69:
+                                var $var555 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function () {
+                                    var rsinst_16 = new shiftOp("T_LSL", []);
+                                    var nORrn_16 = 0;
+                                    var rstype_50 = "i";
+                                    return function (state_71) {
+                                        return tstR($var474[1], $var474[3], $var474[2], rsinst_16, nORrn_16, rstype_50, state_71);
+                                    };
+                                }()])]]));
+                                _arg2 = $var474[4];
+                                mem = $var555;
+                                return "continue|parseRec";
+
+                            case 70:
+                                var $var556 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function (state_72) {
+                                    return lslR($var474[1], $var474[5], $var474[2], $var474[3], $var474[4], state_72);
+                                }])]]));
+                                _arg2 = $var474[6];
+                                mem = $var556;
+                                return "continue|parseRec";
+
+                            case 71:
+                                var $var557 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function (state_73) {
+                                    return lsrR($var474[1], $var474[5], $var474[2], $var474[3], $var474[4], state_73);
+                                }])]]));
+                                _arg2 = $var474[6];
+                                mem = $var557;
+                                return "continue|parseRec";
+
+                            case 72:
+                                var $var558 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function (state_74) {
+                                    return asrR($var474[1], $var474[5], $var474[2], $var474[3], $var474[4], state_74);
+                                }])]]));
+                                _arg2 = $var474[6];
+                                mem = $var558;
+                                return "continue|parseRec";
+
+                            case 73:
+                                var $var559 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function (state_75) {
+                                    return rorR($var474[1], $var474[5], $var474[2], $var474[3], $var474[4], state_75);
+                                }])]]));
+                                _arg2 = $var474[6];
+                                mem = $var559;
+                                return "continue|parseRec";
+
+                            case 74:
+                                var $var560 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function (state_76) {
+                                    return rrxR($var474[1], $var474[4], $var474[2], $var474[3], state_76);
+                                }])]]));
+                                _arg2 = $var474[5];
+                                mem = $var560;
+                                return "continue|parseRec";
+
+                            case 75:
+                                var $var561 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("LabelRef", [branchRef($var474[1])($var474[2])(function (c_3) {
+                                    return function (label) {
+                                        return function (state_77) {
+                                            return b(c_3, label, state_77);
+                                        };
+                                    };
+                                })])]]));
+                                _arg2 = $var474[3];
+                                mem = $var561;
+                                return "continue|parseRec";
+
+                            case 76:
+                                var $var562 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("LabelRef", [branchRef($var474[1])($var474[2])(function (c_4) {
+                                    return function (label_1) {
+                                        return function (state_78) {
+                                            return bl(c_4, label_1, state_78);
+                                        };
+                                    };
+                                })])]]));
+                                _arg2 = $var474[3];
+                                mem = $var562;
+                                return "continue|parseRec";
+
+                            case 77:
+                                var $var563 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("Instr", [function (state_79) {
+                                    return bx($var474[1], $var474[2], state_79);
+                                }])]]));
+                                _arg2 = $var474[3];
+                                mem = $var563;
+                                return "continue|parseRec";
+
+                            case 78:
+                                var $var564 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("LabelRef", [adrRef($var474[1])($var474[2])($var474[3])])]]));
+                                _arg2 = $var474[4];
+                                mem = $var564;
+                                return "continue|parseRec";
+
+                            case 79:
+                                var $var565 = mem + 4;
+                                labels_3 = labels_3;
+                                outLst_1 = append$1(outLst_1, ofArray([[mem, new Instruction("EndRef", [endRef($var474[1])])]]));
+                                _arg2 = $var474[2];
+                                mem = $var565;
+                                return "continue|parseRec";
+
+                            case 80:
+                                var $var566 = mem;
+                                labels_3 = add($var474[1], mem, labels_3);
+                                outLst_1 = outLst_1;
+                                _arg2 = $var474[2];
+                                mem = $var566;
+                                return "continue|parseRec";
+
+                            case 81:
+                                return {
+                                    v: resolveRefs(labels_3)(mem)(new List())(append$1(outLst_1, ofArray([[mem, new Instruction("Terminate", [])]])))
+                                };
+
+                            case 82:
+                                return {
+                                    v: new _Error("Err", [fsFormat("Invalid input string: %s.")(function (x) {
+                                        return x;
+                                    })($var474[1])])
+                                };
+
+                            case 83:
+                                return {
+                                    v: new _Error("Err", [fsFormat("Unexpected token: %A. Followed by: %s.")(function (x) {
+                                        return x;
+                                    })($var474[2])(errorList($var474[1]))])
+                                };
+                        }
+                    };
+
+                    parseRec: while (true) {
+                        var _ret = _loop();
+
+                        switch (_ret) {
+                            case "continue|parseRec":
+                                continue parseRec;
+
+                            default:
+                                if ((typeof _ret === "undefined" ? "undefined" : _typeof(_ret)) === "object") return _ret.v;
+                        }
+                    }
+                };
+            };
+        };
+    };
+
+    var matchValue_3 = parseRec(0)(create(null, new GenericComparer(compare)))(new List())(tokLst);
+
+    if (matchValue_3.Case === "Err") {
+        return new _Error("Err", [matchValue_3.Fields[0]]);
+    } else {
+        return new _Error("Ok", [create(matchValue_3.Fields[0], new GenericComparer(compare))]);
+    }
+}
+
+function newState(oldState, inString) {
+    return wrapErr(function (instr) {
+        return interpret(oldState, instr);
+    }, parser(tokenise(inString)));
+}
+
+var _createClass$4 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _classCallCheck$4(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
 var Html = function () {
    function Html(caseName, fields) {
-      _classCallCheck$2(this, Html);
+      _classCallCheck$4(this, Html);
 
       this.Case = caseName;
       this.Fields = fields;
    }
 
-   _createClass$2(Html, [{
+   _createClass$4(Html, [{
       key: _Symbol.reflection,
       value: function () {
          return {
@@ -2173,14 +4876,14 @@ var Html = function () {
          var toString$$1 = function toString$$1(indent) {
             return function (elem_1) {
                var spaces = replicate$2(indent, " ");
-               var $var12 = elem_1.Case === "Elem" ? elem_1.Fields[1].tail != null ? elem_1.Fields[1].head.Case === "Text" ? elem_1.Fields[1].tail.tail == null ? [1, elem_1.Fields[1].head.Fields[0], elem_1.Fields[0]] : [2, elem_1.Fields[1], elem_1.Fields[0]] : [2, elem_1.Fields[1], elem_1.Fields[0]] : [2, elem_1.Fields[1], elem_1.Fields[0]] : elem_1.Case === "Text" ? [3, elem_1.Fields[0]] : [0, elem_1.Fields[0], elem_1.Fields[1]];
+               var $var567 = elem_1.Case === "Elem" ? elem_1.Fields[1].tail != null ? elem_1.Fields[1].head.Case === "Text" ? elem_1.Fields[1].tail.tail == null ? [1, elem_1.Fields[1].head.Fields[0], elem_1.Fields[0]] : [2, elem_1.Fields[1], elem_1.Fields[0]] : [2, elem_1.Fields[1], elem_1.Fields[0]] : [2, elem_1.Fields[1], elem_1.Fields[0]] : elem_1.Case === "Text" ? [3, elem_1.Fields[0]] : [0, elem_1.Fields[0], elem_1.Fields[1]];
 
-               switch ($var12[0]) {
+               switch ($var567[0]) {
                   case 0:
-                     return $var12[1] + "=\"" + $var12[2] + "\"";
+                     return $var567[1] + "=\"" + $var567[2] + "\"";
 
                   case 1:
-                     return spaces + "<" + $var12[2] + ">" + $var12[1] + "</" + $var12[2] + ">\r\n";
+                     return spaces + "<" + $var567[2] + ">" + $var567[1] + "</" + $var567[2] + ">\r\n";
 
                   case 2:
                      var isAttr = function isAttr(_arg1) {
@@ -2193,26 +4896,26 @@ var Html = function () {
 
                      var patternInput = function (list) {
                         return partition$2(isAttr, list);
-                     }($var12[1]);
+                     }($var567[1]);
 
                      var attrs = patternInput[0].Equals(new List()) ? "" : " " + join(" ", toList(delay(function () {
-                        return map(function (attr) {
+                        return map$1(function (attr) {
                            return toString$$1(0)(attr);
                         }, patternInput[0]);
                      })));
 
                      if (patternInput[1].tail == null) {
-                        return spaces + "<" + $var12[2] + attrs + "/>\r\n";
+                        return spaces + "<" + $var567[2] + attrs + "/>\r\n";
                      } else {
-                        return spaces + "<" + $var12[2] + attrs + ">\r\n" + join("", toList(delay(function () {
-                           return map(function (e) {
+                        return spaces + "<" + $var567[2] + attrs + ">\r\n" + join("", toList(delay(function () {
+                           return map$1(function (e) {
                               return toString$$1(indent + 1)(e);
                            }, patternInput[1]);
-                        }))) + spaces + "</" + $var12[2] + ">\r\n";
+                        }))) + spaces + "</" + $var567[2] + ">\r\n";
                      }
 
                   case 3:
-                     return spaces + $var12[1] + "\r\n";
+                     return spaces + $var567[1] + "\r\n";
                }
             };
          };
@@ -2281,35 +4984,35 @@ var th = function () {
 
 
 function op_Splice(s) {
-   return ofArray$1([new Html("Text", [toString(s)])]);
+   return ofArray([new Html("Text", [toString(s)])]);
 }
 function op_PercentEquals(name, value) {
    return new Html("Attr", [name, value]);
 }
 
 (function (args) {
-  var state = initState;
-  var inString = "MOV R5, #2";
+    var state = initState;
+    var inString = "MOV R, #2";
+    var nState = newState(state, inString);
+    var regs = document.getElementById("regs");
 
-  var newState = function (instr) {
-    return interpret(state, instr);
-  }(parser(tokenise(inString)));
+    var getRegisterTable = function getRegisterTable(regState) {
+        return table(ofArray([op_PercentEquals("class", "table table-striped"), thead(ofArray([tr(ofArray([th(op_Splice("Register")), th(op_Splice("Value"))]))])), tbody(toList(delay(function () {
+            return map$1(function (i) {
+                return tr(ofArray([th(op_Splice(fsFormat("R%A")(function (x) {
+                    return x;
+                })(i))), th(op_Splice(fsFormat("%A")(function (x) {
+                    return x;
+                })(readReg(i, regState))))]));
+            }, range(1, 15));
+        })))]));
+    };
 
-  var regs = document.getElementById("regs");
-  var registerString = table(ofArray$1([op_PercentEquals("class", "table table-striped"), thead(ofArray$1([tr(ofArray$1([th(op_Splice("Register")), th(op_Splice("Value"))]))])), tbody(toList(delay(function () {
-    return map(function (i) {
-      return tr(ofArray$1([th(op_Splice(fsFormat("R%A")(function (x) {
+    var registerString = nState.Case === "Err" ? fsFormat("%s")(function (x) {
         return x;
-      })(i))), th(op_Splice(fsFormat("%A")(function (x) {
-        return x;
-      })(readReg(newState, i))))]));
-    }, range(1, 15));
-  })))]));
-  regs.innerHTML = Html.toString(registerString);
-  var submitHtml = fsFormat("%A")(function (x) {
-    console.log(x);
-  })(regs);
-  return 0;
+    })(nState.Fields[0]) : Html.toString(getRegisterTable(nState.Fields[0]));
+    regs.innerHTML = registerString;
+    return 0;
 })(process.argv.slice(2));
 
 })));

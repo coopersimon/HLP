@@ -1,5 +1,7 @@
 module Main
 open Common.State
+open Common.Error
+open Execute.GetStates
 open Parse
 open Interpret
 open Fable.Core
@@ -7,16 +9,13 @@ open Fable.Import
 open FsHtml
 
 [<EntryPoint>]
-
-let getById<'T when 'T :> Browser.HTMLElement> id =
-    Browser.document.getElementById(id) :?> 'T
     
 let main args =  
     let state = initState
-    let inString = "MOV R5, #2"
-    let newState = inString |> Tokeniser.tokenise |> Parser.parser |> Interpreter.interpret state
+    let inString = "MOV R, #2"
+    let nState = newState state inString
     let regs = Browser.document.getElementById "regs"
-    let registerString = 
+    let getRegisterTable regState = 
          table [
                 "class"%="table table-striped"                
                 thead [                    
@@ -29,15 +28,18 @@ let main args =
                 for i in 1..15 ->
                     tr [
                         th %(sprintf "R%A" i)
-                        th %(sprintf "%A" (readReg newState i))
+                        th %(sprintf "%A" (readReg i regState))
                     ]
 
                 ]
             ]
-    regs.innerHTML <- registerString |> Html.toString
 
-    let editor = getById<Browser.HTMLSelectElement>("editor").value
-    printfn "%A" editor
+    let registerString = 
+        match nState with
+        | Ok(s) -> (getRegisterTable s) |> Html.toString
+        | Err(msg) -> sprintf "%s" msg
+
+    regs.innerHTML <- registerString 
     0
  (*
 
