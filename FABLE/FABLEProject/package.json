@@ -2,10 +2,16 @@
   "name": "hlp-team1-test",
   "description": "FABLE test, HLP team 1",
   "version": "1.0.1",
-  "repository": { "type": "git", "url": "https://github.com/coopersimon/HLP" },
-  "main": "./dist/umd/main_fable.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/coopersimon/HLP"
+  },
+  "main": "./dist/umd/js/main_fable.js",
   "license": "MIT",
   "devDependencies": {
+    "babel-core": "^6.24.0",
+    "babel-loader": "^6.4.1",
+    "babel-preset-es2015": "^6.24.0",
     "fable-compiler": "^0.7.7",
     "fable-core": "^0.7.6",
     "fable-plugins-nunit": "^0.7.1",
@@ -17,5 +23,8 @@
     "build": "fable --target umd",
     "watch": "fable --target umd --watch",
     "test": "fable --target test"
+  },
+  "dependencies": {
+    "core-js": "^2.4.1"
   }
 }
