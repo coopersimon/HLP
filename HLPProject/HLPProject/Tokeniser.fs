@@ -101,6 +101,7 @@ module Tokeniser =
         | T_L_CBR
         | T_R_CBR
         | T_DASH
+        | T_NEWLINE
         | T_ERROR of string
 
         // Equals for testing.
@@ -118,6 +119,7 @@ module Tokeniser =
                                | T_EXCL, T_EXCL -> true
                                | T_L_CBR, T_R_CBR -> true
                                | T_DASH, T_DASH -> true
+                               | T_NEWLINE, T_NEWLINE -> true
                                | T_ERROR tx, T_ERROR ty -> tx = ty
 
                                | T_MOV (cx,sx), T_MOV (cy,sy) -> cx state = cy state && sx = sy
@@ -305,6 +307,7 @@ module Tokeniser =
         | "{" -> T_L_CBR
         | "}" -> T_R_CBR
         | "-" -> T_DASH
+        | "\n" -> T_NEWLINE
         | DEC_LIT_MATCH i -> T_INT i
         | HEX_LIT_MATCH i -> T_INT i
         // instructions
@@ -366,7 +369,7 @@ module Tokeniser =
 
     /// Take in string and output list of tokens.
     let tokenise (source: string) =
-        Regex.Split(source, @"([,\[\]!])|[\ \t\n\r\f]+|;.*")
+        Regex.Split(source, @"([,\[\]!\n])|[\ \t\r\f]+|;.*")
         |> Array.toList
         |> List.filter (fun s -> s <> null)
         |> List.filter (fun s -> s <> "")

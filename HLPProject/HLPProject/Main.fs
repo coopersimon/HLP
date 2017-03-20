@@ -38,6 +38,6 @@ let main args =
     let oState = initState
     let nState = newState oState inString
     match nState with
-    | Ok(s) -> printfn "Valid = %A" (readReg 0 s)
-    | Err(msg) -> printfn "%s" msg
+    | Ok(_,s) -> printfn "Valid = %A" (readReg 0 s)
+    | Err(l,msg) -> printfn "Line %d: %s" l msg
     0
