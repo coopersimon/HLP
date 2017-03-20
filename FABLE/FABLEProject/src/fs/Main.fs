@@ -14,10 +14,10 @@ let main args =
     let state = initState
     let inString = "MOV R, #2"
     let nState = newState state inString
-    let regs = Browser.document.getElementById "regs"
-    let getRegisterTable regState = 
+    
+    let getRegisterTable valid regState = 
          table [
-                "class"%="table table-striped"                
+                "class"%="table table-striped table-condensed"                
                 thead [                    
                     tr [
                         th %("Register")
@@ -25,21 +25,38 @@ let main args =
                     ]
                 ]
                 tbody [ 
-                for i in 1..15 ->
-                    tr [
-                        th %(sprintf "R%A" i)
-                        th %(sprintf "%A" (readReg i regState))
-                    ]
+                "class"%= (match valid with
+                            | false -> "red"
+                            | true -> "black")
+                div [
+                    for i in 1..15 ->
+                        tr [
+                            th %(sprintf "R%A" i)
+                            th ( match valid with
+                                    | false -> %(sprintf "X")
+                                    | true -> %(sprintf "%A" (readReg i regState))) 
+                        ]
 
+                    ]
                 ]
+                
             ]
 
     let registerString = 
         match nState with
-        | Ok(s) -> (getRegisterTable s) |> Html.toString
+        | Ok(s) -> (getRegisterTable true s) |> Html.toString
+        | Err(msg) -> (getRegisterTable false initState) |> Html.toString
+
+    let errorString = 
+        match nState with
+        | Ok(s) -> sprintf ""
         | Err(msg) -> sprintf "%s" msg
 
+    let regs = Browser.document.getElementById "regs"
     regs.innerHTML <- registerString 
+
+    let errorBox = Browser.document.getElementById "errorBox"
+    errorBox.innerHTML <- errorString
     0
  (*
 

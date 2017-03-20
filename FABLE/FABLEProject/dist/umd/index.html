@@ -14,9 +14,10 @@
     <link rel="stylesheet" type="text/css" href="plugin/codemirror/lib/codemirror.css">
   </head>
   <body>
-    <div class="container-fluid">
+    <div class="container outerContainer">
       <div class="row">
         <div class="col-sm-6">
+          <textarea id="editor"></textarea>
         </div>
         <div class="col-sm-6">
           <div id="regs">
@@ -25,8 +26,15 @@
       </div>
       <div class="row">
         <div class="col-sm-12">
-            <textarea id="editor"></textarea>
-            <button onclick="submit_Html();">Submit</button>
+            <div class="panel panel-default">
+              <div class="panel-body" id="errorBox">
+              </div>
+            </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm-12">
+            <button onclick="submit_Html();" type="button" class="btn btn-success"">Submit</button>
         </div>
       </div>
     </div>

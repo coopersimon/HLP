@@ -4935,7 +4935,12 @@ function elem(tag, content) {
 
 
 
-
+var div = function () {
+   var tag = "div";
+   return function (content) {
+      return elem(tag, content);
+   };
+}();
 
 
 
@@ -4994,24 +4999,33 @@ function op_PercentEquals(name, value) {
     var state = initState;
     var inString = "MOV R, #2";
     var nState = newState(state, inString);
-    var regs = document.getElementById("regs");
 
-    var getRegisterTable = function getRegisterTable(regState) {
-        return table(ofArray([op_PercentEquals("class", "table table-striped"), thead(ofArray([tr(ofArray([th(op_Splice("Register")), th(op_Splice("Value"))]))])), tbody(toList(delay(function () {
-            return map$1(function (i) {
-                return tr(ofArray([th(op_Splice(fsFormat("R%A")(function (x) {
-                    return x;
-                })(i))), th(op_Splice(fsFormat("%A")(function (x) {
-                    return x;
-                })(readReg(i, regState))))]));
-            }, range(1, 15));
-        })))]));
+    var getRegisterTable = function getRegisterTable(valid) {
+        return function (regState) {
+            return table(ofArray([op_PercentEquals("class", "table table-striped table-condensed"), thead(ofArray([tr(ofArray([th(op_Splice("Register")), th(op_Splice("Value"))]))])), tbody(ofArray([op_PercentEquals("class", valid ? "black" : "red"), div(toList(delay(function () {
+                return map$1(function (i) {
+                    return tr(ofArray([th(op_Splice(fsFormat("R%A")(function (x) {
+                        return x;
+                    })(i))), th(valid ? op_Splice(fsFormat("%A")(function (x) {
+                        return x;
+                    })(readReg(i, regState))) : op_Splice(fsFormat("X")(function (x) {
+                        return x;
+                    })))]));
+                }, range(1, 15));
+            })))]))]));
+        };
     };
 
-    var registerString = nState.Case === "Err" ? fsFormat("%s")(function (x) {
+    var registerString = nState.Case === "Err" ? Html.toString(getRegisterTable(false)(initState)) : Html.toString(getRegisterTable(true)(nState.Fields[0]));
+    var errorString = nState.Case === "Err" ? fsFormat("%s")(function (x) {
         return x;
-    })(nState.Fields[0]) : Html.toString(getRegisterTable(nState.Fields[0]));
+    })(nState.Fields[0]) : fsFormat("")(function (x) {
+        return x;
+    });
+    var regs = document.getElementById("regs");
     regs.innerHTML = registerString;
+    var errorBox = document.getElementById("errorBox");
+    errorBox.innerHTML = errorString;
     return 0;
 })(process.argv.slice(2));
 

@@ -1,3 +1,15 @@
 .table th {
    text-align: center !important;   
 }
+
+.red {
+	color: red;
+}
+
+.black {
+	color: black;
+}
+
+.outerContainer {
+	margin: 30px 30px 30px 30px;
+}
