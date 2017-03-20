@@ -8,6 +8,17 @@ module Tokeniser =
     open Common.State
     open Common.Types
 
+
+    // Integer validity checks
+    let int12 num =
+        //let checkBottom2 n = (n &&& 3u <> 0u)
+        let rec shift n shamt =
+            match (n &&& (0xFFFFFF00u)) = 0u with
+            | true -> true
+            | false when (shamt < 15) -> shift ((n>>>2)|||(n<<<30)) (shamt+1)
+            | _ -> false
+        shift (uint32 num) 0
+            
     
     (***TOKENS***)
     // To add token:
