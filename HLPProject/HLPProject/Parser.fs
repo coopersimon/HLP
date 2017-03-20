@@ -46,6 +46,30 @@ module Parser =
             | [] -> Err(0,sprintf "Incomplete register range.")
         regRec [] tokLst
 
+    // Integer validity checks.
+
+    /// Check number is 12-bit immediate value (8bit shifted by 5 bits)
+    let private int12 num =
+        //let checkBottom2 n = (n &&& 3u <> 0u)
+        let rec shift n shamt =
+            match (n &&& (0xFFFFFF00u)) = 0u with
+            | true -> true
+            | false when (shamt < 15) -> shift ((n>>>2)|||(n<<<30)) (shamt+1)
+            | _ -> false
+        shift (uint32 num) 0
+
+    /// Check number is valid load/store offset.
+    let private offset num =
+        (num>=(-4095))&&(num<=4095)
+
+    /// Check number range is valid for rotate.
+    let private shint n shiftType =
+        match shiftType with
+        | T_LSL -> (n>=0)&&(n<=31)
+        | T_LSR -> (n>=1)&&(n<=32)
+        | T_ASR -> (n>=1)&&(n<=32)
+        | T_ROR -> (n>=1)&&(n<=31)
+        | T_RRX -> true
 
     /// Parses a list of tokens into a memory map of instructions.
     let parser tokLst =
@@ -70,72 +94,104 @@ module Parser =
             // ARITHMETIC
 
             | T_MOV (c,s) :: T_REG rd :: T_COMMA :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, movI c s rd i))]) t
+                match int12 i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, movI c s rd i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate value out of range: %x" i)
             | T_MOV (c,s) :: T_REG rd :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, movR c s rd rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, movR c s rd rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_MOV (c,s) :: T_REG rd :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, movR c s rd rm z rs T_R))]) t
             | T_MOV (c,s) :: T_REG rd :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, movR c s rd rm T_LSL 0 T_I))]) t
 
             | T_MVN (c,s) :: T_REG rd :: T_COMMA :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, mvnI c s rd i))]) t
+                match int12 i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, mvnI c s rd i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate value out of range: %x" i)
             | T_MVN (c,s) :: T_REG rd :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, mvnR c s rd rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, mvnR c s rd rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_MVN (c,s) :: T_REG rd :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, mvnR c s rd rm z rs T_R))]) t
             | T_MVN (c,s) :: T_REG rd :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, mvnR c s rd rm T_LSL 0 T_I))]) t
 
             | T_ADD (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, addI c s rd rn i))]) t
+                match int12 i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, addI c s rd rn i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate value out of range: %x" i)
             | T_ADD (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, addR c s rd rn rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, addR c s rd rn rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_ADD (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, addR c s rd rn rm z rs T_R))]) t
             | T_ADD (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, addR c s rd rn rm T_LSL 0 T_I))]) t
 
             | T_ADC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, adcI c s rd rn i))]) t
+                match int12 i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, adcI c s rd rn i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate value out of range: %x" i)
             | T_ADC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, adcR c s rd rn rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, adcR c s rd rn rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_ADC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, adcR c s rd rn rm z rs T_R))]) t
             | T_ADC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, adcR c s rd rn rm T_LSL 0 T_I))]) t
 
             | T_SUB (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, subI c s rd rn i))]) t
+                match int12 i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, subI c s rd rn i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate value out of range: %x" i)
             | T_SUB (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, subR c s rd rn rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, subR c s rd rn rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_SUB (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, subR c s rd rn rm z rs T_R))]) t
             | T_SUB (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, subR c s rd rn rm T_LSL 0 T_I))]) t
 
             | T_SBC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, sbcI c s rd rn i))]) t
+                match int12 i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, sbcI c s rd rn i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate value out of range: %x" i)
             | T_SBC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, sbcR c s rd rn rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, sbcR c s rd rn rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_SBC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, sbcR c s rd rn rm z rs T_R))]) t
             | T_SBC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, sbcR c s rd rn rm T_LSL 0 T_I))]) t
 
             | T_RSB (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, rsbI c s rd rn i))]) t
+                match int12 i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, rsbI c s rd rn i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate value out of range: %x" i)
             | T_RSB (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, rsbR c s rd rn rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, rsbR c s rd rn rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_RSB (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, rsbR c s rd rn rm z rs T_R))]) t
             | T_RSB (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, rsbR c s rd rn rm T_LSL 0 T_I))]) t
 
             | T_RSC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, rscI c s rd rn i))]) t
+                match int12 i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, rscI c s rd rn i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate value out of range: %x" i)
             | T_RSC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, rscR c s rd rn rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, rscR c s rd rn rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_RSC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, rscR c s rd rn rm z rs T_R))]) t
             | T_RSC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
@@ -149,36 +205,52 @@ module Parser =
 
             // LOGIC
             | T_AND (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, andI c s rd rn i))]) t
+                match int12 i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, andI c s rd rn i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate value out of range: %x" i)
             | T_AND (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, andR c s rd rn rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, andR c s rd rn rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_AND (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, andR c s rd rn rm z rs T_R))]) t
             | T_AND (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, andR c s rd rn rm T_LSL 0 T_I))]) t
 
             | T_ORR (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, orrI c s rd rn i))]) t
+                match int12 i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, orrI c s rd rn i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate value out of range: %x" i)
             | T_ORR (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, orrR c s rd rn rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, orrR c s rd rn rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_ORR (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, orrR c s rd rn rm z rs T_R))]) t
             | T_ORR (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, orrR c s rd rn rm T_LSL 0 T_I))]) t
 
             | T_EOR (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, eorI c s rd rn i))]) t
+                match int12 i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, eorI c s rd rn i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate value out of range: %x" i)
             | T_EOR (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, eorR c s rd rn rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, eorR c s rd rn rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_EOR (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, eorR c s rd rn rm z rs T_R))]) t
             | T_EOR (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, eorR c s rd rn rm T_LSL 0 T_I))]) t
 
             | T_BIC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, bicI c s rd rn i))]) t
+                match int12 i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, bicI c s rd rn i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate value out of range: %x" i)
             | T_BIC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, bicR c s rd rn rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, bicR c s rd rn rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_BIC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, bicR c s rd rn rm z rs T_R))]) t
             | T_BIC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
@@ -186,50 +258,67 @@ module Parser =
 
             // COMPARISON
             | T_CMP c :: T_REG rn :: T_COMMA :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, cmpI c rn i))]) t
+                match int12 i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, cmpI c rn i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate value out of range: %x" i)
             | T_CMP c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, cmpR c rn rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, cmpR c rn rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_CMP c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, cmpR c rn rm z rs T_R))]) t
             | T_CMP c :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, cmpR c rn rm T_LSL 0 T_I))]) t
 
             | T_CMN c :: T_REG rn :: T_COMMA :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, cmnI c rn i))]) t
+                match int12 i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, cmnI c rn i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate value out of range: %x" i)
             | T_CMN c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, cmnR c rn rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, cmnR c rn rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_CMN c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, cmnR c rn rm z rs T_R))]) t
             | T_CMN c :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, cmnR c rn rm T_LSL 0 T_I))]) t
 
             | T_TST c :: T_REG rn :: T_COMMA :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, tstI c rn i))]) t
+                match int12 i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, tstI c rn i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate value out of range: %x" i)
             | T_TST c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, tstR c rn rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, tstR c rn rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_TST c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, tstR c rn rm z rs T_R))]) t
             | T_TST c :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, tstR c rn rm T_LSL 0 T_I))]) t
 
             | T_TEQ c :: T_REG rn :: T_COMMA :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, teqI c rn i))]) t
+                match int12 i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, teqI c rn i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate value out of range: %x" i)
             | T_TEQ c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, teqR c rn rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, teqR c rn rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_TEQ c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, teqR c rn rm z rs T_R))]) t
             | T_TEQ c :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, teqR c rn rm T_LSL 0 T_I))]) t
 
             // BITWISE
-            | T_CLZ c :: T_REG rn :: T_COMMA :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, tstI c rn i))]) t
+            (*| T_CLZ c :: T_REG rn :: T_COMMA :: T_INT i :: t ->
+                // TODO tst->clz
+                parseRec (m+4) l labels (outLst@[(m, Instr(l, clzI c rn i))]) t
             | T_CLZ c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, tstR c rn rm z i T_I))]) t
             | T_CLZ c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, tstR c rn rm z rs T_R))]) t
             | T_CLZ c :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, tstR c rn rm T_LSL 0 T_I))]) t
+                parseRec (m+4) l labels (outLst@[(m, Instr(l, tstR c rn rm T_LSL 0 T_I))]) t*)
 
             | T_SHIFT (T_LSL,(c,s)) :: T_REG rd :: T_COMMA :: T_REG rm :: T_COMMA :: T_REG rn :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, lslR c s rd rm rn))]) t
@@ -260,20 +349,28 @@ module Parser =
 
             // LOAD SINGLE
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWaR c rd rn rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWaR c rd rn rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWaR c rd rn rm z rs T_R))]) t
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWaI c rd rn i))]) t
+                match offset i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWaI c rd rn i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate offset value out of range: %x" i)
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWaR c rd rn rm T_LSL 0 T_I))]) t
 
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBaR c rd rn rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBaR c rd rn rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBaR c rd rn rm z rs T_R))]) t
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBaI c rd rn i))]) t
+                match offset i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBaI c rd rn i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate offset value out of range: %x" i)
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBaR c rd rn rm T_LSL 0 T_I))]) t
 
@@ -282,17 +379,25 @@ module Parser =
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWbI c false rd rn 0))]) t
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_INT i :: T_R_BRAC :: T_EXCL :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWbI c true rd rn i))]) t
+                match offset i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWbI c true rd rn i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate offset value out of range: %x" i)
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_INT i :: T_R_BRAC :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWbI c false rd rn i))]) t
+                match offset i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWbI c false rd rn i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate offset value out of range: %x" i)
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_R_BRAC :: T_EXCL :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWbR c true rd rn rm T_LSL 0 T_I))]) t
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_R_BRAC :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWbR c false rd rn rm T_LSL 0 T_I))]) t
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: T_R_BRAC :: T_EXCL :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWbR c true rd rn rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWbR c true rd rn rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: T_R_BRAC :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWbR c false rd rn rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWbR c false rd rn rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: T_R_BRAC :: T_EXCL :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWbR c true rd rn rm z rs T_R))]) t
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: T_R_BRAC :: t ->
@@ -303,17 +408,25 @@ module Parser =
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBbI c false rd rn 0))]) t
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_INT i :: T_R_BRAC :: T_EXCL :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBbI c true rd rn i))]) t
+                match offset i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBbI c true rd rn i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate offset value out of range: %x" i)
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_INT i :: T_R_BRAC :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBbI c false rd rn i))]) t
+                match offset i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBbI c false rd rn i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate offset value out of range: %x" i)
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_R_BRAC :: T_EXCL :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBbR c true rd rn rm T_LSL 0 T_I))]) t
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_R_BRAC :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBbR c false rd rn rm T_LSL 0 T_I))]) t
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: T_R_BRAC :: T_EXCL :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBbR c true rd rn rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBbR c true rd rn rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: T_R_BRAC :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBbR c false rd rn rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBbR c false rd rn rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: T_R_BRAC :: T_EXCL :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBbR c true rd rn rm z rs T_R))]) t
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: T_R_BRAC :: t ->
@@ -321,37 +434,53 @@ module Parser =
 
             // STORE SINGLE
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, strWaR c rd rn rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, strWaR c rd rn rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, strWaR c rd rn rm z rs T_R))]) t
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, strWaI c rd rn i))]) t
+                match offset i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, strWaI c rd rn i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate offset value out of range: %x" i)
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, strWaR c rd rn rm T_LSL 0 T_I))]) t
 
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, strBaR c rd rn rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, strBaR c rd rn rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, strBaR c rd rn rm z rs T_R))]) t
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, strBaI c rd rn i))]) t
+            match offset i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, strBaI c rd rn i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate offset value out of range: %x" i)
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, strBaR c rd rn rm T_LSL 0 T_I))]) t
 
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, strWbI c false rd rn 0))]) t
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_INT i :: T_R_BRAC :: T_EXCL :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, strWbI c true rd rn i))]) t
+                match offset i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, strWbI c true rd rn i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate offset value out of range: %x" i)
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_INT i :: T_R_BRAC :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, strWbI c false rd rn i))]) t
+                match offset i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, strWbI c false rd rn i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate offset value out of range: %x" i)
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_R_BRAC :: T_EXCL :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, strWbR c true rd rn rm T_LSL 0 T_I))]) t
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_R_BRAC :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, strWbR c false rd rn rm T_LSL 0 T_I))]) t
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: T_R_BRAC :: T_EXCL :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, strWbR c true rd rn rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, strWbR c true rd rn rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: T_R_BRAC :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, strWbR c false rd rn rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, strWbR c false rd rn rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: T_R_BRAC :: T_EXCL :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, strWbR c true rd rn rm z rs T_R))]) t
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: T_R_BRAC :: t ->
@@ -360,17 +489,25 @@ module Parser =
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, strBbI c false rd rn 0))]) t
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_INT i :: T_R_BRAC :: T_EXCL :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, strBbI c true rd rn i))]) t
+                match offset i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, strBbI c true rd rn i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate offset value out of range: %x" i)
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_INT i :: T_R_BRAC :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, strBbI c false rd rn i))]) t
+                match offset i with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, strBbI c false rd rn i))]) t
+                | false -> Err(l,sprintf "12-bit Immediate offset value out of range: %x" i)
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_R_BRAC :: T_EXCL :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, strBbR c true rd rn rm T_LSL 0 T_I))]) t
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_R_BRAC :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, strBbR c false rd rn rm T_LSL 0 T_I))]) t
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: T_R_BRAC :: T_EXCL :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, strBbR c true rd rn rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, strBbR c true rd rn rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: T_R_BRAC :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, strBbR c false rd rn rm z i T_I))]) t
+                match shint i z with
+                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, strBbR c false rd rn rm z i T_I))]) t
+                | false -> Err(l,sprintf "Shift immediate value out of range: %x" i)
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: T_R_BRAC :: T_EXCL :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, strBbR c true rd rn rm z rs T_R))]) t
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: T_R_BRAC :: t ->
