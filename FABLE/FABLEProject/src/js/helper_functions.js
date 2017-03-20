@@ -1,4 +1,4 @@
-export function saveHtml(myEditor)
+export function saveCodeMirror(myEditor)
 {
 	myEditor.save();
 	myEditor.addLineClass(3, 'background', 'line-error');
@@ -13,10 +13,7 @@ export function initializeCodeMirror() {
 }
 
 export function highlightLine(lineNumber,myEditor) {
-    //Line number is zero based index
 	console.log(lineNumber)
 	myEditor.addLineClass(lineNumber, 'background', 'line-error');
-    //Set line CSS class to the line number & affecting the background of the line with the css class of line-error
-    
 }
 

@@ -1,8 +1,21 @@
 (function (global, factory) {
-   typeof exports === 'object' && typeof module !== 'undefined' ? factory() :
-   typeof define === 'function' && define.amd ? define(factory) :
-   (factory());
+	typeof exports === 'object' && typeof module !== 'undefined' ? factory() :
+	typeof define === 'function' && define.amd ? define(factory) :
+	(factory());
 }(this, (function () { 'use strict';
+
+function saveCodeMirror(myEditor) {
+	myEditor.save();
+	myEditor.addLineClass(3, 'background', 'line-error');
+	return document.getElementById("editor").value;
+}
+
+function initializeCodeMirror() {
+	var editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
+		lineNumbers: true
+	});
+	return editor;
+}
 
 var fableGlobal = function () {
     var globalObj = typeof window !== "undefined" ? window
@@ -195,7 +208,6 @@ function compareUnions(x, y) {
     }
 }
 
-// This module is split from List.ts to prevent cyclic dependencies
 function ofArray(args, base) {
     var acc = base || new List$1();
     for (var i = args.length - 1; i >= 0; i--) {
@@ -533,11 +545,6 @@ var GenericComparer = (function () {
     return GenericComparer;
 }());
 
-// ----------------------------------------------
-// These functions belong to Seq.ts but are
-// implemented here to prevent cyclic dependencies
-
-
 var MapTree = (function () {
     function MapTree(caseName, fields) {
         this.Case = caseName;
@@ -693,44 +700,6 @@ function tree_mem(comparer, k, m) {
         }
     })() : false;
 }
-// function tree_foldFromTo(comparer: IComparer<any>, lo: any, hi: any, f: (k:any, v:any, acc: any) => any, m: MapTree, x: any): any {
-//   if (m.Case === "MapOne") {
-//     var cLoKey = comparer.Compare(lo, m.Fields[0]);
-//     var cKeyHi = comparer.Compare(m.Fields[0], hi);
-//     var x_1 = (cLoKey <= 0 ? cKeyHi <= 0 : false) ? f(m.Fields[0], m.Fields[1], x) : x;
-//     return x_1;
-//   }
-//   else if (m.Case === "MapNode") {
-//     var cLoKey = comparer.Compare(lo, m.Fields[0]);
-//     var cKeyHi = comparer.Compare(m.Fields[0], hi);
-//     var x_1 = cLoKey < 0 ? tree_foldFromTo(comparer, lo, hi, f, m.Fields[2], x) : x;
-//     var x_2 = (cLoKey <= 0 ? cKeyHi <= 0 : false) ? f(m.Fields[0], m.Fields[1], x_1) : x_1;
-//     var x_3 = cKeyHi < 0 ? tree_foldFromTo(comparer, lo, hi, f, m.Fields[3], x_2) : x_2;
-//     return x_3;
-//   }
-//   return x;
-// }
-// function tree_foldSection(comparer: IComparer<any>, lo: any, hi: any, f: (k:any, v:any, acc: any) => any, m: MapTree, x: any) {
-//   return comparer.Compare(lo, hi) === 1 ? x : tree_foldFromTo(comparer, lo, hi, f, m, x);
-// }
-// function tree_loop(m: MapTree, acc: any): List<[any,any]> {
-//   return m.Case === "MapOne"
-//     ? new List([m.Fields[0], m.Fields[1]], acc)
-//     : m.Case === "MapNode"
-//       ? tree_loop(m.Fields[2], new List([m.Fields[0], m.Fields[1]], tree_loop(m.Fields[3], acc)))
-//       : acc;
-// }
-// function tree_toList(m: MapTree) {
-//   return tree_loop(m, new List());
-// }
-// function tree_toArray(m: MapTree) {
-//   return Array.from(tree_toList(m));
-// }
-// function tree_ofList(comparer: IComparer<any>, l: List<[any,any]>) {
-//   return Seq.fold((acc: MapTree, tupledArg: [any, any]) => {
-//     return tree_add(comparer, tupledArg[0], tupledArg[1], acc);
-//   }, tree_empty(), l);
-// }
 function tree_mkFromEnumerator(comparer, acc, e) {
     var cur = e.next();
     while (!cur.done) {
@@ -1688,7 +1657,6 @@ var Long = (function () {
     };
     return Long;
 }());
-// A cache of the Long representations of small integer values.
 var INT_CACHE = {};
 // A cache of the Long representations of small unsigned integer values.
 var UINT_CACHE = {};
@@ -2205,7 +2173,12 @@ var div = function () {
       return elem(tag, content);
    };
 }();
-
+var br = function () {
+   var tag = "br";
+   return function (content) {
+      return elem(tag, content);
+   };
+}();
 
 
 var table = function () {
@@ -6866,41 +6839,57 @@ function newState(oldState, inString) {
     }, parser(tokenise(inString)));
 }
 
-function saveHtml(myEditor) {
-	myEditor.save();
-	myEditor.addLineClass(3, 'background', 'line-error');
-	return document.getElementById("editor").value;
-}
-
-function initializeCodeMirror() {
-	var editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
-		lineNumbers: true
-	});
-	return editor;
-}
-
 (function (args) {
-    var compileArm = function compileArm(code) {
-        var getRegisterTable = function getRegisterTable(valid) {
-            return function (regState) {
-                return table(ofArray([op_PercentEquals("class", "table table-striped table-condensed"), thead(ofArray([tr(ofArray([th(op_Splice("Register")), th(op_Splice("Value"))]))])), tbody(ofArray([op_PercentEquals("class", valid ? "black" : "red"), div(toList(delay(function () {
-                    return map$2(function (i) {
-                        return tr(ofArray([th(op_Splice(fsFormat("R%A")(function (x) {
-                            return x;
-                        })(i))), th(valid ? op_Splice(fsFormat("%A")(function (x) {
-                            return x;
-                        })(readReg(i, regState))) : op_Splice(fsFormat("X")(function (x) {
-                            return x;
-                        })))]));
-                    }, range(0, 15));
-                })))]))]));
-            };
-        };
+    var regs = document.getElementById("regs");
+    var errorBox = document.getElementById("errorBox");
+    var compileAllBtn = document.getElementById("compileAllBtn");
+    var saveCodeMirror$$1 = saveCodeMirror;
+    var initializeCodeMirror$$1 = initializeCodeMirror;
+    var cmEditor = initializeCodeMirror$$1();
 
+    var getRegisterTable = function getRegisterTable(valid) {
+        return function (regState) {
+            return div(ofArray([table(ofArray([op_PercentEquals("class", "table table-striped table-condensed"), thead(ofArray([tr(ofArray([th(op_Splice("Register")), th(op_Splice("Value"))]))])), tbody(ofArray([op_PercentEquals("class", valid ? "black" : "red"), div(toList(delay(function () {
+                return map$2(function (i) {
+                    return tr(ofArray([th(op_Splice(fsFormat("R%A")(function (x) {
+                        return x;
+                    })(i))), th(valid ? op_Splice(fsFormat("%A")(function (x) {
+                        return x;
+                    })(readReg(i, regState))) : op_Splice(fsFormat("X")(function (x) {
+                        return x;
+                    })))]));
+                }, range(0, 15));
+            })))]))])), br(new List$1()), table(ofArray([op_PercentEquals("class", "table table-striped table-condensed"), thead(ofArray([tr(ofArray([th(op_Splice("Flag")), th(op_Splice("Value"))]))])), tbody(ofArray([op_PercentEquals("class", valid ? "black" : "red"), div(ofArray([tr(ofArray([th(op_Splice(fsFormat("N")(function (x) {
+                return x;
+            }))), th(valid ? op_Splice(fsFormat("%A")(function (x) {
+                return x;
+            })(readNFlag(regState))) : op_Splice(fsFormat("X")(function (x) {
+                return x;
+            })))])), tr(ofArray([th(op_Splice(fsFormat("Z")(function (x) {
+                return x;
+            }))), th(valid ? op_Splice(fsFormat("%A")(function (x) {
+                return x;
+            })(readZFlag(regState))) : op_Splice(fsFormat("X")(function (x) {
+                return x;
+            })))])), tr(ofArray([th(op_Splice(fsFormat("C")(function (x) {
+                return x;
+            }))), th(valid ? op_Splice(fsFormat("%A")(function (x) {
+                return x;
+            })(readCFlag(regState))) : op_Splice(fsFormat("X")(function (x) {
+                return x;
+            })))])), tr(ofArray([th(op_Splice(fsFormat("V")(function (x) {
+                return x;
+            }))), th(valid ? op_Splice(fsFormat("%A")(function (x) {
+                return x;
+            })(readVFlag(regState))) : op_Splice(fsFormat("X")(function (x) {
+                return x;
+            })))]))]))]))]))]));
+        };
+    };
+
+    var compileAll = function compileAll() {
+        var code = saveCodeMirror$$1(cmEditor);
         var state = initStateVisual;
-        fsFormat("%A")(function (x) {
-            console.log(x);
-        })(code);
         var nState = newState(state, code);
         var registerString = nState.Case === "Err" ? Html.toString(getRegisterTable(false)(initState)) : Html.toString(getRegisterTable(true)(nState.Fields[0]));
         var errorString = nState.Case === "Err" ? fsFormat("%s")(function (x) {
@@ -6908,23 +6897,15 @@ function initializeCodeMirror() {
         })(nState.Fields[0]) : fsFormat("")(function (x) {
             return x;
         });
-        var regs = document.getElementById("regs");
+        fsFormat("%A")(function (x) {
+            console.log(x);
+        })(registerString);
         regs.innerHTML = registerString;
-        var errorBox = document.getElementById("errorBox");
         errorBox.innerHTML = errorString;
     };
 
-    var fStart = function fStart(editor) {
-        var f = saveHtml;
-        var code = f(editor);
-        compileArm(code);
-    };
-
-    var init = initializeCodeMirror;
-    var editor = init();
-    var button = document.getElementById("compile");
-    button.addEventListener('click', function (_arg1) {
-        fStart(editor);
+    compileAllBtn.addEventListener('click', function (_arg1) {
+        compileAll();
         return null;
     });
     return 0;
