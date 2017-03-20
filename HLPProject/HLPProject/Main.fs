@@ -12,6 +12,7 @@ let main args =
                     MAIN
                             BL      MULT_A
                             BL      MULT_B
+                            MOV     
                             ADR     R10, RETURN
                             B       FINAL
                     RETURN  END

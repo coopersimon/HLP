@@ -12,13 +12,3 @@ module Error =
         match x with
         | Ok(arg) -> f arg
         | Err(i,s) -> Err(i,s)
-
-    /// Return first 5 elements of list.
-    let errorList lst =
-        let rec addToStr lst n =
-            match n < 5 with
-            | true -> match lst with
-                      | h::t -> (sprintf "%A" h) + "; " + (addToStr t (n+1))
-                      | [] -> ""
-            | false -> ""
-        addToStr lst 0
