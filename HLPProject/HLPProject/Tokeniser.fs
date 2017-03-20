@@ -7,18 +7,7 @@ module Tokeniser =
     open Common.Conditions
     open Common.State
     open Common.Types
-
-
-    // Integer validity checks
-    let int12 num =
-        //let checkBottom2 n = (n &&& 3u <> 0u)
-        let rec shift n shamt =
-            match (n &&& (0xFFFFFF00u)) = 0u with
-            | true -> true
-            | false when (shamt < 15) -> shift ((n>>>2)|||(n<<<30)) (shamt+1)
-            | _ -> false
-        shift (uint32 num) 0
-            
+       
     
     (***TOKENS***)
     // To add token:
@@ -268,7 +257,7 @@ module Tokeniser =
 
     let (|DEC_LIT_MATCH|_|) str =
         let m = Regex.Match(str, @"^#?([0-9]+)$")
-        if m.Success then Some(int m.Groups.[1].Value) else None
+        if m.Success then Some(uint32 m.Groups.[1].Value) else None
 
     let (|HEX_LIT_MATCH|_|) str =
         let m = Regex.Match(str, @"^#?(0x[0-9a-fA-F]+)$")
@@ -276,7 +265,7 @@ module Tokeniser =
 
     
     /// Match input string to token.
-    let private stringToToken = function
+    let stringToToken = function
         // registers & aliases
         | REG_MATCH i -> T_REG i
         | TOKEN_MATCH @"^a1$" -> T_REG 0
