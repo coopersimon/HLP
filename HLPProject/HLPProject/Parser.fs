@@ -13,6 +13,7 @@ module Parser =
     type Instruction = 
         | LabelRef of (Map<string,int> -> Error<Instruction>)
         | EndRef of (int -> Instruction)
+        //| MemRef of ()
         | Instr of (Common.State.StateHandle -> Common.State.StateHandle)
         | Terminate
 
