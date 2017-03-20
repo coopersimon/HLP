@@ -2,7 +2,7 @@
 
 module Error =
     
-    /// Error monad. Ok: valid result. Err: error string.
+    /// Error monad. Ok: valid result. Err: error string plus error value (line number).
     type Error<'a> =
         | Ok of 'a
         | Err of int*string

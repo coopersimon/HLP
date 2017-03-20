@@ -2,7 +2,6 @@
 open Common.State
 open Parse
 open Interpret
-open Common.Conditions
 open Common.Error
 
 module GetStates =
