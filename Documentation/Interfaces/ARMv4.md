@@ -25,14 +25,14 @@ The remaining arguments should include a condition, of type *(StateHandle -> boo
 
 #### shift[I|R]
 
-inst:*Token* -> r:*int* -> [(n:*int*)|(rn:*int*)] -> state:*StateHandle* -> output:*int*
+inst:*shiftOp* -> r:*int* -> [(n:*int*)|(rn:*int*)] -> state:*StateHandle* -> output:*int*
 
 Evaluates final value of operand 2 after *n* or value in register *rn* is shifted or rotated depending on *inst*. 
 
 
 #### shiftSetC[I|R]
 
-s:*bool* -> inst:*Token* -> r:*int* -> (n:*int*) OR (rn:*int*) -> state:*StateHandle* -> output:*StateHandle*
+s:*bool* -> inst:*shiftOp* -> r:*int* -> (n:*int*) OR (rn:*int*) -> state:*StateHandle* -> output:*StateHandle*
 
 Modifies flag C when evaluating operand 2 (depends on *inst*). 
 
@@ -69,10 +69,10 @@ Modifies flag V depending on *in1* and *in2*. Used for arithmetic ADD, ADC, SUB,
 #### MOV and MVN
 
 **I version** - 
-c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> i:*int* -> state:*StateHandle* -> output:*StateHandle*
+c:*(StateHandle->bool)* -> s:*bool* -> rd:*int* -> i:*int* -> state:*StateHandle* -> output:*StateHandle*
 
 **R version** - 
-c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> rm:*int* -> rsinst:*Token* -> nORrn:*int* -> rstype:*char* -> state:*StateHandle* -> output:*StateHandle*
+c:*(StateHandle->bool)* -> s:*bool* -> rd:*int* -> rm:*int* -> rsinst:*shiftOp* -> nORrn:*int* -> rstype:*opType* -> state:*StateHandle* -> output:*StateHandle*
 
 **mov[I|R]** - 
 Copies the value of *Operand2* into *rd*
@@ -87,10 +87,10 @@ If *s* is true, these functions update the N and Z flags according to the result
 #### ADD, ADC, SUB, SBC, RSB and RSC
 
 **I version** - 
-c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> rn:*int* -> i:*int* -> state:*StateHandle* -> output:*StateHandle*
+c:*(StateHandle->bool)* -> s:*bool* -> rd:*int* -> rn:*int* -> i:*int* -> state:*StateHandle* -> output:*StateHandle*
 
 **R version** - 
-c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> rn:*int* -> rm:*int* -> rsinst:*Token* -> nORrn:*int* -> rstype:*char* -> state:*StateHandle* -> output:*StateHandle*
+c:*(StateHandle->bool)* -> s:*bool* -> rd:*int* -> rn:*int* -> rm:*int* -> rsinst:*shiftOp* -> nORrn:*opType* -> rstype:*char* -> state:*StateHandle* -> output:*StateHandle*
 
 **add[I|R]** - 
 Adds the values in *rn* and *Operand2*.
@@ -116,10 +116,10 @@ If *s* is true, these functions update the N, Z, C and V flags according to the 
 #### CMP and CMN
 
 **I version** - 
-c:*StateHandle->bool* -> rn:*int* -> i:*int* -> state:*StateHandle* -> output:*StateHandle*
+c:*(StateHandle->bool)* -> rn:*int* -> i:*int* -> state:*StateHandle* -> output:*StateHandle*
 
 **R version** - 
-c:*StateHandle->bool* -> rn:*int* -> rm:*int* -> rsinst:*Token* -> nORrn:*int* -> rstype:*char* -> state:*StateHandle* -> output:*StateHandle*
+c:*(StateHandle->bool)* -> rn:*int* -> rm:*int* -> rsinst:*shiftOp* -> nORrn:*int* -> rstype:*opType* -> state:*StateHandle* -> output:*StateHandle*
 
 **cmp[I|R]** - 
 Subtracts the value of *Operand2* from the value in *rn*. This is the same as a SUBS instruction, except that the result is discarded.
@@ -135,13 +135,13 @@ These functions update the N, Z, C and V flags according to the result.
 
 **mulR**
 
-c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> rm:*int* -> rs:*int* -> state:*StateHandle* -> output:*StateHandle*
+c:*(StateHandle->bool)* -> s:*bool* -> rd:*int* -> rm:*int* -> rs:*int* -> state:*StateHandle* -> output:*StateHandle*
 
 Multiplies the values from *rm* and *rs*, and places the least significant 32 bits of the result in *rd*.
 
 **mlaR**
 
-c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> rm:*int* -> rs:*int* -> rm:*int* -> state:*StateHandle* -> output:*StateHandle*
+c:*(StateHandle->bool)* -> s:*bool* -> rd:*int* -> rm:*int* -> rs:*int* -> rm:*int* -> state:*StateHandle* -> output:*StateHandle*
 
 Multiplies the values from *rm* and *rs*, adds the value from *rn*, and places the least significant 32 bits of the result in *rd*.
 
@@ -152,10 +152,10 @@ If *s* is true, these functions update the N and Z flags according to the result
 #### AND, ORR, EOR and BIC
 
 **I version** - 
-c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> rn:*int* -> i:*int* -> state:*StateHandle* -> output:*StateHandle*
+c:*(StateHandle->bool)* -> s:*bool* -> rd:*int* -> rn:*int* -> i:*int* -> state:*StateHandle* -> output:*StateHandle*
 
 **R version** - 
-c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> rn:*int* -> rm:*int* -> rsinst:*Token* -> nORrn:*int* -> rstype:*char* -> state:*StateHandle* -> output:*StateHandle*
+c:*(StateHandle->bool)* -> s:*bool* -> rd:*int* -> rn:*int* -> rm:*int* -> rsinst:*shiftOp* -> nORrn:*int* -> rstype:*opType* -> state:*StateHandle* -> output:*StateHandle*
 
 **and[I|R]** - 
 Performs bitwise AND on the values in *rn* and *Operand2*
@@ -176,10 +176,10 @@ If *s* is true, these functions update the N and Z flags according to the result
 #### TST and TEQ
 
 **I version** - 
-c:*StateHandle->bool* -> rn:*int* -> i:*int* -> state:*StateHandle* -> output:*StateHandle*
+c:*(StateHandle->bool)* -> rn:*int* -> i:*int* -> state:*StateHandle* -> output:*StateHandle*
 
 **R version** - 
-c:*StateHandle->bool* -> rn:*int* -> rm:*int* -> rsinst:*Token* -> nORrn:*int* -> rstype:*char* -> state:*StateHandle* -> output:*StateHandle*
+c:*(StateHandle->bool)* -> rn:*int* -> rm:*int* -> rsinst:*shiftOp* -> nORrn:*int* -> rstype:*opType* -> state:*StateHandle* -> output:*StateHandle*
 
 **tst[I|R]** - 
 Performs a bitwise AND operation on the value in *rn* and the value of *Operand2*. This is the same as a ANDS instruction, except that the result is discarded.
@@ -193,7 +193,7 @@ These functions update the N and Z flags according to the result, can update the
 
 #### CLZ
 
-c:*StateHandle->bool* -> rd:*int* -> rm:*int* -> state:*StateHandle* -> output:*StateHandle*
+c:*(StateHandle->bool)* -> rd:*int* -> rm:*int* -> state:*StateHandle* -> output:*StateHandle*
 
 **clzR** - 
 Counts the number of leading zeroes in the value in *rm* and returns the result in *rd*. 
@@ -204,7 +204,7 @@ This instruction does not affect the flags.
 
 #### LSL, LSR, ASR, ROR and RRX
 
-c:*StateHandle->bool* -> s:*bool* -> rd:*int* -> rm:*int* -> rn:*int* -> state:*StateHandle* -> output:*StateHandle*
+c:*(StateHandle->bool)* -> s:*bool* -> rd:*int* -> rm:*int* -> rn:*int* -> state:*StateHandle* -> output:*StateHandle*
 
 Where n is value in *rn*:
 
@@ -227,24 +227,24 @@ The carry flag is updated to the last bit shifted out of *rm*.
 
 **b** 
 
-c:*StateHandle->bool* -> label:*int*  state:*StateHandle* -> output:*StateHandle*
+c:*(StateHandle->bool)* -> label:*int*  state:*StateHandle* -> output:*StateHandle*
 
 Causes a branch to *label*.
 
 **bl** 
 
-c:*StateHandle->bool* -> label:*int* -> state:*StateHandle* -> output:*StateHandle*
+c:*(StateHandle->bool)* -> label:*int* -> state:*StateHandle* -> output:*StateHandle*
 
 Copies the address of the next instruction into *r14 (lr, the link register)*, and causes a branch to *label*.
 
 **bx**
 
-c:*StateHandle->bool* -> rm:*int* -> state:*StateHandle* -> output:*StateHandle*
+c:*(StateHandle->bool)* -> rm:*int* -> state:*StateHandle* -> output:*StateHandle*
 
 *rm* is an ARM register containing the address to branch to.
 
 **blxR** - 
-c:*StateHandle->bool* -> rm:*int* -> state:*StateHandle* -> output:*StateHandle*
+c:*(StateHandle->bool)* -> rm:*int* -> state:*StateHandle* -> output:*StateHandle*
 
 **blxL** - 
 label:*int* -> state:*StateHandle* -> output:*StateHandle*
@@ -258,7 +258,7 @@ These instructions do not affect the flags.
 
 #### ADR
 
-c:*StateHandle->bool* -> rd:*int* -> label:*int* -> state:*StateHandle* -> output:*StateHandle*
+c:*(StateHandle->bool)* -> rd:*int* -> label:*int* -> state:*StateHandle* -> output:*StateHandle*
 
 **adr** - Stores address *label* in *rd*.
 
@@ -272,23 +272,25 @@ This instruction does not affect the flags.
 
 op{cond}{B} Rd, label
 
-c:*StateHandle->bool* -> rd:*int* -> label:*int* -> state:*StateHandle* -> output:*StateHandle*
+c:*(StateHandle->bool)* -> rd:*int* -> label:*int* -> state:*StateHandle* -> output:*StateHandle*
 
 Loads word or least significant byte from *label* to *rd*.
 
 *Note: FlexOffset is **i** or **rm** shifted or rotated.*
 
-**ldr[W|B]b[I|R] and str[W|B]b[I|R]**
-
-op{cond}{B} Rd, [Rn, FlexOffset]{!} *Note: Rn must not be PC if the !suffix is used. inc corresponds to !.*
+**ldr[W|B]b[I|R], str[W|B]b[I|R], ldr[W|B]a[I|R] and str[W|B]a[I|R]**
 
 **I version**
 
-c:*StateHandle->bool* -> inc:*bool* -> rd:*int* -> rn:*int* -> i:*int* -> state:*StateHandle* -> output:*StateHandle*
+c:*(StateHandle->bool)* -> inc:*bool* -> rd:*int* -> rn:*int* -> i:*int* -> state:*StateHandle* -> output:*StateHandle*
 
 **R version**
 
-c:*StateHandle->bool* -> inc:*bool* -> rd:*int* -> rn:*int* -> rm:*int* -> rsinst:*Token* -> nORrn:*int* -> rstype:*char* -> state:*StateHandle* -> output:*StateHandle*
+c:*(StateHandle->bool)* -> inc:*bool* -> rd:*int* -> rn:*int* -> rm:*int* -> rsinst:*shiftOp* -> nORrn:*int* -> rstype:*opType* -> state:*StateHandle* -> output:*StateHandle*
+
+**ldr[W|B]b[I|R] and str[W|B]b[I|R]**
+
+op{cond}{B} Rd, [Rn, FlexOffset]{!} *Note: Rn must not be PC if the !suffix is used. inc corresponds to !.*
 
 **ldrWb[I|R]** - Loads *rd* from a word at address *rn + FlexOffset*, and increments *rn* by *FlexOffset* if *inc* is true.
 
@@ -302,14 +304,6 @@ c:*StateHandle->bool* -> inc:*bool* -> rd:*int* -> rn:*int* -> rm:*int* -> rsins
 
 op{cond}{B} Rd, [Rn] *Note: FlexOffset set to 0 here.*
 op{cond}{B} Rd, [Rn], FlexOffset
-
-**I version**
-
-c:*StateHandle->bool* -> rd:*int* -> rn:*int* -> i:*int* -> state:*StateHandle* -> output:*StateHandle*
-
-**R version**
-
-c:*StateHandle->bool* -> rd:*int* -> rn:*int* -> rm:*int* -> rsinst:*Token* -> nORrn:*int* -> rstype:*char* -> state:*StateHandle* -> output:*StateHandle*
 
 **ldrWa[I|R]** - Loads *rd* from a word at address *rn*, and increments *rn* by *FlexOffset*.
 
@@ -325,7 +319,7 @@ These instructions do not affect the flags.
 
 #### LDM and STM
 
-c:*StateHandle->bool* -> write:*bool* -> rn:*int* -> reglist:*int list* -> state:*StateHandle* -> output:*StateHandle*
+c:*(StateHandle->bool)* -> write:*bool* -> rn:*int* -> reglist:*int list* -> state:*StateHandle* -> output:*StateHandle*
 
 If *write* is true, the final address is written back into *rn*.
 
@@ -361,7 +355,7 @@ These instructions do not affect the flags.
 
 **dcd**
 
-label:*int* -> valList:*int\*char list* -> state: *StateHandle* -> output:*StateHandle*
+label:*int* -> valList:*(int\*char) list* -> state: *StateHandle* -> output:*StateHandle*
 *Note: valList is a (intORmem, vtype) tuple list*
 
 Allocates one or more words of memory (depending on length of *valList*) starting from address *label*, and defines t
@@ -369,7 +363,7 @@ he initial runtime contents of the memory.
 
 **equ**
 
-name:*int* -> value:*int\*char* -> state: *StateHandle* -> output:*StateHandle*
+name:*int* -> value:*int\*char* -> state:*StateHandle* -> output:*StateHandle*
 *Note: val is a (intORmem, vtype) tuple*
 
 Gives a symbolic name *name* to a numeric constant - *i* where *val=(i,'i')*, a register-relative value - value in register *r* where *val=(r,'r')* or a PC-relative value - value stored in address *m* where *val=(m,'m')*. In VISUAL, only *val=(i,'i')* is implemented. *i* is evaluated from a numeric expression in the assembly code.
@@ -387,7 +381,7 @@ These instructions do not affect the flags.
 
 #### END
 
-c:*StateHandle->bool* -> finalInstAddr:*int* -> state: *StateHandle* -> output:*StateHandle*
+c:*(StateHandle->bool)* -> finalInstAddr:*int* -> state: *StateHandle* -> output:*StateHandle*
 
 If *c state* is true, stop emulation (by writing *finalInstAddr* to *PC*). 
 
