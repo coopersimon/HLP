@@ -15,3 +15,12 @@ module Interpreter =
         | Some(LabelRef(_)) -> Err("Unresolved label (branch/adr) - this should have been resolved in the parser.")
         | Some(EndRef(_)) -> Err("Unresolved termination - this should have been resolved in the parser.")
         | None -> Err(sprintf "Instruction does not exist at address %A." (readPC state))
+
+    /// Runs ONLY the instruction pointed to by the PC in state.
+    let interpretLine state instr =
+        match Map.tryFind (readPC state) instr with
+        | Some(Instr(f)) -> Ok(state)
+        | Some(Terminate) -> Ok(state)
+        | Some(LabelRef(_)) -> Err("Unresolved label (branch/adr) - this should have been resolved in the parser.")
+        | Some(EndRef(_)) -> Err("Unresolved termination - this should have been resolved in the parser.")
+        | None -> Err(sprintf "Instruction does not exist at address %A." (readPC state))
