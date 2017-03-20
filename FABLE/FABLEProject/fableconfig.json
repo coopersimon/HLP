@@ -4,7 +4,7 @@
     "umd": {
       "projFile": "./Main.fsproj",
       "rollup": {
-        "dest": "./dist/umd/main_fable.js",
+        "dest": "./dist/umd/js/main_fable.js",
         "format": "umd"
       }
     },

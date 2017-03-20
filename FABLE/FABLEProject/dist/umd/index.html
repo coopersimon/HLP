@@ -3,18 +3,48 @@
   <head>
     <meta charset="UTF-8">
     <title>Hello World!</title>
+    <script src="js/jquery-3.2.0.min.js"></script>
+    <script>window.jQuery = window.$ = module.exports;</script>
+    <script type="text/javascript" src="js/bootstrap.min.js" defer></script>
+    <script type="text/javascript" src="plugin/codemirror/lib/codemirror.js" defer></script>
+    
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/bootstrap-theme.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" type="text/css" href="plugin/codemirror/lib/codemirror.css">
   </head>
   <body>
-    <h1>Hello World!</h1>
-    <!-- All of the Node.js APIs are available in this renderer process. -->
-    We are using Node.js <script>document.write(process.versions.node)</script>,
-    Chromium <script>document.write(process.versions.chrome)</script>,
-    and Electron <script>document.write(process.versions.electron)</script>.
+    <div class="container outerContainer">
+      <div class="row">
+        <div class="col-sm-8">
+          <textarea id="editor"></textarea>
+        </div>
+        <div class="col-sm-4">
+          <div id="regs">
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm-12">
+            <div class="panel panel-default">
+              <div class="panel-body" id="errorBox">
+              </div>
+            </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-sm-12">
+            <button id="compileAllBtn" type="button" class="btn btn-success"">Compile</button>
+        </div>
+      </div>
+    </div>
+    <script type="text/javascript" src="js/main_fable.js" defer></script>
+    <script type="text/javascript" src="main.js" defer></script>
   </body>
-  <script src="Main_fable.js">
-  </script>
+  
   <script>
     // You can also require other files to run in this process
     require('./renderer.js')
   </script>
+  
 </html>

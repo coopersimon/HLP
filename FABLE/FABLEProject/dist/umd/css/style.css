@@ -1,0 +1,27 @@
+.table th {
+   text-align: center !important;   
+}
+
+.red {
+	color: red;
+}
+
+.black {
+	color: black;
+}
+
+.outerContainer {
+	margin: 30px 30px 30px 30px;
+}
+
+.CodeMirror {
+	float:left;
+	display: inline-block !important;
+    height: auto !important;
+	width: 100% !important;
+}
+
+.line-error {
+	background: #FBC2C4 !important;
+	color: #8a1f11 !important;
+}
