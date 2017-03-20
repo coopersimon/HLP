@@ -13,15 +13,15 @@ module ARMv4 =
         match inst with 
         |T_LSL -> if (n>=0)&&(n<=31) then (readReg r state)<<<n
                                      else failwith "Invalid n."
-        |T_LSR -> if (n>=1)&&(n<=32) then (if n=32 then 0 else int((uint32 (readReg r state))/(uint32 (2.0**(float n))))) 
+        |T_LSR -> if (n>=1)&&(n<=32) then (if n=32 then 0 else int(uint32(readReg r state))>>>n)
                                      else failwith "Invalid n."
-        |T_ASR -> if (n>=1)&&(n<=32) then (readReg r state)/(int (2.0**(float n))) 
+        |T_ASR -> if (n>=1)&&(n<=32) then (if n=32 then (if (readReg r state)>0 then 0 else -1) else (readReg r state)>>>n)
                                      else failwith "Invalid n."
-        |T_ROR -> if (n>=1)&&(n<=31) then (readReg r state)>>>n 
+        |T_ROR -> if (n>=1)&&(n<=31) then int(((uint32(readReg r state))>>>n) + ((uint32(readReg r state))<<<(32-n)))
                                      else failwith "Invalid n."
         |T_RRX -> match (readCFlag state) with
-                    |true -> (readReg r state)/2 + 1<<<31
-                    |false -> (readReg r state)/2
+                    |true -> (readReg r state)>>>1 + 1<<<31
+                    |false -> (readReg r state)>>>1
 
     let shiftR inst r rn state =
         shiftI inst r (readReg rn state) state
