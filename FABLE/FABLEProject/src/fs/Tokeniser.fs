@@ -6,8 +6,19 @@ module Tokeniser =
     open System.Text.RegularExpressions
     open Common.Conditions
     open Common.State
-    //open Common.Error
+    open Common.Types
 
+
+    // Integer validity checks
+    let int12 num =
+        //let checkBottom2 n = (n &&& 3u <> 0u)
+        let rec shift n shamt =
+            match (n &&& (0xFFFFFF00u)) = 0u with
+            | true -> true
+            | false when (shamt < 15) -> shift ((n>>>2)|||(n<<<30)) (shamt+1)
+            | _ -> false
+        shift (uint32 num) 0
+            
     
     (***TOKENS***)
     // To add token:
@@ -15,30 +26,7 @@ module Tokeniser =
         // Add to equals override
         // Add to stringToToken function
 
-    // INTERPRETATION/PARSING TOKENS:
-    // These shouldn't be in this module. They will get moved out soon.
-
-    /// Shift tokens.
-    type shiftOp =
-        | T_ASR
-        | T_LSL
-        | T_LSR
-        | T_ROR
-        | T_RRX
-        | T_NIL // Ideally this shouldn't exist.
-
-    /// Load/Store Multiple tokens.
-    type stackOrder =
-        | S_IA
-        | S_IB
-        | S_DA
-        | S_DB
-
-    /// Operand type tokens.
-    type opType =
-        | T_I
-        | T_R
-
+    
     /// Add tokens here! Format: "T_x"
     [<CustomEquality; NoComparison>]
     type Token =
@@ -93,6 +81,7 @@ module Tokeniser =
         | T_NOP of (StateHandle -> bool)
         | T_CLZ of (StateHandle -> bool)
 
+        // Directives
         | T_DCD
         | T_EQU
         | T_FILL
@@ -108,22 +97,76 @@ module Tokeniser =
         | T_L_BRAC
         | T_R_BRAC
         | T_EXCL
+        | T_EQUAL
+        | T_L_CBR
+        | T_R_CBR
+        | T_DASH
+        | T_NEWLINE
         | T_ERROR of string
 
+        // Equals for testing.
         override x.Equals yobj =
             let state = initState
             match yobj with
             | :? Token as y -> match x,y with
                                | T_REG ix, T_REG iy -> ix = iy
                                | T_INT ix, T_INT iy -> ix = iy
+                               | T_LABEL sx, T_LABEL sy -> sx = sy
+
                                | T_COMMA, T_COMMA -> true
+                               | T_L_BRAC, T_L_BRAC -> true
+                               | T_R_BRAC, T_R_BRAC -> true
+                               | T_EXCL, T_EXCL -> true
+                               | T_L_CBR, T_R_CBR -> true
+                               | T_DASH, T_DASH -> true
+                               | T_NEWLINE, T_NEWLINE -> true
                                | T_ERROR tx, T_ERROR ty -> tx = ty
+
                                | T_MOV (cx,sx), T_MOV (cy,sy) -> cx state = cy state && sx = sy
                                | T_MVN (cx,sx), T_MVN (cy,sy) -> cx state = cy state && sx = sy
                                | T_MRS cx, T_MRS cy -> cx state = cy state
                                | T_MSR cx, T_MSR cy -> cx state = cy state
+                               | T_ADD (cx,sx), T_ADD (cy,sy) -> cx state = cy state && sx = sy
+                               | T_ADC (cx,sx), T_ADC (cy,sy) -> cx state = cy state && sx = sy
+                               | T_SUB (cx,sx), T_SUB (cy,sy) -> cx state = cy state && sx = sy
+                               | T_SBC (cx,sx), T_SBC (cy,sy) -> cx state = cy state && sx = sy
+                               | T_RSB (cx,sx), T_RSB (cy,sy) -> cx state = cy state && sx = sy
+                               | T_RSC (cx,sx), T_RSC (cy,sy) -> cx state = cy state && sx = sy
+                               | T_MUL (cx,sx), T_MUL (cy,sy) -> cx state = cy state && sx = sy
+                               | T_MLA (cx,sx), T_MLA (cy,sy) -> cx state = cy state && sx = sy
+                               | T_AND (cx,sx), T_AND (cy,sy) -> cx state = cy state && sx = sy
+                               | T_ORR (cx,sx), T_ORR (cy,sy) -> cx state = cy state && sx = sy
+                               | T_EOR (cx,sx), T_EOR (cy,sy) -> cx state = cy state && sx = sy
+                               | T_BIC (cx,sx), T_BIC (cy,sy) -> cx state = cy state && sx = sy
+                               | T_CMP cx, T_CMP cy -> cx state = cy state
+                               | T_CMN cx, T_CMN cy -> cx state = cy state
+                               | T_TST cx, T_TST cy -> cx state = cy state
+                               | T_TEQ cx, T_TEQ cy -> cx state = cy state
+                               | T_B cx, T_B cy -> cx state = cy state
+                               | T_BL cx, T_BL cy -> cx state = cy state
+                               | T_BX cx, T_BX cy -> cx state = cy state
+                               | T_LDR cx, T_LDR cy -> cx state = cy state
+                               | T_LDRB cx, T_LDRB cy -> cx state = cy state
+                               | T_LDRH cx, T_LDRH cy -> cx state = cy state
+                               | T_LDM (cx,sx), T_LDM (cy,sy) -> cx state = cy state && sx = sy
+                               | T_STR cx, T_STR cy -> cx state = cy state
+                               | T_STRB cx, T_STRB cy -> cx state = cy state
+                               | T_STRH cx, T_STRH cy -> cx state = cy state
+                               | T_STM (cx,sx), T_STM (cy,sy) -> cx state = cy state && sx = sy
+                               | T_ADR cx, T_ADR cy -> cx state = cy state
+                               | T_SWP cx, T_SWP cy -> cx state = cy state
+                               | T_SWI cx, T_SWI cy -> cx state = cy state
+                               | T_NOP cx, T_NOP cy -> cx state = cy state
+                               | T_CLZ cx, T_CLZ cy -> cx state = cy state
+                               | T_DCD, T_DCD -> true
+                               | T_EQU, T_EQU -> true
+                               | T_FILL, T_FILL -> true
+                               | T_END cx, T_END cy -> cx state = cy state
+                               | T_SHIFT (tx,(cx,sx)), T_SHIFT (ty,(cy,sy)) -> tx = ty && cx state = cy state && sx = sy
                                | _,_ -> false
             | _ -> false
+
+        override x.GetHashCode() = hash 1 // To avoid warnings! I advise not hashing tokens.
 
     (***SUFFIXES***)
 
@@ -206,12 +249,12 @@ module Tokeniser =
 
     // match load multiple instruction with stack suffix.
     let (|LDM_MATCH|_|) str =
-        let m = Regex.Match(str, @"^LDM"+cond+stackSfx+"$", RegexOptions.IgnoreCase)
+        let m = Regex.Match(str, @"^LDM"+stackSfx+cond+"$", RegexOptions.IgnoreCase)
         if m.Success then Some(matchCond m.Groups.[1].Value, matchLDM m.Groups.[2].Value) else None
         
     // match load multiple instruction with stack suffix.
     let (|STM_MATCH|_|) str =
-        let m = Regex.Match(str, @"^STM"+cond+stackSfx+"$", RegexOptions.IgnoreCase)
+        let m = Regex.Match(str, @"^STM"+stackSfx+cond+"$", RegexOptions.IgnoreCase)
         if m.Success then Some(matchCond m.Groups.[1].Value, matchSTM m.Groups.[2].Value) else None
 
     // match a valid register
@@ -260,6 +303,11 @@ module Tokeniser =
         | "[" -> T_L_BRAC
         | "]" -> T_R_BRAC
         | "!" -> T_EXCL
+        | "=" -> T_EQUAL
+        | "{" -> T_L_CBR
+        | "}" -> T_R_CBR
+        | "-" -> T_DASH
+        | "\n" -> T_NEWLINE
         | DEC_LIT_MATCH i -> T_INT i
         | HEX_LIT_MATCH i -> T_INT i
         // instructions
@@ -321,7 +369,7 @@ module Tokeniser =
 
     /// Take in string and output list of tokens.
     let tokenise (source: string) =
-        Regex.Split(source, @"([,\[\]!])|[\ \t\n\r\f]+|;.*")
+        Regex.Split(source, @"([,\[\]!\n])|[\ \t\r\f]+|;.*")
         |> Array.toList
         |> List.filter (fun s -> s <> null)
         |> List.filter (fun s -> s <> "")

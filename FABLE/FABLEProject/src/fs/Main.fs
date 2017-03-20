@@ -95,13 +95,13 @@ let main args =
 
         let registerString = 
             match nState with
-            | Ok(s) -> (getRegisterTable true s) |> Html.toString
-            | Err(msg) -> (getRegisterTable false initState) |> Html.toString
+            | Ok(i,s) -> (getRegisterTable true s) |> Html.toString
+            | Err(i,msg) -> (getRegisterTable false initState) |> Html.toString
 
         let errorString = 
             match nState with
-            | Ok(s) -> sprintf ""
-            | Err(msg) -> sprintf "%s" msg
+            | Ok(i,s) -> sprintf "Compiled %i lines" i
+            | Err(i,msg) -> sprintf "ERROR ON LINE %i\t %s" i msg
         
         printfn "%A" registerString
         regs.innerHTML <- registerString 

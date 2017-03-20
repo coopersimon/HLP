@@ -86,7 +86,14 @@ function getRestParams(args, idx) {
 function toString(o) {
     return o != null && typeof o.ToString == "function" ? o.ToString() : String(o);
 }
-
+function hash(x) {
+    var s = JSON.stringify(x);
+    var h = 5381, i = 0, len = s.length;
+    while (i < len) {
+        h = (h * 33) ^ s.charCodeAt(i++);
+    }
+    return h;
+}
 function equals(x, y) {
     // Optimization if they are referencially equal
     if (x === y)
@@ -2347,6 +2354,19 @@ function writeCFlag(c, _arg1) {
 function writeVFlag(v, _arg1) {
     return new StateHandle("S", [_arg1.Fields[0], _arg1.Fields[1], _arg1.Fields[2], _arg1.Fields[3], v, _arg1.Fields[5]]);
 }
+function readMem(addr, _arg1) {
+    var matchValue = tryFind$1(addr, _arg1.Fields[5]);
+
+    if (matchValue == null) {
+        return 0;
+    } else {
+        return matchValue;
+    }
+}
+function writeMem(addr, v, _arg1) {
+    var newMem = add(addr, v, _arg1.Fields[5]);
+    return new StateHandle("S", [_arg1.Fields[0], _arg1.Fields[1], _arg1.Fields[2], _arg1.Fields[3], _arg1.Fields[4], newMem]);
+}
 
 var _createClass$2 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
@@ -2367,7 +2387,7 @@ var _Error = function () {
                 type: "Common.Error.Error",
                 interfaces: ["FSharpUnion", "System.IEquatable", "System.IComparable"],
                 cases: {
-                    Err: ["string"],
+                    Err: ["number", "string"],
                     Ok: [GenericParam("a")]
                 }
             };
@@ -2390,7 +2410,7 @@ var _Error = function () {
 setType("Common.Error.Error", _Error);
 function wrapErr(f, x) {
     if (x.Case === "Err") {
-        return new _Error("Err", [x.Fields[0]]);
+        return new _Error("Err", [x.Fields[0], x.Fields[1]]);
     } else {
         return f(x.Fields[0]);
     }
@@ -2421,74 +2441,20 @@ function interpret(state, instr) {
     var matchValue = tryFind$1(readPC(state), instr);
 
     if (matchValue == null) {
-        return new _Error("Err", [fsFormat("Instruction does not exist at address %A.")(function (x) {
+        return new _Error("Err", [0, fsFormat("Instruction does not exist at address %A.")(function (x) {
             return x;
         })(readPC(state))]);
     } else if (matchValue.Case === "Terminate") {
-        return new _Error("Ok", [state]);
+        var l = matchValue.Fields[0];
+        return new _Error("Ok", [[l, state]]);
     } else if (matchValue.Case === "LabelRef") {
-        return new _Error("Err", ["Unresolved label (branch/adr) - this should have been resolved in the parser."]);
+        return new _Error("Err", [0, "Unresolved label (branch/adr) - this should have been resolved in the parser."]);
     } else if (matchValue.Case === "EndRef") {
-        return new _Error("Err", ["Unresolved termination - this should have been resolved in the parser."]);
+        return new _Error("Err", [0, "Unresolved termination - this should have been resolved in the parser."]);
     } else {
-        var f = matchValue.Fields[0];
+        var f = matchValue.Fields[1];
+        var _l = matchValue.Fields[0];
         return interpret(incPC(f(state)), instr);
-    }
-}
-
-function checkAL(state) {
-    return true;
-}
-function checkEQ(state) {
-    return readZFlag(state);
-}
-function checkNE(state) {
-    return !readZFlag(state);
-}
-function checkCS(state) {
-    return readCFlag(state);
-}
-function checkCC(state) {
-    return !readCFlag(state);
-}
-function checkMI(state) {
-    return readNFlag(state);
-}
-function checkPL(state) {
-    return !readNFlag(state);
-}
-function checkVS(state) {
-    return readVFlag(state);
-}
-function checkVC(state) {
-    return !readVFlag(state);
-}
-function checkHI(state) {
-    if (readCFlag(state)) {
-        return !readZFlag(state);
-    } else {
-        return false;
-    }
-}
-
-function checkGE(state) {
-    return readNFlag(state) === readVFlag(state);
-}
-function checkLT(state) {
-    return readNFlag(state) !== readVFlag(state);
-}
-function checkGT(state) {
-    if (!readZFlag(state)) {
-        return readNFlag(state) === readVFlag(state);
-    } else {
-        return false;
-    }
-}
-function checkLE(state) {
-    if (readZFlag(state)) {
-        return readNFlag(state) !== readVFlag(state);
-    } else {
-        return false;
     }
 }
 
@@ -2508,13 +2474,12 @@ var shiftOp = function () {
         key: _Symbol.reflection,
         value: function () {
             return {
-                type: "Parse.Tokeniser.shiftOp",
+                type: "Common.Types.shiftOp",
                 interfaces: ["FSharpUnion", "System.IEquatable", "System.IComparable"],
                 cases: {
                     T_ASR: [],
                     T_LSL: [],
                     T_LSR: [],
-                    T_NIL: [],
                     T_ROR: [],
                     T_RRX: []
                 }
@@ -2534,7 +2499,7 @@ var shiftOp = function () {
 
     return shiftOp;
 }();
-setType("Parse.Tokeniser.shiftOp", shiftOp);
+setType("Common.Types.shiftOp", shiftOp);
 var stackOrder = function () {
     function stackOrder(caseName, fields) {
         _classCallCheck$4(this, stackOrder);
@@ -2547,7 +2512,7 @@ var stackOrder = function () {
         key: _Symbol.reflection,
         value: function () {
             return {
-                type: "Parse.Tokeniser.stackOrder",
+                type: "Common.Types.stackOrder",
                 interfaces: ["FSharpUnion", "System.IEquatable", "System.IComparable"],
                 cases: {
                     S_DA: [],
@@ -2571,7 +2536,7 @@ var stackOrder = function () {
 
     return stackOrder;
 }();
-setType("Parse.Tokeniser.stackOrder", stackOrder);
+setType("Common.Types.stackOrder", stackOrder);
 var opType = function () {
     function opType(caseName, fields) {
         _classCallCheck$4(this, opType);
@@ -2584,7 +2549,7 @@ var opType = function () {
         key: _Symbol.reflection,
         value: function () {
             return {
-                type: "Parse.Tokeniser.opType",
+                type: "Common.Types.opType",
                 interfaces: ["FSharpUnion", "System.IEquatable", "System.IComparable"],
                 cases: {
                     T_I: [],
@@ -2606,1044 +2571,7 @@ var opType = function () {
 
     return opType;
 }();
-setType("Parse.Tokeniser.opType", opType);
-var Token = function () {
-    function Token(caseName, fields) {
-        _classCallCheck$4(this, Token);
-
-        this.Case = caseName;
-        this.Fields = fields;
-    }
-
-    _createClass$4(Token, [{
-        key: _Symbol.reflection,
-        value: function () {
-            return {
-                type: "Parse.Tokeniser.Token",
-                interfaces: ["FSharpUnion"],
-                cases: {
-                    T_ADC: ["function", "boolean"],
-                    T_ADD: ["function", "boolean"],
-                    T_ADR: ["function"],
-                    T_AND: ["function", "boolean"],
-                    T_B: ["function"],
-                    T_BIC: ["function", "boolean"],
-                    T_BL: ["function"],
-                    T_BX: ["function"],
-                    T_CLZ: ["function"],
-                    T_CMN: ["function"],
-                    T_CMP: ["function"],
-                    T_COMMA: [],
-                    T_DCD: [],
-                    T_END: ["function"],
-                    T_EOR: ["function", "boolean"],
-                    T_EQU: [],
-                    T_ERROR: ["string"],
-                    T_EXCL: [],
-                    T_FILL: [],
-                    T_INT: ["number"],
-                    T_LABEL: ["string"],
-                    T_LDM: ["function", stackOrder],
-                    T_LDR: ["function"],
-                    T_LDRB: ["function"],
-                    T_LDRH: ["function"],
-                    T_L_BRAC: [],
-                    T_MLA: ["function", "boolean"],
-                    T_MOV: ["function", "boolean"],
-                    T_MRS: ["function"],
-                    T_MSR: ["function"],
-                    T_MUL: ["function", "boolean"],
-                    T_MVN: ["function", "boolean"],
-                    T_NOP: ["function"],
-                    T_ORR: ["function", "boolean"],
-                    T_REG: ["number"],
-                    T_RSB: ["function", "boolean"],
-                    T_RSC: ["function", "boolean"],
-                    T_R_BRAC: [],
-                    T_SBC: ["function", "boolean"],
-                    T_SHIFT: [shiftOp, Tuple(["function", "boolean"])],
-                    T_SMLAL: ["function", "boolean"],
-                    T_SMULL: ["function", "boolean"],
-                    T_STM: ["function", stackOrder],
-                    T_STR: ["function"],
-                    T_STRB: ["function"],
-                    T_STRH: ["function"],
-                    T_SUB: ["function", "boolean"],
-                    T_SWI: ["function"],
-                    T_SWP: ["function"],
-                    T_TEQ: ["function"],
-                    T_TST: ["function"],
-                    T_UMLAL: ["function", "boolean"],
-                    T_UMULL: ["function", "boolean"]
-                }
-            };
-        }
-    }, {
-        key: "Equals",
-        value: function (yobj) {
-            var state = initState;
-
-            if (yobj instanceof Token) {
-                var y = yobj;
-                var matchValue = [this, y];
-
-                var _target8 = function _target8() {
-                    return false;
-                };
-
-                if (matchValue[0].Case === "T_REG") {
-                    if (matchValue[1].Case === "T_REG") {
-                        var ix = matchValue[0].Fields[0];
-                        var iy = matchValue[1].Fields[0];
-                        return ix === iy;
-                    } else {
-                        return _target8();
-                    }
-                } else if (matchValue[0].Case === "T_INT") {
-                    if (matchValue[1].Case === "T_INT") {
-                        var _ix = matchValue[0].Fields[0];
-                        var _iy = matchValue[1].Fields[0];
-                        return _ix === _iy;
-                    } else {
-                        return _target8();
-                    }
-                } else if (matchValue[0].Case === "T_COMMA") {
-                    if (matchValue[1].Case === "T_COMMA") {
-                        return true;
-                    } else {
-                        return _target8();
-                    }
-                } else if (matchValue[0].Case === "T_ERROR") {
-                    if (matchValue[1].Case === "T_ERROR") {
-                        var tx = matchValue[0].Fields[0];
-                        var ty = matchValue[1].Fields[0];
-                        return tx === ty;
-                    } else {
-                        return _target8();
-                    }
-                } else if (matchValue[0].Case === "T_MOV") {
-                    if (matchValue[1].Case === "T_MOV") {
-                        var cx = matchValue[0].Fields[0];
-                        var cy = matchValue[1].Fields[0];
-                        var sx = matchValue[0].Fields[1];
-                        var sy = matchValue[1].Fields[1];
-
-                        if (cx(state) === cy(state)) {
-                            return sx === sy;
-                        } else {
-                            return false;
-                        }
-                    } else {
-                        return _target8();
-                    }
-                } else if (matchValue[0].Case === "T_MVN") {
-                    if (matchValue[1].Case === "T_MVN") {
-                        var _cx = matchValue[0].Fields[0];
-                        var _cy = matchValue[1].Fields[0];
-                        var _sx = matchValue[0].Fields[1];
-                        var _sy = matchValue[1].Fields[1];
-
-                        if (_cx(state) === _cy(state)) {
-                            return _sx === _sy;
-                        } else {
-                            return false;
-                        }
-                    } else {
-                        return _target8();
-                    }
-                } else if (matchValue[0].Case === "T_MRS") {
-                    if (matchValue[1].Case === "T_MRS") {
-                        var _cx2 = matchValue[0].Fields[0];
-                        var _cy2 = matchValue[1].Fields[0];
-                        return _cx2(state) === _cy2(state);
-                    } else {
-                        return _target8();
-                    }
-                } else if (matchValue[0].Case === "T_MSR") {
-                    if (matchValue[1].Case === "T_MSR") {
-                        var _cx3 = matchValue[0].Fields[0];
-                        var _cy3 = matchValue[1].Fields[0];
-                        return _cx3(state) === _cy3(state);
-                    } else {
-                        return _target8();
-                    }
-                } else {
-                    return _target8();
-                }
-            } else {
-                return false;
-            }
-        }
-    }]);
-
-    return Token;
-}();
-setType("Parse.Tokeniser.Token", Token);
-var cond = "(|EQ|NE|CS|HS|CC|LO|MI|PL|VS|VC|HI|LS|GE|LT|GT|LE|AL)";
-var setFlags = "(|S)";
-var stackSfx = "(IA|IB|DA|DB|FD|FA|ED|EA)";
-
-function _TOKEN_MATCH___(pattern, str) {
-    var m = match(str, pattern, 1);
-
-    if (m != null) {
-        return {};
-    }
-}
-
-function matchCond(_arg1) {
-    var activePatternResult297 = _TOKEN_MATCH___("EQ", _arg1);
-
-    if (activePatternResult297 != null) {
-        return function (state) {
-            return checkEQ(state);
-        };
-    } else {
-        var activePatternResult295 = _TOKEN_MATCH___("NE", _arg1);
-
-        if (activePatternResult295 != null) {
-            return function (state) {
-                return checkNE(state);
-            };
-        } else {
-            var activePatternResult293 = _TOKEN_MATCH___("CS", _arg1);
-
-            if (activePatternResult293 != null) {
-                return function (state) {
-                    return checkCS(state);
-                };
-            } else {
-                var activePatternResult291 = _TOKEN_MATCH___("HS", _arg1);
-
-                if (activePatternResult291 != null) {
-                    return function (state) {
-                        return checkCS(state);
-                    };
-                } else {
-                    var activePatternResult289 = _TOKEN_MATCH___("CC", _arg1);
-
-                    if (activePatternResult289 != null) {
-                        return function (state) {
-                            return checkCC(state);
-                        };
-                    } else {
-                        var activePatternResult287 = _TOKEN_MATCH___("LO", _arg1);
-
-                        if (activePatternResult287 != null) {
-                            return function (state) {
-                                return checkCC(state);
-                            };
-                        } else {
-                            var activePatternResult285 = _TOKEN_MATCH___("MI", _arg1);
-
-                            if (activePatternResult285 != null) {
-                                return function (state) {
-                                    return checkMI(state);
-                                };
-                            } else {
-                                var activePatternResult283 = _TOKEN_MATCH___("PL", _arg1);
-
-                                if (activePatternResult283 != null) {
-                                    return function (state) {
-                                        return checkPL(state);
-                                    };
-                                } else {
-                                    var activePatternResult281 = _TOKEN_MATCH___("VS", _arg1);
-
-                                    if (activePatternResult281 != null) {
-                                        return function (state) {
-                                            return checkVS(state);
-                                        };
-                                    } else {
-                                        var activePatternResult279 = _TOKEN_MATCH___("VC", _arg1);
-
-                                        if (activePatternResult279 != null) {
-                                            return function (state) {
-                                                return checkVC(state);
-                                            };
-                                        } else {
-                                            var activePatternResult277 = _TOKEN_MATCH___("HI", _arg1);
-
-                                            if (activePatternResult277 != null) {
-                                                return function (state) {
-                                                    return checkHI(state);
-                                                };
-                                            } else {
-                                                var activePatternResult275 = _TOKEN_MATCH___("GE", _arg1);
-
-                                                if (activePatternResult275 != null) {
-                                                    return function (state) {
-                                                        return checkGE(state);
-                                                    };
-                                                } else {
-                                                    var activePatternResult273 = _TOKEN_MATCH___("LT", _arg1);
-
-                                                    if (activePatternResult273 != null) {
-                                                        return function (state) {
-                                                            return checkLT(state);
-                                                        };
-                                                    } else {
-                                                        var activePatternResult271 = _TOKEN_MATCH___("GT", _arg1);
-
-                                                        if (activePatternResult271 != null) {
-                                                            return function (state) {
-                                                                return checkGT(state);
-                                                            };
-                                                        } else {
-                                                            var activePatternResult269 = _TOKEN_MATCH___("LE", _arg1);
-
-                                                            if (activePatternResult269 != null) {
-                                                                return function (state) {
-                                                                    return checkLE(state);
-                                                                };
-                                                            } else {
-                                                                var activePatternResult267 = _TOKEN_MATCH___("AL", _arg1);
-
-                                                                if (activePatternResult267 != null) {
-                                                                    return function (state) {
-                                                                        return checkAL(state);
-                                                                    };
-                                                                } else {
-                                                                    return function (state) {
-                                                                        return checkAL(state);
-                                                                    };
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-function matchS(_arg1) {
-    var activePatternResult300 = _TOKEN_MATCH___("S", _arg1);
-
-    if (activePatternResult300 != null) {
-        return true;
-    } else {
-        return false;
-    }
-}
-function matchLDM(_arg1) {
-    var activePatternResult317 = _TOKEN_MATCH___("IA", _arg1);
-
-    if (activePatternResult317 != null) {
-        return new stackOrder("S_IA", []);
-    } else {
-        var activePatternResult315 = _TOKEN_MATCH___("IB", _arg1);
-
-        if (activePatternResult315 != null) {
-            return new stackOrder("S_IB", []);
-        } else {
-            var activePatternResult313 = _TOKEN_MATCH___("DA", _arg1);
-
-            if (activePatternResult313 != null) {
-                return new stackOrder("S_DA", []);
-            } else {
-                var activePatternResult311 = _TOKEN_MATCH___("DB", _arg1);
-
-                if (activePatternResult311 != null) {
-                    return new stackOrder("S_DB", []);
-                } else {
-                    var activePatternResult309 = _TOKEN_MATCH___("FD", _arg1);
-
-                    if (activePatternResult309 != null) {
-                        return new stackOrder("S_IA", []);
-                    } else {
-                        var activePatternResult307 = _TOKEN_MATCH___("ED", _arg1);
-
-                        if (activePatternResult307 != null) {
-                            return new stackOrder("S_IB", []);
-                        } else {
-                            var activePatternResult305 = _TOKEN_MATCH___("FA", _arg1);
-
-                            if (activePatternResult305 != null) {
-                                return new stackOrder("S_DA", []);
-                            } else {
-                                var activePatternResult303 = _TOKEN_MATCH___("EA", _arg1);
-
-                                if (activePatternResult303 != null) {
-                                    return new stackOrder("S_DB", []);
-                                } else {
-                                    return new stackOrder("S_IA", []);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-function matchSTM(_arg1) {
-    var activePatternResult334 = _TOKEN_MATCH___("IA", _arg1);
-
-    if (activePatternResult334 != null) {
-        return new stackOrder("S_IA", []);
-    } else {
-        var activePatternResult332 = _TOKEN_MATCH___("IB", _arg1);
-
-        if (activePatternResult332 != null) {
-            return new stackOrder("S_IB", []);
-        } else {
-            var activePatternResult330 = _TOKEN_MATCH___("DA", _arg1);
-
-            if (activePatternResult330 != null) {
-                return new stackOrder("S_DA", []);
-            } else {
-                var activePatternResult328 = _TOKEN_MATCH___("DB", _arg1);
-
-                if (activePatternResult328 != null) {
-                    return new stackOrder("S_DB", []);
-                } else {
-                    var activePatternResult326 = _TOKEN_MATCH___("EA", _arg1);
-
-                    if (activePatternResult326 != null) {
-                        return new stackOrder("S_IA", []);
-                    } else {
-                        var activePatternResult324 = _TOKEN_MATCH___("FA", _arg1);
-
-                        if (activePatternResult324 != null) {
-                            return new stackOrder("S_IB", []);
-                        } else {
-                            var activePatternResult322 = _TOKEN_MATCH___("ED", _arg1);
-
-                            if (activePatternResult322 != null) {
-                                return new stackOrder("S_DA", []);
-                            } else {
-                                var activePatternResult320 = _TOKEN_MATCH___("FD", _arg1);
-
-                                if (activePatternResult320 != null) {
-                                    return new stackOrder("S_DB", []);
-                                } else {
-                                    return new stackOrder("S_IA", []);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-function _INSTR_MATCH___(pattern, str) {
-    var m = match(str, pattern + cond + "$", 1);
-
-    if (m != null) {
-        return matchCond(m[1]);
-    }
-}
-
-function _INSTR_S_MATCH___(pattern, str) {
-    var m = match(str, pattern + cond + setFlags + "$", 1);
-
-    if (m != null) {
-        return [matchCond(m[1]), matchS(m[2])];
-    }
-}
-
-function _LDM_MATCH___(str) {
-    var m = match(str, "^LDM" + cond + stackSfx + "$", 1);
-
-    if (m != null) {
-        return [matchCond(m[1]), matchLDM(m[2])];
-    }
-}
-
-function _STM_MATCH___(str) {
-    var m = match(str, "^STM" + cond + stackSfx + "$", 1);
-
-    if (m != null) {
-        return [matchCond(m[1]), matchSTM(m[2])];
-    }
-}
-
-function _REG_MATCH___(str) {
-    var m = match(str, "^R([0-9]|1[0-5])$", 1);
-
-    if (m != null) {
-        return Number.parseInt(m[1]);
-    }
-}
-
-function _LABEL_MATCH___(str) {
-    var m = match(str, "^([a-zA-Z_][a-zA-Z0-9_]*)$");
-
-    if (m != null) {
-        return m[1];
-    }
-}
-
-function _DEC_LIT_MATCH___(str) {
-    var m = match(str, "^#?([0-9]+)$");
-
-    if (m != null) {
-        return Number.parseInt(m[1]);
-    }
-}
-
-function _HEX_LIT_MATCH___(str) {
-    var m = match(str, "^#?(0x[0-9a-fA-F]+)$");
-
-    if (m != null) {
-        return Number.parseInt(m[1], 16);
-    }
-}
-
-function stringToToken(_arg1) {
-    var activePatternResult503 = _REG_MATCH___(_arg1);
-
-    if (activePatternResult503 != null) {
-        var i = activePatternResult503;
-        return new Token("T_REG", [i]);
-    } else {
-        var activePatternResult502 = _TOKEN_MATCH___("^a1$", _arg1);
-
-        if (activePatternResult502 != null) {
-            return new Token("T_REG", [0]);
-        } else {
-            var activePatternResult500 = _TOKEN_MATCH___("^a2$", _arg1);
-
-            if (activePatternResult500 != null) {
-                return new Token("T_REG", [1]);
-            } else {
-                var activePatternResult498 = _TOKEN_MATCH___("^a3$", _arg1);
-
-                if (activePatternResult498 != null) {
-                    return new Token("T_REG", [2]);
-                } else {
-                    var activePatternResult496 = _TOKEN_MATCH___("^a4$", _arg1);
-
-                    if (activePatternResult496 != null) {
-                        return new Token("T_REG", [3]);
-                    } else {
-                        var activePatternResult494 = _TOKEN_MATCH___("^v1$", _arg1);
-
-                        if (activePatternResult494 != null) {
-                            return new Token("T_REG", [4]);
-                        } else {
-                            var activePatternResult492 = _TOKEN_MATCH___("^v2$", _arg1);
-
-                            if (activePatternResult492 != null) {
-                                return new Token("T_REG", [5]);
-                            } else {
-                                var activePatternResult490 = _TOKEN_MATCH___("^v3$", _arg1);
-
-                                if (activePatternResult490 != null) {
-                                    return new Token("T_REG", [6]);
-                                } else {
-                                    var activePatternResult488 = _TOKEN_MATCH___("^v4$", _arg1);
-
-                                    if (activePatternResult488 != null) {
-                                        return new Token("T_REG", [7]);
-                                    } else {
-                                        var activePatternResult486 = _TOKEN_MATCH___("^v5$", _arg1);
-
-                                        if (activePatternResult486 != null) {
-                                            return new Token("T_REG", [8]);
-                                        } else {
-                                            var activePatternResult484 = _TOKEN_MATCH___("^v6$", _arg1);
-
-                                            if (activePatternResult484 != null) {
-                                                return new Token("T_REG", [9]);
-                                            } else {
-                                                var activePatternResult482 = _TOKEN_MATCH___("^v7$", _arg1);
-
-                                                if (activePatternResult482 != null) {
-                                                    return new Token("T_REG", [10]);
-                                                } else {
-                                                    var activePatternResult480 = _TOKEN_MATCH___("^v8$", _arg1);
-
-                                                    if (activePatternResult480 != null) {
-                                                        return new Token("T_REG", [11]);
-                                                    } else {
-                                                        var activePatternResult478 = _TOKEN_MATCH___("^sb$", _arg1);
-
-                                                        if (activePatternResult478 != null) {
-                                                            return new Token("T_REG", [9]);
-                                                        } else {
-                                                            var activePatternResult476 = _TOKEN_MATCH___("^sl$", _arg1);
-
-                                                            if (activePatternResult476 != null) {
-                                                                return new Token("T_REG", [10]);
-                                                            } else {
-                                                                var activePatternResult474 = _TOKEN_MATCH___("^fp$", _arg1);
-
-                                                                if (activePatternResult474 != null) {
-                                                                    return new Token("T_REG", [11]);
-                                                                } else {
-                                                                    var activePatternResult472 = _TOKEN_MATCH___("^ip$", _arg1);
-
-                                                                    if (activePatternResult472 != null) {
-                                                                        return new Token("T_REG", [12]);
-                                                                    } else {
-                                                                        var activePatternResult470 = _TOKEN_MATCH___("^sp$", _arg1);
-
-                                                                        if (activePatternResult470 != null) {
-                                                                            return new Token("T_REG", [13]);
-                                                                        } else {
-                                                                            var activePatternResult468 = _TOKEN_MATCH___("^lr$", _arg1);
-
-                                                                            if (activePatternResult468 != null) {
-                                                                                return new Token("T_REG", [14]);
-                                                                            } else {
-                                                                                var activePatternResult466 = _TOKEN_MATCH___("^pc$", _arg1);
-
-                                                                                if (activePatternResult466 != null) {
-                                                                                    return new Token("T_REG", [15]);
-                                                                                } else if (_arg1 === ",") {
-                                                                                    return new Token("T_COMMA", []);
-                                                                                } else if (_arg1 === "[") {
-                                                                                    return new Token("T_L_BRAC", []);
-                                                                                } else if (_arg1 === "]") {
-                                                                                    return new Token("T_R_BRAC", []);
-                                                                                } else if (_arg1 === "!") {
-                                                                                    return new Token("T_EXCL", []);
-                                                                                } else {
-                                                                                    var activePatternResult464 = _DEC_LIT_MATCH___(_arg1);
-
-                                                                                    if (activePatternResult464 != null) {
-                                                                                        var _i = activePatternResult464;
-                                                                                        return new Token("T_INT", [_i]);
-                                                                                    } else {
-                                                                                        var activePatternResult463 = _HEX_LIT_MATCH___(_arg1);
-
-                                                                                        if (activePatternResult463 != null) {
-                                                                                            var _i2 = activePatternResult463;
-                                                                                            return new Token("T_INT", [_i2]);
-                                                                                        } else {
-                                                                                            var activePatternResult462 = _INSTR_S_MATCH___("^MOV", _arg1);
-
-                                                                                            if (activePatternResult462 != null) {
-                                                                                                var cs = activePatternResult462;
-                                                                                                return function (tupledArg) {
-                                                                                                    return new Token("T_MOV", [tupledArg[0], tupledArg[1]]);
-                                                                                                }(cs);
-                                                                                            } else {
-                                                                                                var activePatternResult460 = _INSTR_S_MATCH___("^MVN", _arg1);
-
-                                                                                                if (activePatternResult460 != null) {
-                                                                                                    var _cs = activePatternResult460;
-                                                                                                    return function (tupledArg) {
-                                                                                                        return new Token("T_MVN", [tupledArg[0], tupledArg[1]]);
-                                                                                                    }(_cs);
-                                                                                                } else {
-                                                                                                    var activePatternResult458 = _INSTR_MATCH___("^MRS", _arg1);
-
-                                                                                                    if (activePatternResult458 != null) {
-                                                                                                        var c = activePatternResult458;
-                                                                                                        return new Token("T_MRS", [c]);
-                                                                                                    } else {
-                                                                                                        var activePatternResult456 = _INSTR_MATCH___("^MSR", _arg1);
-
-                                                                                                        if (activePatternResult456 != null) {
-                                                                                                            var _c = activePatternResult456;
-                                                                                                            return new Token("T_MSR", [_c]);
-                                                                                                        } else {
-                                                                                                            var activePatternResult454 = _INSTR_S_MATCH___("^ADD", _arg1);
-
-                                                                                                            if (activePatternResult454 != null) {
-                                                                                                                var _cs2 = activePatternResult454;
-                                                                                                                return function (tupledArg) {
-                                                                                                                    return new Token("T_ADD", [tupledArg[0], tupledArg[1]]);
-                                                                                                                }(_cs2);
-                                                                                                            } else {
-                                                                                                                var activePatternResult452 = _INSTR_S_MATCH___("^ADC", _arg1);
-
-                                                                                                                if (activePatternResult452 != null) {
-                                                                                                                    var _cs3 = activePatternResult452;
-                                                                                                                    return function (tupledArg) {
-                                                                                                                        return new Token("T_ADC", [tupledArg[0], tupledArg[1]]);
-                                                                                                                    }(_cs3);
-                                                                                                                } else {
-                                                                                                                    var activePatternResult450 = _INSTR_S_MATCH___("^SUB", _arg1);
-
-                                                                                                                    if (activePatternResult450 != null) {
-                                                                                                                        var _cs4 = activePatternResult450;
-                                                                                                                        return function (tupledArg) {
-                                                                                                                            return new Token("T_SUB", [tupledArg[0], tupledArg[1]]);
-                                                                                                                        }(_cs4);
-                                                                                                                    } else {
-                                                                                                                        var activePatternResult448 = _INSTR_S_MATCH___("^SBC", _arg1);
-
-                                                                                                                        if (activePatternResult448 != null) {
-                                                                                                                            var _cs5 = activePatternResult448;
-                                                                                                                            return function (tupledArg) {
-                                                                                                                                return new Token("T_SBC", [tupledArg[0], tupledArg[1]]);
-                                                                                                                            }(_cs5);
-                                                                                                                        } else {
-                                                                                                                            var activePatternResult446 = _INSTR_S_MATCH___("^RSB", _arg1);
-
-                                                                                                                            if (activePatternResult446 != null) {
-                                                                                                                                var _cs6 = activePatternResult446;
-                                                                                                                                return function (tupledArg) {
-                                                                                                                                    return new Token("T_RSB", [tupledArg[0], tupledArg[1]]);
-                                                                                                                                }(_cs6);
-                                                                                                                            } else {
-                                                                                                                                var activePatternResult444 = _INSTR_S_MATCH___("^RSC", _arg1);
-
-                                                                                                                                if (activePatternResult444 != null) {
-                                                                                                                                    var _cs7 = activePatternResult444;
-                                                                                                                                    return function (tupledArg) {
-                                                                                                                                        return new Token("T_RSC", [tupledArg[0], tupledArg[1]]);
-                                                                                                                                    }(_cs7);
-                                                                                                                                } else {
-                                                                                                                                    var activePatternResult442 = _INSTR_S_MATCH___("^MUL", _arg1);
-
-                                                                                                                                    if (activePatternResult442 != null) {
-                                                                                                                                        var _cs8 = activePatternResult442;
-                                                                                                                                        return function (tupledArg) {
-                                                                                                                                            return new Token("T_MUL", [tupledArg[0], tupledArg[1]]);
-                                                                                                                                        }(_cs8);
-                                                                                                                                    } else {
-                                                                                                                                        var activePatternResult440 = _INSTR_S_MATCH___("^MLA", _arg1);
-
-                                                                                                                                        if (activePatternResult440 != null) {
-                                                                                                                                            var _cs9 = activePatternResult440;
-                                                                                                                                            return function (tupledArg) {
-                                                                                                                                                return new Token("T_MLA", [tupledArg[0], tupledArg[1]]);
-                                                                                                                                            }(_cs9);
-                                                                                                                                        } else {
-                                                                                                                                            var activePatternResult438 = _INSTR_S_MATCH___("^UMULL", _arg1);
-
-                                                                                                                                            if (activePatternResult438 != null) {
-                                                                                                                                                var _cs10 = activePatternResult438;
-                                                                                                                                                return function (tupledArg) {
-                                                                                                                                                    return new Token("T_UMULL", [tupledArg[0], tupledArg[1]]);
-                                                                                                                                                }(_cs10);
-                                                                                                                                            } else {
-                                                                                                                                                var activePatternResult436 = _INSTR_S_MATCH___("^UMLAL", _arg1);
-
-                                                                                                                                                if (activePatternResult436 != null) {
-                                                                                                                                                    var _cs11 = activePatternResult436;
-                                                                                                                                                    return function (tupledArg) {
-                                                                                                                                                        return new Token("T_UMLAL", [tupledArg[0], tupledArg[1]]);
-                                                                                                                                                    }(_cs11);
-                                                                                                                                                } else {
-                                                                                                                                                    var activePatternResult434 = _INSTR_S_MATCH___("^SMULL", _arg1);
-
-                                                                                                                                                    if (activePatternResult434 != null) {
-                                                                                                                                                        var _cs12 = activePatternResult434;
-                                                                                                                                                        return function (tupledArg) {
-                                                                                                                                                            return new Token("T_SMULL", [tupledArg[0], tupledArg[1]]);
-                                                                                                                                                        }(_cs12);
-                                                                                                                                                    } else {
-                                                                                                                                                        var activePatternResult432 = _INSTR_S_MATCH___("^SMLAL", _arg1);
-
-                                                                                                                                                        if (activePatternResult432 != null) {
-                                                                                                                                                            var _cs13 = activePatternResult432;
-                                                                                                                                                            return function (tupledArg) {
-                                                                                                                                                                return new Token("T_SMLAL", [tupledArg[0], tupledArg[1]]);
-                                                                                                                                                            }(_cs13);
-                                                                                                                                                        } else {
-                                                                                                                                                            var activePatternResult430 = _INSTR_S_MATCH___("^AND", _arg1);
-
-                                                                                                                                                            if (activePatternResult430 != null) {
-                                                                                                                                                                var _cs14 = activePatternResult430;
-                                                                                                                                                                return function (tupledArg) {
-                                                                                                                                                                    return new Token("T_AND", [tupledArg[0], tupledArg[1]]);
-                                                                                                                                                                }(_cs14);
-                                                                                                                                                            } else {
-                                                                                                                                                                var activePatternResult428 = _INSTR_S_MATCH___("^ORR", _arg1);
-
-                                                                                                                                                                if (activePatternResult428 != null) {
-                                                                                                                                                                    var _cs15 = activePatternResult428;
-                                                                                                                                                                    return function (tupledArg) {
-                                                                                                                                                                        return new Token("T_ORR", [tupledArg[0], tupledArg[1]]);
-                                                                                                                                                                    }(_cs15);
-                                                                                                                                                                } else {
-                                                                                                                                                                    var activePatternResult426 = _INSTR_S_MATCH___("^EOR", _arg1);
-
-                                                                                                                                                                    if (activePatternResult426 != null) {
-                                                                                                                                                                        var _cs16 = activePatternResult426;
-                                                                                                                                                                        return function (tupledArg) {
-                                                                                                                                                                            return new Token("T_EOR", [tupledArg[0], tupledArg[1]]);
-                                                                                                                                                                        }(_cs16);
-                                                                                                                                                                    } else {
-                                                                                                                                                                        var activePatternResult424 = _INSTR_S_MATCH___("^BIC", _arg1);
-
-                                                                                                                                                                        if (activePatternResult424 != null) {
-                                                                                                                                                                            var _cs17 = activePatternResult424;
-                                                                                                                                                                            return function (tupledArg) {
-                                                                                                                                                                                return new Token("T_BIC", [tupledArg[0], tupledArg[1]]);
-                                                                                                                                                                            }(_cs17);
-                                                                                                                                                                        } else {
-                                                                                                                                                                            var activePatternResult422 = _INSTR_MATCH___("^CMP", _arg1);
-
-                                                                                                                                                                            if (activePatternResult422 != null) {
-                                                                                                                                                                                var _c2 = activePatternResult422;
-                                                                                                                                                                                return new Token("T_CMP", [_c2]);
-                                                                                                                                                                            } else {
-                                                                                                                                                                                var activePatternResult420 = _INSTR_MATCH___("^CMN", _arg1);
-
-                                                                                                                                                                                if (activePatternResult420 != null) {
-                                                                                                                                                                                    var _c3 = activePatternResult420;
-                                                                                                                                                                                    return new Token("T_CMN", [_c3]);
-                                                                                                                                                                                } else {
-                                                                                                                                                                                    var activePatternResult418 = _INSTR_MATCH___("^TST", _arg1);
-
-                                                                                                                                                                                    if (activePatternResult418 != null) {
-                                                                                                                                                                                        var _c4 = activePatternResult418;
-                                                                                                                                                                                        return new Token("T_TST", [_c4]);
-                                                                                                                                                                                    } else {
-                                                                                                                                                                                        var activePatternResult416 = _INSTR_MATCH___("^TEQ", _arg1);
-
-                                                                                                                                                                                        if (activePatternResult416 != null) {
-                                                                                                                                                                                            var _c5 = activePatternResult416;
-                                                                                                                                                                                            return new Token("T_TEQ", [_c5]);
-                                                                                                                                                                                        } else {
-                                                                                                                                                                                            var activePatternResult414 = _INSTR_MATCH___("^B", _arg1);
-
-                                                                                                                                                                                            if (activePatternResult414 != null) {
-                                                                                                                                                                                                var _c6 = activePatternResult414;
-                                                                                                                                                                                                return new Token("T_B", [_c6]);
-                                                                                                                                                                                            } else {
-                                                                                                                                                                                                var activePatternResult412 = _INSTR_MATCH___("^BL", _arg1);
-
-                                                                                                                                                                                                if (activePatternResult412 != null) {
-                                                                                                                                                                                                    var _c7 = activePatternResult412;
-                                                                                                                                                                                                    return new Token("T_BL", [_c7]);
-                                                                                                                                                                                                } else {
-                                                                                                                                                                                                    var activePatternResult410 = _INSTR_MATCH___("^BX", _arg1);
-
-                                                                                                                                                                                                    if (activePatternResult410 != null) {
-                                                                                                                                                                                                        var _c8 = activePatternResult410;
-                                                                                                                                                                                                        return new Token("T_BX", [_c8]);
-                                                                                                                                                                                                    } else {
-                                                                                                                                                                                                        var activePatternResult408 = _INSTR_MATCH___("^LDR", _arg1);
-
-                                                                                                                                                                                                        if (activePatternResult408 != null) {
-                                                                                                                                                                                                            var _c9 = activePatternResult408;
-                                                                                                                                                                                                            return new Token("T_LDR", [_c9]);
-                                                                                                                                                                                                        } else {
-                                                                                                                                                                                                            var activePatternResult406 = _INSTR_MATCH___("^LDRB", _arg1);
-
-                                                                                                                                                                                                            if (activePatternResult406 != null) {
-                                                                                                                                                                                                                var _c10 = activePatternResult406;
-                                                                                                                                                                                                                return new Token("T_LDRB", [_c10]);
-                                                                                                                                                                                                            } else {
-                                                                                                                                                                                                                var activePatternResult404 = _INSTR_MATCH___("^LDRH", _arg1);
-
-                                                                                                                                                                                                                if (activePatternResult404 != null) {
-                                                                                                                                                                                                                    var _c11 = activePatternResult404;
-                                                                                                                                                                                                                    return new Token("T_LDRH", [_c11]);
-                                                                                                                                                                                                                } else {
-                                                                                                                                                                                                                    var activePatternResult402 = _LDM_MATCH___(_arg1);
-
-                                                                                                                                                                                                                    if (activePatternResult402 != null) {
-                                                                                                                                                                                                                        var _cs18 = activePatternResult402;
-                                                                                                                                                                                                                        return function (tupledArg) {
-                                                                                                                                                                                                                            return new Token("T_LDM", [tupledArg[0], tupledArg[1]]);
-                                                                                                                                                                                                                        }(_cs18);
-                                                                                                                                                                                                                    } else {
-                                                                                                                                                                                                                        var activePatternResult401 = _INSTR_MATCH___("^STR", _arg1);
-
-                                                                                                                                                                                                                        if (activePatternResult401 != null) {
-                                                                                                                                                                                                                            var _c12 = activePatternResult401;
-                                                                                                                                                                                                                            return new Token("T_STR", [_c12]);
-                                                                                                                                                                                                                        } else {
-                                                                                                                                                                                                                            var activePatternResult399 = _INSTR_MATCH___("^STRB", _arg1);
-
-                                                                                                                                                                                                                            if (activePatternResult399 != null) {
-                                                                                                                                                                                                                                var _c13 = activePatternResult399;
-                                                                                                                                                                                                                                return new Token("T_STRB", [_c13]);
-                                                                                                                                                                                                                            } else {
-                                                                                                                                                                                                                                var activePatternResult397 = _INSTR_MATCH___("^STRH", _arg1);
-
-                                                                                                                                                                                                                                if (activePatternResult397 != null) {
-                                                                                                                                                                                                                                    var _c14 = activePatternResult397;
-                                                                                                                                                                                                                                    return new Token("T_STRH", [_c14]);
-                                                                                                                                                                                                                                } else {
-                                                                                                                                                                                                                                    var activePatternResult395 = _STM_MATCH___(_arg1);
-
-                                                                                                                                                                                                                                    if (activePatternResult395 != null) {
-                                                                                                                                                                                                                                        var _cs19 = activePatternResult395;
-                                                                                                                                                                                                                                        return function (tupledArg) {
-                                                                                                                                                                                                                                            return new Token("T_STM", [tupledArg[0], tupledArg[1]]);
-                                                                                                                                                                                                                                        }(_cs19);
-                                                                                                                                                                                                                                    } else {
-                                                                                                                                                                                                                                        var activePatternResult394 = _INSTR_MATCH___("^SWP", _arg1);
-
-                                                                                                                                                                                                                                        if (activePatternResult394 != null) {
-                                                                                                                                                                                                                                            var _c15 = activePatternResult394;
-                                                                                                                                                                                                                                            return new Token("T_SWP", [_c15]);
-                                                                                                                                                                                                                                        } else {
-                                                                                                                                                                                                                                            var activePatternResult392 = _INSTR_MATCH___("^SWI", _arg1);
-
-                                                                                                                                                                                                                                            if (activePatternResult392 != null) {
-                                                                                                                                                                                                                                                var _c16 = activePatternResult392;
-                                                                                                                                                                                                                                                return new Token("T_SWI", [_c16]);
-                                                                                                                                                                                                                                            } else {
-                                                                                                                                                                                                                                                var activePatternResult390 = _INSTR_MATCH___("^NOP", _arg1);
-
-                                                                                                                                                                                                                                                if (activePatternResult390 != null) {
-                                                                                                                                                                                                                                                    var _c17 = activePatternResult390;
-                                                                                                                                                                                                                                                    return new Token("T_NOP", [_c17]);
-                                                                                                                                                                                                                                                } else {
-                                                                                                                                                                                                                                                    var activePatternResult388 = _INSTR_MATCH___("^ADR", _arg1);
-
-                                                                                                                                                                                                                                                    if (activePatternResult388 != null) {
-                                                                                                                                                                                                                                                        var _c18 = activePatternResult388;
-                                                                                                                                                                                                                                                        return new Token("T_ADR", [_c18]);
-                                                                                                                                                                                                                                                    } else {
-                                                                                                                                                                                                                                                        var activePatternResult386 = _INSTR_MATCH___("^END", _arg1);
-
-                                                                                                                                                                                                                                                        if (activePatternResult386 != null) {
-                                                                                                                                                                                                                                                            var _c19 = activePatternResult386;
-                                                                                                                                                                                                                                                            return new Token("T_END", [_c19]);
-                                                                                                                                                                                                                                                        } else {
-                                                                                                                                                                                                                                                            var activePatternResult384 = _INSTR_MATCH___("^CLZ", _arg1);
-
-                                                                                                                                                                                                                                                            if (activePatternResult384 != null) {
-                                                                                                                                                                                                                                                                var _c20 = activePatternResult384;
-                                                                                                                                                                                                                                                                return new Token("T_CLZ", [_c20]);
-                                                                                                                                                                                                                                                            } else {
-                                                                                                                                                                                                                                                                var activePatternResult382 = _TOKEN_MATCH___("^DCD$", _arg1);
-
-                                                                                                                                                                                                                                                                if (activePatternResult382 != null) {
-                                                                                                                                                                                                                                                                    return new Token("T_DCD", []);
-                                                                                                                                                                                                                                                                } else {
-                                                                                                                                                                                                                                                                    var activePatternResult380 = _TOKEN_MATCH___("^EQU$", _arg1);
-
-                                                                                                                                                                                                                                                                    if (activePatternResult380 != null) {
-                                                                                                                                                                                                                                                                        return new Token("T_EQU", []);
-                                                                                                                                                                                                                                                                    } else {
-                                                                                                                                                                                                                                                                        var activePatternResult378 = _TOKEN_MATCH___("^FILL$", _arg1);
-
-                                                                                                                                                                                                                                                                        if (activePatternResult378 != null) {
-                                                                                                                                                                                                                                                                            return new Token("T_FILL", []);
-                                                                                                                                                                                                                                                                        } else {
-                                                                                                                                                                                                                                                                            var activePatternResult376 = _INSTR_S_MATCH___("^ASR", _arg1);
-
-                                                                                                                                                                                                                                                                            if (activePatternResult376 != null) {
-                                                                                                                                                                                                                                                                                var _cs20 = activePatternResult376;
-                                                                                                                                                                                                                                                                                return new Token("T_SHIFT", [new shiftOp("T_ASR", []), _cs20]);
-                                                                                                                                                                                                                                                                            } else {
-                                                                                                                                                                                                                                                                                var activePatternResult374 = _INSTR_S_MATCH___("^LSL", _arg1);
-
-                                                                                                                                                                                                                                                                                if (activePatternResult374 != null) {
-                                                                                                                                                                                                                                                                                    var _cs21 = activePatternResult374;
-                                                                                                                                                                                                                                                                                    return new Token("T_SHIFT", [new shiftOp("T_LSL", []), _cs21]);
-                                                                                                                                                                                                                                                                                } else {
-                                                                                                                                                                                                                                                                                    var activePatternResult372 = _INSTR_S_MATCH___("^LSR", _arg1);
-
-                                                                                                                                                                                                                                                                                    if (activePatternResult372 != null) {
-                                                                                                                                                                                                                                                                                        var _cs22 = activePatternResult372;
-                                                                                                                                                                                                                                                                                        return new Token("T_SHIFT", [new shiftOp("T_LSR", []), _cs22]);
-                                                                                                                                                                                                                                                                                    } else {
-                                                                                                                                                                                                                                                                                        var activePatternResult370 = _INSTR_S_MATCH___("^ROR", _arg1);
-
-                                                                                                                                                                                                                                                                                        if (activePatternResult370 != null) {
-                                                                                                                                                                                                                                                                                            var _cs23 = activePatternResult370;
-                                                                                                                                                                                                                                                                                            return new Token("T_SHIFT", [new shiftOp("T_ROR", []), _cs23]);
-                                                                                                                                                                                                                                                                                        } else {
-                                                                                                                                                                                                                                                                                            var activePatternResult368 = _INSTR_S_MATCH___("^RRX", _arg1);
-
-                                                                                                                                                                                                                                                                                            if (activePatternResult368 != null) {
-                                                                                                                                                                                                                                                                                                var _cs24 = activePatternResult368;
-                                                                                                                                                                                                                                                                                                return new Token("T_SHIFT", [new shiftOp("T_RRX", []), _cs24]);
-                                                                                                                                                                                                                                                                                            } else {
-                                                                                                                                                                                                                                                                                                var activePatternResult366 = _LABEL_MATCH___(_arg1);
-
-                                                                                                                                                                                                                                                                                                if (activePatternResult366 != null) {
-                                                                                                                                                                                                                                                                                                    var s = activePatternResult366;
-                                                                                                                                                                                                                                                                                                    return new Token("T_LABEL", [s]);
-                                                                                                                                                                                                                                                                                                } else {
-                                                                                                                                                                                                                                                                                                    return new Token("T_ERROR", [_arg1]);
-                                                                                                                                                                                                                                                                                                }
-                                                                                                                                                                                                                                                                                            }
-                                                                                                                                                                                                                                                                                        }
-                                                                                                                                                                                                                                                                                    }
-                                                                                                                                                                                                                                                                                }
-                                                                                                                                                                                                                                                                            }
-                                                                                                                                                                                                                                                                        }
-                                                                                                                                                                                                                                                                    }
-                                                                                                                                                                                                                                                                }
-                                                                                                                                                                                                                                                            }
-                                                                                                                                                                                                                                                        }
-                                                                                                                                                                                                                                                    }
-                                                                                                                                                                                                                                                }
-                                                                                                                                                                                                                                            }
-                                                                                                                                                                                                                                        }
-                                                                                                                                                                                                                                    }
-                                                                                                                                                                                                                                }
-                                                                                                                                                                                                                            }
-                                                                                                                                                                                                                        }
-                                                                                                                                                                                                                    }
-                                                                                                                                                                                                                }
-                                                                                                                                                                                                            }
-                                                                                                                                                                                                        }
-                                                                                                                                                                                                    }
-                                                                                                                                                                                                }
-                                                                                                                                                                                            }
-                                                                                                                                                                                        }
-                                                                                                                                                                                    }
-                                                                                                                                                                                }
-                                                                                                                                                                            }
-                                                                                                                                                                        }
-                                                                                                                                                                    }
-                                                                                                                                                                }
-                                                                                                                                                            }
-                                                                                                                                                        }
-                                                                                                                                                    }
-                                                                                                                                                }
-                                                                                                                                            }
-                                                                                                                                        }
-                                                                                                                                    }
-                                                                                                                                }
-                                                                                                                            }
-                                                                                                                        }
-                                                                                                                    }
-                                                                                                                }
-                                                                                                            }
-                                                                                                        }
-                                                                                                    }
-                                                                                                }
-                                                                                            }
-                                                                                        }
-                                                                                    }
-                                                                                }
-                                                                            }
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-function tokenise(source) {
-    return function (list) {
-        return map$1(function (_arg1) {
-            return stringToToken(_arg1);
-        }, list);
-    }(filter$$1(function (s) {
-        return s !== "";
-    }, filter$$1(function (s) {
-        return s != null;
-    }, toList(split$1(source, "([,\\[\\]!])|[\\ \\t\\n\\r\\f]+|;.*")))));
-}
+setType("Common.Types.opType", opType);
 
 function shiftI(inst, r, n, state) {
     if (inst.Case === "T_LSR") {
@@ -3676,8 +2604,6 @@ function shiftI(inst, r, n, state) {
         } else {
             return ~~(readReg(r, state) / 2);
         }
-    } else if (inst.Case === "T_NIL") {
-        return readReg(r, state);
     } else if (n >= 0 ? n <= 31 : false) {
         return readReg(r, state) << n;
     } else {
@@ -3712,8 +2638,6 @@ function shiftSetCI(s, inst, r, n, state) {
         } else {
             return state;
         }
-    } else if (inst.Case === "T_NIL") {
-        return state;
     } else if (s) {
         return writeCFlag((readReg(r, state) >> 32 - n) % 2 !== 0, state);
     } else {
@@ -3755,19 +2679,17 @@ function movI(c, s, rd, i, state) {
     }
 }
 function movR(c, s, rd, rm, rsinst, nORrn, rstype, state) {
-    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+    var op2 = rstype.Case === "T_R" ? shiftR(rsinst, rm, nORrn, state) : shiftI(rsinst, rm, nORrn, state);
 
     if (c(state)) {
-        if (rstype === "i") {
-            return function (state_1) {
-                return movI(c, s, rd, op2, state_1);
-            }(shiftSetCI(s, rsinst, rm, nORrn, state));
-        } else if (rstype === "r") {
+        if (rstype.Case === "T_R") {
             return function (state_1) {
                 return movI(c, s, rd, op2, state_1);
             }(shiftSetCR(s, rsinst, rm, nORrn, state));
         } else {
-            return movI(c, s, rd, op2, state);
+            return function (state_1) {
+                return movI(c, s, rd, op2, state_1);
+            }(shiftSetCI(s, rsinst, rm, nORrn, state));
         }
     } else {
         return state;
@@ -3777,19 +2699,17 @@ function mvnI(c, s, rd, i, state) {
     return movI(c, s, rd, ~i, state);
 }
 function mvnR(c, s, rd, rm, rsinst, nORrn, rstype, state) {
-    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+    var op2 = rstype.Case === "T_R" ? shiftR(rsinst, rm, nORrn, state) : shiftI(rsinst, rm, nORrn, state);
 
     if (c(state)) {
-        if (rstype === "i") {
-            return function (state_1) {
-                return mvnI(c, s, rd, op2, state_1);
-            }(shiftSetCI(s, rsinst, rm, nORrn, state));
-        } else if (rstype === "r") {
+        if (rstype.Case === "T_R") {
             return function (state_1) {
                 return mvnI(c, s, rd, op2, state_1);
             }(shiftSetCR(s, rsinst, rm, nORrn, state));
         } else {
-            return mvnI(c, s, rd, op2, state);
+            return function (state_1) {
+                return mvnI(c, s, rd, op2, state_1);
+            }(shiftSetCI(s, rsinst, rm, nORrn, state));
         }
     } else {
         return state;
@@ -3819,7 +2739,7 @@ function addI(c, s, rd, rn, i, state) {
     }
 }
 function addR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state) {
-    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+    var op2 = rstype.Case === "T_R" ? shiftR(rsinst, rm, nORrn, state) : shiftI(rsinst, rm, nORrn, state);
     return addI(c, s, rd, rn, op2, state);
 }
 function adcI(c, s, rd, rn, i, state) {
@@ -3857,7 +2777,7 @@ function adcI(c, s, rd, rn, i, state) {
     }
 }
 function adcR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state) {
-    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+    var op2 = rstype.Case === "T_R" ? shiftR(rsinst, rm, nORrn, state) : shiftI(rsinst, rm, nORrn, state);
     return adcI(c, s, rd, rn, op2, state);
 }
 function subI(c, s, rd, rn, i, state) {
@@ -3879,7 +2799,7 @@ function subI(c, s, rd, rn, i, state) {
     }
 }
 function subR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state) {
-    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+    var op2 = rstype.Case === "T_R" ? shiftR(rsinst, rm, nORrn, state) : shiftI(rsinst, rm, nORrn, state);
     return subI(c, s, rd, rn, op2, state);
 }
 function sbcI(c, s, rd, rn, i, state) {
@@ -3912,7 +2832,7 @@ function sbcI(c, s, rd, rn, i, state) {
     }
 }
 function sbcR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state) {
-    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+    var op2 = rstype.Case === "T_R" ? shiftR(rsinst, rm, nORrn, state) : shiftI(rsinst, rm, nORrn, state);
     return sbcI(c, s, rd, rn, op2, state);
 }
 function rsbI(c, s, rd, rn, i, state) {
@@ -3939,7 +2859,7 @@ function rsbI(c, s, rd, rn, i, state) {
     }
 }
 function rsbR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state) {
-    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+    var op2 = rstype.Case === "T_R" ? shiftR(rsinst, rm, nORrn, state) : shiftI(rsinst, rm, nORrn, state);
     return rsbI(c, s, rd, rn, op2, state);
 }
 function rscI(c, s, rd, rn, i, state) {
@@ -3982,7 +2902,7 @@ function rscI(c, s, rd, rn, i, state) {
     }
 }
 function rscR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state) {
-    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+    var op2 = rstype.Case === "T_R" ? shiftR(rsinst, rm, nORrn, state) : shiftI(rsinst, rm, nORrn, state);
     return rscI(c, s, rd, rn, op2, state);
 }
 function cmpI(c, rn, i, state) {
@@ -3995,7 +2915,7 @@ function cmpI(c, rn, i, state) {
     }
 }
 function cmpR(c, rn, rm, rsinst, nORrn, rstype, state) {
-    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+    var op2 = rstype.Case === "T_R" ? shiftR(rsinst, rm, nORrn, state) : shiftI(rsinst, rm, nORrn, state);
     return cmpI(c, rn, op2, state);
 }
 function cmnI(c, rn, i, state) {
@@ -4013,7 +2933,7 @@ function cmnI(c, rn, i, state) {
     }
 }
 function cmnR(c, rn, rm, rsinst, nORrn, rstype, state) {
-    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+    var op2 = rstype.Case === "T_R" ? shiftR(rsinst, rm, nORrn, state) : shiftI(rsinst, rm, nORrn, state);
     return cmnI(c, rn, op2, state);
 }
 function mulR(c, s, rd, rm, rs, state) {
@@ -4071,19 +2991,17 @@ function andI(c, s, rd, rn, i, state) {
     }
 }
 function andR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state) {
-    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+    var op2 = rstype.Case === "T_R" ? shiftR(rsinst, rm, nORrn, state) : shiftI(rsinst, rm, nORrn, state);
 
     if (c(state)) {
-        if (rstype === "i") {
-            return function (state_1) {
-                return andI(c, s, rd, rn, op2, state_1);
-            }(shiftSetCI(s, rsinst, rm, nORrn, state));
-        } else if (rstype === "r") {
+        if (rstype.Case === "T_R") {
             return function (state_1) {
                 return andI(c, s, rd, rn, op2, state_1);
             }(shiftSetCR(s, rsinst, rm, nORrn, state));
         } else {
-            return andI(c, s, rd, rn, op2, state);
+            return function (state_1) {
+                return andI(c, s, rd, rn, op2, state_1);
+            }(shiftSetCI(s, rsinst, rm, nORrn, state));
         }
     } else {
         return state;
@@ -4108,19 +3026,17 @@ function orrI(c, s, rd, rn, i, state) {
     }
 }
 function orrR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state) {
-    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+    var op2 = rstype.Case === "T_R" ? shiftR(rsinst, rm, nORrn, state) : shiftI(rsinst, rm, nORrn, state);
 
     if (c(state)) {
-        if (rstype === "i") {
-            return function (state_1) {
-                return orrI(c, s, rd, rn, op2, state_1);
-            }(shiftSetCI(s, rsinst, rm, nORrn, state));
-        } else if (rstype === "r") {
+        if (rstype.Case === "T_R") {
             return function (state_1) {
                 return orrI(c, s, rd, rn, op2, state_1);
             }(shiftSetCR(s, rsinst, rm, nORrn, state));
         } else {
-            return orrI(c, s, rd, rn, op2, state);
+            return function (state_1) {
+                return orrI(c, s, rd, rn, op2, state_1);
+            }(shiftSetCI(s, rsinst, rm, nORrn, state));
         }
     } else {
         return state;
@@ -4145,19 +3061,17 @@ function eorI(c, s, rd, rn, i, state) {
     }
 }
 function eorR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state) {
-    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+    var op2 = rstype.Case === "T_R" ? shiftR(rsinst, rm, nORrn, state) : shiftI(rsinst, rm, nORrn, state);
 
     if (c(state)) {
-        if (rstype === "i") {
-            return function (state_1) {
-                return eorI(c, s, rd, rn, op2, state_1);
-            }(shiftSetCI(s, rsinst, rm, nORrn, state));
-        } else if (rstype === "r") {
+        if (rstype.Case === "T_R") {
             return function (state_1) {
                 return eorI(c, s, rd, rn, op2, state_1);
             }(shiftSetCR(s, rsinst, rm, nORrn, state));
         } else {
-            return eorI(c, s, rd, rn, op2, state);
+            return function (state_1) {
+                return eorI(c, s, rd, rn, op2, state_1);
+            }(shiftSetCI(s, rsinst, rm, nORrn, state));
         }
     } else {
         return state;
@@ -4167,19 +3081,17 @@ function bicI(c, s, rd, rn, i, state) {
     return andI(c, s, rd, rn, ~i, state);
 }
 function bicR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state) {
-    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+    var op2 = rstype.Case === "T_R" ? shiftR(rsinst, rm, nORrn, state) : shiftI(rsinst, rm, nORrn, state);
 
     if (c(state)) {
-        if (rstype === "i") {
-            return function (state_1) {
-                return bicI(c, s, rd, rn, op2, state_1);
-            }(shiftSetCI(s, rsinst, rm, nORrn, state));
-        } else if (rstype === "r") {
+        if (rstype.Case === "T_R") {
             return function (state_1) {
                 return bicI(c, s, rd, rn, op2, state_1);
             }(shiftSetCR(s, rsinst, rm, nORrn, state));
         } else {
-            return bicI(c, s, rd, rn, op2, state);
+            return function (state_1) {
+                return bicI(c, s, rd, rn, op2, state_1);
+            }(shiftSetCI(s, rsinst, rm, nORrn, state));
         }
     } else {
         return state;
@@ -4195,19 +3107,17 @@ function tstI(c, rn, i, state) {
     }
 }
 function tstR(c, rn, rm, rsinst, nORrn, rstype, state) {
-    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+    var op2 = rstype.Case === "T_R" ? shiftR(rsinst, rm, nORrn, state) : shiftI(rsinst, rm, nORrn, state);
 
     if (c(state)) {
-        if (rstype === "i") {
-            return function (state_1) {
-                return tstI(c, rn, op2, state_1);
-            }(shiftSetCI(true, rsinst, rm, nORrn, state));
-        } else if (rstype === "r") {
+        if (rstype.Case === "T_R") {
             return function (state_1) {
                 return tstI(c, rn, op2, state_1);
             }(shiftSetCR(true, rsinst, rm, nORrn, state));
         } else {
-            return tstI(c, rn, op2, state);
+            return function (state_1) {
+                return tstI(c, rn, op2, state_1);
+            }(shiftSetCI(true, rsinst, rm, nORrn, state));
         }
     } else {
         return state;
@@ -4223,19 +3133,17 @@ function teqI(c, rn, i, state) {
     }
 }
 function teqR(c, rn, rm, rsinst, nORrn, rstype, state) {
-    var op2 = rstype === "i" ? shiftI(rsinst, rm, nORrn, state) : rstype === "r" ? shiftR(rsinst, rm, nORrn, state) : readReg(rm, state);
+    var op2 = rstype.Case === "T_R" ? shiftR(rsinst, rm, nORrn, state) : shiftI(rsinst, rm, nORrn, state);
 
     if (c(state)) {
-        if (rstype === "i") {
-            return function (state_1) {
-                return teqI(c, rn, op2, state_1);
-            }(shiftSetCI(true, rsinst, rm, nORrn, state));
-        } else if (rstype === "r") {
+        if (rstype.Case === "T_R") {
             return function (state_1) {
                 return teqI(c, rn, op2, state_1);
             }(shiftSetCR(true, rsinst, rm, nORrn, state));
         } else {
-            return teqI(c, rn, op2, state);
+            return function (state_1) {
+                return teqI(c, rn, op2, state_1);
+            }(shiftSetCI(true, rsinst, rm, nORrn, state));
         }
     } else {
         return state;
@@ -4390,32 +3298,465 @@ function adr(c, rd, label, state) {
         return state;
     }
 }
+function ldrWL(c, rd, label, state) {
+    if (c(state)) {
+        return writeReg(rd, readMem(label, state), state);
+    } else {
+        return state;
+    }
+}
+function ldrBL(c, rd, label, state) {
+    if (c(state)) {
+        return writeReg(rd, readMem(label, state) & 255, state);
+    } else {
+        return state;
+    }
+}
+function ldrWbI(c, inc, rd, rn, i, state) {
+    if (c(state)) {
+        if (inc) {
+            return function () {
+                var v = readReg(rn, state) + i;
+                return function (arg20_) {
+                    return writeReg(rn, v, arg20_);
+                };
+            }()(function () {
+                var v = readMem(readReg(rn, state) + i, state);
+                return function (arg20_) {
+                    return writeReg(rd, v, arg20_);
+                };
+            }()(state));
+        } else {
+            return function () {
+                var v = readMem(readReg(rn, state) + i, state);
+                return function (arg20_) {
+                    return writeReg(rd, v, arg20_);
+                };
+            }()(state);
+        }
+    } else {
+        return state;
+    }
+}
+function ldrWbR(c, inc, rd, rn, rm, rsinst, nORrn, rstype, state) {
+    var op2 = rstype.Case === "T_R" ? shiftR(rsinst, rm, nORrn, state) : shiftI(rsinst, rm, nORrn, state);
 
+    if (c(state)) {
+        return ldrWbI(c, inc, rd, rn, op2, state);
+    } else {
+        return state;
+    }
+}
+function ldrWaI(c, rd, rn, i, state) {
+    if (c(state)) {
+        return function () {
+            var v = readReg(rn, state) + i;
+            return function (arg20_) {
+                return writeReg(rn, v, arg20_);
+            };
+        }()(function () {
+            var v = readMem(readReg(rn, state), state);
+            return function (arg20_) {
+                return writeReg(rd, v, arg20_);
+            };
+        }()(state));
+    } else {
+        return state;
+    }
+}
+function ldrWaR(c, rd, rn, rm, rsinst, nORrn, rstype, state) {
+    var op2 = rstype.Case === "T_R" ? shiftR(rsinst, rm, nORrn, state) : shiftI(rsinst, rm, nORrn, state);
 
+    if (c(state)) {
+        return ldrWaI(c, rd, rn, op2, state);
+    } else {
+        return state;
+    }
+}
+function ldrBbI(c, inc, rd, rn, i, state) {
+    if (c(state)) {
+        if (inc) {
+            return function () {
+                var v = readReg(rn, state) + i;
+                return function (arg20_) {
+                    return writeReg(rn, v, arg20_);
+                };
+            }()(function () {
+                var v = readMem(readReg(rn, state) + i & 255, state);
+                return function (arg20_) {
+                    return writeReg(rd, v, arg20_);
+                };
+            }()(state));
+        } else {
+            return function () {
+                var v = readMem(readReg(rn, state) + i & 255, state);
+                return function (arg20_) {
+                    return writeReg(rd, v, arg20_);
+                };
+            }()(state);
+        }
+    } else {
+        return state;
+    }
+}
+function ldrBbR(c, inc, rd, rn, rm, rsinst, nORrn, rstype, state) {
+    var op2 = rstype.Case === "T_R" ? shiftR(rsinst, rm, nORrn, state) : shiftI(rsinst, rm, nORrn, state);
 
+    if (c(state)) {
+        return ldrBbI(c, inc, rd, rn, op2, state);
+    } else {
+        return state;
+    }
+}
+function ldrBaI(c, rd, rn, i, state) {
+    if (c(state)) {
+        return function () {
+            var v = readReg(rn, state) + i;
+            return function (arg20_) {
+                return writeReg(rn, v, arg20_);
+            };
+        }()(function () {
+            var v = readMem(readReg(rn, state) & 255, state);
+            return function (arg20_) {
+                return writeReg(rd, v, arg20_);
+            };
+        }()(state));
+    } else {
+        return state;
+    }
+}
+function ldrBaR(c, rd, rn, rm, rsinst, nORrn, rstype, state) {
+    var op2 = rstype.Case === "T_R" ? shiftR(rsinst, rm, nORrn, state) : shiftI(rsinst, rm, nORrn, state);
 
+    if (c(state)) {
+        return ldrBaI(c, rd, rn, op2, state);
+    } else {
+        return state;
+    }
+}
+function strWbI(c, inc, rd, rn, i, state) {
+    if (c(state)) {
+        if (inc) {
+            return function () {
+                var v = readReg(rn, state) + i;
+                return function (arg20_) {
+                    return writeReg(rn, v, arg20_);
+                };
+            }()(writeMem(readReg(rn, state) + i, readReg(rd, state), state));
+        } else {
+            return writeMem(readReg(rn, state) + i, readReg(rd, state), state);
+        }
+    } else {
+        return state;
+    }
+}
+function strWbR(c, inc, rd, rn, rm, rsinst, nORrn, rstype, state) {
+    var op2 = rstype.Case === "T_R" ? shiftR(rsinst, rm, nORrn, state) : shiftI(rsinst, rm, nORrn, state);
 
+    if (c(state)) {
+        return strWbI(c, inc, rd, rn, op2, state);
+    } else {
+        return state;
+    }
+}
+function strWaI(c, rd, rn, i, state) {
+    if (c(state)) {
+        return function () {
+            var v = readReg(rn, state) + i;
+            return function (arg20_) {
+                return writeReg(rn, v, arg20_);
+            };
+        }()(writeMem(readReg(rn, state), readReg(rd, state), state));
+    } else {
+        return state;
+    }
+}
+function strWaR(c, rd, rn, rm, rsinst, nORrn, rstype, state) {
+    var op2 = rstype.Case === "T_R" ? shiftR(rsinst, rm, nORrn, state) : shiftI(rsinst, rm, nORrn, state);
 
+    if (c(state)) {
+        return strWaI(c, rd, rn, op2, state);
+    } else {
+        return state;
+    }
+}
+function strBbI(c, inc, rd, rn, i, state) {
+    var memVal = readMem(readReg(rn, state) + i, state);
+    var regVal = readReg(rd, state);
+    var writeVal = ~255 & memVal | 255 & regVal;
 
+    if (c(state)) {
+        if (inc) {
+            return function () {
+                var v = readReg(rn, state) + i;
+                return function (arg20_) {
+                    return writeReg(rn, v, arg20_);
+                };
+            }()(function () {
+                var addr = readReg(rn, state) + i;
+                return function (arg20_) {
+                    return writeMem(addr, writeVal, arg20_);
+                };
+            }()(state));
+        } else {
+            return function () {
+                var addr = readReg(rn, state) + i;
+                return function (arg20_) {
+                    return writeMem(addr, writeVal, arg20_);
+                };
+            }()(state);
+        }
+    } else {
+        return state;
+    }
+}
+function strBbR(c, inc, rd, rn, rm, rsinst, nORrn, rstype, state) {
+    var op2 = rstype.Case === "T_R" ? shiftR(rsinst, rm, nORrn, state) : shiftI(rsinst, rm, nORrn, state);
 
+    if (c(state)) {
+        return strBbI(c, inc, rd, rn, op2, state);
+    } else {
+        return state;
+    }
+}
+function strBaI(c, rd, rn, i, state) {
+    var memVal = readMem(readReg(rn, state), state);
+    var regVal = readReg(rd, state);
+    var writeVal = ~255 & memVal | 255 & regVal;
 
+    if (c(state)) {
+        return function () {
+            var v = readReg(rn, state) + i;
+            return function (arg20_) {
+                return writeReg(rn, v, arg20_);
+            };
+        }()(function () {
+            var addr = readReg(rn, state);
+            return function (arg20_) {
+                return writeMem(addr, writeVal, arg20_);
+            };
+        }()(state));
+    } else {
+        return state;
+    }
+}
+function strBaR(c, rd, rn, rm, rsinst, nORrn, rstype, state) {
+    var op2 = rstype.Case === "T_R" ? shiftR(rsinst, rm, nORrn, state) : shiftI(rsinst, rm, nORrn, state);
 
+    if (c(state)) {
+        return strBaI(c, rd, rn, op2, state);
+    } else {
+        return state;
+    }
+}
+function ldmIA(c, write, rn, reglist, state) {
+    var loop = function loop(mem) {
+        return function (reglist_1) {
+            return function (state_1) {
+                if (reglist_1.tail == null) {
+                    return state_1;
+                } else {
+                    return loop(mem + 4)(reglist_1.tail)(function () {
+                        var v = readMem(mem, state_1);
+                        return function (arg20_) {
+                            return writeReg(reglist_1.head, v, arg20_);
+                        };
+                    }()(state_1));
+                }
+            };
+        };
+    };
 
+    var startMem = readReg(rn, state);
 
+    if (c(state)) {
+        return loop(startMem)(reglist)(write ? writeReg(rn, startMem + reglist.length * 4, state) : state);
+    } else {
+        return state;
+    }
+}
+function ldmIB(c, write, rn, reglist, state) {
+    var loop = function loop(mem) {
+        return function (reglist_1) {
+            return function (state_1) {
+                if (reglist_1.tail == null) {
+                    return state_1;
+                } else {
+                    return loop(mem + 4)(reglist_1.tail)(function () {
+                        var v = readMem(mem, state_1);
+                        return function (arg20_) {
+                            return writeReg(reglist_1.head, v, arg20_);
+                        };
+                    }()(state_1));
+                }
+            };
+        };
+    };
 
+    var startMem = readReg(rn, state);
 
+    if (c(state)) {
+        return loop(startMem + 4)(reglist)(write ? writeReg(rn, startMem + (reglist.length + 1) * 4, state) : state);
+    } else {
+        return state;
+    }
+}
+function ldmDA(c, write, rn, reglist, state) {
+    var loop = function loop(mem) {
+        return function (reglist_1) {
+            return function (state_1) {
+                if (reglist_1.tail == null) {
+                    return state_1;
+                } else {
+                    return loop(mem - 4)(reglist_1.tail)(function () {
+                        var v = readMem(mem, state_1);
+                        return function (arg20_) {
+                            return writeReg(reglist_1.head, v, arg20_);
+                        };
+                    }()(state_1));
+                }
+            };
+        };
+    };
 
+    var startMem = readReg(rn, state);
 
+    if (c(state)) {
+        return loop(startMem)(reglist)(write ? writeReg(rn, startMem - reglist.length * 4, state) : state);
+    } else {
+        return state;
+    }
+}
+function ldmDB(c, write, rn, reglist, state) {
+    var loop = function loop(mem) {
+        return function (reglist_1) {
+            return function (state_1) {
+                if (reglist_1.tail == null) {
+                    return state_1;
+                } else {
+                    return loop(mem - 4)(reglist_1.tail)(function () {
+                        var v = readMem(mem, state_1);
+                        return function (arg20_) {
+                            return writeReg(reglist_1.head, v, arg20_);
+                        };
+                    }()(state_1));
+                }
+            };
+        };
+    };
 
+    var startMem = readReg(rn, state);
 
+    if (c(state)) {
+        return loop(startMem - 4)(reglist)(write ? writeReg(rn, startMem - (reglist.length + 1) * 4, state) : state);
+    } else {
+        return state;
+    }
+}
+function stmIA(c, write, rn, reglist, state) {
+    var loop = function loop(mem) {
+        return function (reglist_1) {
+            return function (state_1) {
+                if (reglist_1.tail == null) {
+                    return state_1;
+                } else {
+                    return loop(mem + 4)(reglist_1.tail)(function () {
+                        var v = readReg(reglist_1.head, state_1);
+                        return function (arg20_) {
+                            return writeMem(mem, v, arg20_);
+                        };
+                    }()(state_1));
+                }
+            };
+        };
+    };
 
+    var startMem = readReg(rn, state);
 
+    if (c(state)) {
+        return loop(startMem)(reglist)(write ? writeReg(rn, startMem + reglist.length * 4, state) : state);
+    } else {
+        return state;
+    }
+}
+function stmIB(c, write, rn, reglist, state) {
+    var loop = function loop(mem) {
+        return function (reglist_1) {
+            return function (state_1) {
+                if (reglist_1.tail == null) {
+                    return state_1;
+                } else {
+                    return loop(mem + 4)(reglist_1.tail)(function () {
+                        var v = readReg(reglist_1.head, state_1);
+                        return function (arg20_) {
+                            return writeMem(mem, v, arg20_);
+                        };
+                    }()(state_1));
+                }
+            };
+        };
+    };
 
+    var startMem = readReg(rn, state);
 
+    if (c(state)) {
+        return loop(startMem + 4)(reglist)(write ? writeReg(rn, startMem + (reglist.length + 1) * 4, state) : state);
+    } else {
+        return state;
+    }
+}
+function stmDA(c, write, rn, reglist, state) {
+    var loop = function loop(mem) {
+        return function (reglist_1) {
+            return function (state_1) {
+                if (reglist_1.tail == null) {
+                    return state_1;
+                } else {
+                    return loop(mem - 4)(reglist_1.tail)(function () {
+                        var v = readReg(reglist_1.head, state_1);
+                        return function (arg20_) {
+                            return writeMem(mem, v, arg20_);
+                        };
+                    }()(state_1));
+                }
+            };
+        };
+    };
 
+    var startMem = readReg(rn, state);
 
+    if (c(state)) {
+        return loop(startMem)(reglist)(write ? writeReg(rn, startMem - reglist.length * 4, state) : state);
+    } else {
+        return state;
+    }
+}
+function stmDB(c, write, rn, reglist, state) {
+    var loop = function loop(mem) {
+        return function (reglist_1) {
+            return function (state_1) {
+                if (reglist_1.tail == null) {
+                    return state_1;
+                } else {
+                    return loop(mem - 4)(reglist_1.tail)(function () {
+                        var v = readReg(reglist_1.head, state_1);
+                        return function (arg20_) {
+                            return writeMem(mem, v, arg20_);
+                        };
+                    }()(state_1));
+                }
+            };
+        };
+    };
 
+    var startMem = readReg(rn, state);
 
+    if (c(state)) {
+        return loop(startMem - 4)(reglist)(write ? writeReg(rn, startMem - (reglist.length + 1) * 4, state) : state);
+    } else {
+        return state;
+    }
+}
 
 
 
@@ -4447,9 +3788,9 @@ var Instruction = function () {
                 interfaces: ["FSharpUnion"],
                 cases: {
                     EndRef: ["function"],
-                    Instr: ["function"],
+                    Instr: ["number", "function"],
                     LabelRef: ["function"],
-                    Terminate: []
+                    Terminate: ["number"]
                 }
             };
         }
@@ -4458,58 +3799,10 @@ var Instruction = function () {
     return Instruction;
 }();
 setType("Parse.Parser.Instruction", Instruction);
-function parser(tokLst) {
-    var branchRef = function branchRef(c) {
-        return function (s) {
-            return function (bInst) {
-                return function (labels) {
-                    var matchValue = tryFind$1(s, labels);
 
-                    if (matchValue == null) {
-                        return new _Error("Err", [fsFormat("Label undefined: %s.")(function (x) {
-                            return x;
-                        })(s)]);
-                    } else {
-                        return new _Error("Ok", [new Instruction("Instr", [bInst(c)(matchValue - 4)])]);
-                    }
-                };
-            };
-        };
-    };
-
-    var adrRef = function adrRef(c) {
-        return function (rd) {
-            return function (s) {
-                return function (labels) {
-                    var matchValue = tryFind$1(s, labels);
-
-                    if (matchValue == null) {
-                        return new _Error("Err", [fsFormat("Label undefined: %s.")(function (x) {
-                            return x;
-                        })(s)]);
-                    } else {
-                        return new _Error("Ok", [new Instruction("Instr", [function (state) {
-                            return adr(c, rd, matchValue, state);
-                        }])]);
-                    }
-                };
-            };
-        };
-    };
-
-    var endRef = function endRef(c) {
-        return function (endMem) {
-            return new Instruction("Instr", [function () {
-                var finalInstAddr = endMem - 4;
-                return function (state) {
-                    return endI(c, finalInstAddr, state);
-                };
-            }()]);
-        };
-    };
-
-    var resolveRefs = function resolveRefs(labels) {
-        return function (endMem) {
+function resolveRefs(labels, endMem, instrLst) {
+    var resolveRec = function resolveRec(labels_1) {
+        return function (endMem_1) {
             return function (outLst) {
                 return function (_arg1) {
                     if (_arg1.tail == null) {
@@ -4519,2318 +3812,5938 @@ function parser(tokLst) {
                         var m = _arg1.head[0];
                         var t = _arg1.tail;
                         {
-                            var _matchValue = f(labels);
+                            var matchValue = f(labels_1);
 
-                            if (_matchValue.Case === "Err") {
-                                return new _Error("Err", [_matchValue.Fields[0]]);
+                            if (matchValue.Case === "Err") {
+                                return new _Error("Err", [matchValue.Fields[0], matchValue.Fields[1]]);
                             } else {
-                                return resolveRefs(labels)(endMem)(append$$1(outLst, ofArray([[m, _matchValue.Fields[0]]])))(t);
+                                return resolveRec(labels_1)(endMem_1)(append$$1(outLst, ofArray([[m, matchValue.Fields[0]]])))(t);
                             }
                         }
                     } else if (_arg1.head[1].Case === "EndRef") {
                         var _f = _arg1.head[1].Fields[0];
                         var _m = _arg1.head[0];
                         var _t = _arg1.tail;
-                        return resolveRefs(labels)(endMem)(append$$1(outLst, ofArray([[_m, _f(endMem)]])))(_t);
+                        return resolveRec(labels_1)(endMem_1)(append$$1(outLst, ofArray([[_m, _f(endMem_1)]])))(_t);
                     } else {
                         var h = _arg1.head;
                         var _t2 = _arg1.tail;
-                        return resolveRefs(labels)(endMem)(append$$1(outLst, ofArray([h])))(_t2);
+                        return resolveRec(labels_1)(endMem_1)(append$$1(outLst, ofArray([h])))(_t2);
                     }
                 };
             };
         };
     };
 
-    var parseRec = function parseRec(mem) {
-        return function (labels) {
+    return resolveRec(labels)(endMem)(new List$1())(instrLst);
+}
+
+function regList(tokLst) {
+    var regRange = function regRange(r1) {
+        return function (r2) {
             return function (outLst) {
-                return function (_arg2) {
-                    var _target3 = function _target3(c, rd, rm, s, t) {
-                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                            var rsinst = new shiftOp("T_LSL", []);
-                            var nORrn = 0;
-                            var rstype = "i";
-                            return function (state) {
-                                return movR(c, s, rd, rm, rsinst, nORrn, rstype, state);
-                            };
-                        }()])]])))(t);
-                    };
+                var matchValue = r1 < r2;
 
-                    var _target7 = function _target7(c, rd, rm, s, t) {
-                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                            var rsinst = new shiftOp("T_LSL", []);
-                            var nORrn = 0;
-                            var rstype = "i";
-                            return function (state) {
-                                return mvnR(c, s, rd, rm, rsinst, nORrn, rstype, state);
-                            };
-                        }()])]])))(t);
-                    };
+                if (matchValue) {
+                    return regRange(r1 + 1)(r2)(append$$1(outLst, ofArray([r1])));
+                } else if (r1 === r2) {
+                    return new _Error("Ok", [append$$1(outLst, ofArray([r1]))]);
+                } else if (matchValue) {
+                    throw new Error("/Users/raviwoods/Google_Drive/ICComp/Uni_Year_3/HLP/HLP/FABLE/FABLEProject/src/fs/Parser.fs", 37, 18);
+                } else {
+                    return new _Error("Err", [0, "Register range invalid."]);
+                }
+            };
+        };
+    };
 
-                    var _target11 = function _target11(c, rd, rm, rn, s, t) {
-                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                            var rsinst = new shiftOp("T_LSL", []);
-                            var nORrn = 0;
-                            var rstype = "i";
-                            return function (state) {
-                                return addR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state);
-                            };
-                        }()])]])))(t);
-                    };
+    var regRec = function regRec(outLst) {
+        return function (_arg1) {
+            var _target5 = function _target5(t, tok) {
+                return new _Error("Err", [0, fsFormat("Unexpected token: %A. Followed by: %s.")(function (x) {
+                    return x;
+                })(tok)(errorList(t))]);
+            };
 
-                    var _target15 = function _target15(c, rd, rm, rn, s, t) {
-                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                            var rsinst = new shiftOp("T_LSL", []);
-                            var nORrn = 0;
-                            var rstype = "i";
-                            return function (state) {
-                                return adcR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state);
-                            };
-                        }()])]])))(t);
-                    };
+            if (_arg1.tail == null) {
+                return new _Error("Err", [0, fsFormat("Incomplete register range.")(function (x) {
+                    return x;
+                })]);
+            } else if (_arg1.head.Case === "T_REG") {
+                if (_arg1.tail.tail != null) {
+                    if (_arg1.tail.head.Case === "T_COMMA") {
+                        var r = _arg1.head.Fields[0];
+                        var t = _arg1.tail.tail;
+                        return regRec(append$$1(outLst, ofArray([r])))(t);
+                    } else if (_arg1.tail.head.Case === "T_DASH") {
+                        if (_arg1.tail.tail.tail != null) {
+                            if (_arg1.tail.tail.head.Case === "T_REG") {
+                                if (_arg1.tail.tail.tail.tail != null) {
+                                    if (_arg1.tail.tail.tail.head.Case === "T_COMMA") {
+                                        var r1 = _arg1.head.Fields[0];
+                                        var r2 = _arg1.tail.tail.head.Fields[0];
+                                        var _t3 = _arg1.tail.tail.tail.tail;
+                                        {
+                                            var matchValue = regRange(r1)(r2)(new List$1());
 
-                    var _target19 = function _target19(c, rd, rm, rn, s, t) {
-                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                            var rsinst = new shiftOp("T_LSL", []);
-                            var nORrn = 0;
-                            var rstype = "i";
-                            return function (state) {
-                                return subR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state);
-                            };
-                        }()])]])))(t);
-                    };
+                                            if (matchValue.Case === "Err") {
+                                                return new _Error("Err", [0, matchValue.Fields[1]]);
+                                            } else {
+                                                return regRec(append$$1(outLst, matchValue.Fields[0]))(_t3);
+                                            }
+                                        }
+                                    } else if (_arg1.tail.tail.tail.head.Case === "T_R_CBR") {
+                                        var _r = _arg1.head.Fields[0];
+                                        var _r2 = _arg1.tail.tail.head.Fields[0];
+                                        var _t4 = _arg1.tail.tail.tail.tail;
+                                        {
+                                            var _matchValue = regRange(_r)(_r2)(new List$1());
 
-                    var _target23 = function _target23(c, rd, rm, rn, s, t) {
-                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                            var rsinst = new shiftOp("T_LSL", []);
-                            var nORrn = 0;
-                            var rstype = "i";
-                            return function (state) {
-                                return sbcR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state);
-                            };
-                        }()])]])))(t);
-                    };
-
-                    var _target27 = function _target27(c, rd, rm, rn, s, t) {
-                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                            var rsinst = new shiftOp("T_LSL", []);
-                            var nORrn = 0;
-                            var rstype = "i";
-                            return function (state) {
-                                return rsbR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state);
-                            };
-                        }()])]])))(t);
-                    };
-
-                    var _target31 = function _target31(c, rd, rm, rn, s, t) {
-                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                            var rsinst = new shiftOp("T_LSL", []);
-                            var nORrn = 0;
-                            var rstype = "i";
-                            return function (state) {
-                                return rscR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state);
-                            };
-                        }()])]])))(t);
-                    };
-
-                    var _target37 = function _target37(c, rd, rm, rn, s, t) {
-                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                            var rsinst = new shiftOp("T_LSL", []);
-                            var nORrn = 0;
-                            var rstype = "i";
-                            return function (state) {
-                                return andR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state);
-                            };
-                        }()])]])))(t);
-                    };
-
-                    var _target41 = function _target41(c, rd, rm, rn, s, t) {
-                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                            var rsinst = new shiftOp("T_LSL", []);
-                            var nORrn = 0;
-                            var rstype = "i";
-                            return function (state) {
-                                return orrR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state);
-                            };
-                        }()])]])))(t);
-                    };
-
-                    var _target45 = function _target45(c, rd, rm, rn, s, t) {
-                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                            var rsinst = new shiftOp("T_LSL", []);
-                            var nORrn = 0;
-                            var rstype = "i";
-                            return function (state) {
-                                return eorR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state);
-                            };
-                        }()])]])))(t);
-                    };
-
-                    var _target49 = function _target49(c, rd, rm, rn, s, t) {
-                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                            var rsinst = new shiftOp("T_LSL", []);
-                            var nORrn = 0;
-                            var rstype = "i";
-                            return function (state) {
-                                return bicR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state);
-                            };
-                        }()])]])))(t);
-                    };
-
-                    var _target53 = function _target53(c, rm, rn, t) {
-                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                            var rsinst = new shiftOp("T_LSL", []);
-                            var nORrn = 0;
-                            var rstype = "i";
-                            return function (state) {
-                                return cmpR(c, rn, rm, rsinst, nORrn, rstype, state);
-                            };
-                        }()])]])))(t);
-                    };
-
-                    var _target57 = function _target57(c, rm, rn, t) {
-                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                            var rsinst = new shiftOp("T_LSL", []);
-                            var nORrn = 0;
-                            var rstype = "i";
-                            return function (state) {
-                                return cmnR(c, rn, rm, rsinst, nORrn, rstype, state);
-                            };
-                        }()])]])))(t);
-                    };
-
-                    var _target61 = function _target61(c, rm, rn, t) {
-                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                            var rsinst = new shiftOp("T_LSL", []);
-                            var nORrn = 0;
-                            var rstype = "i";
-                            return function (state) {
-                                return tstR(c, rn, rm, rsinst, nORrn, rstype, state);
-                            };
-                        }()])]])))(t);
-                    };
-
-                    var _target65 = function _target65(c, rm, rn, t) {
-                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                            var rsinst = new shiftOp("T_LSL", []);
-                            var nORrn = 0;
-                            var rstype = "i";
-                            return function (state) {
-                                return teqR(c, rn, rm, rsinst, nORrn, rstype, state);
-                            };
-                        }()])]])))(t);
-                    };
-
-                    var _target69 = function _target69(c, rm, rn, t) {
-                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                            var rsinst = new shiftOp("T_LSL", []);
-                            var nORrn = 0;
-                            var rstype = "i";
-                            return function (state) {
-                                return tstR(c, rn, rm, rsinst, nORrn, rstype, state);
-                            };
-                        }()])]])))(t);
-                    };
-
-                    var _target83 = function _target83(t, tok) {
-                        return new _Error("Err", [fsFormat("Unexpected token: %A. Followed by: %s.")(function (x) {
-                            return x;
-                        })(tok)(errorList(t))]);
-                    };
-
-                    if (_arg2.tail == null) {
-                        return resolveRefs(labels)(mem)(new List$1())(append$$1(outLst, ofArray([[mem, new Instruction("Terminate", [])]])));
-                    } else if (_arg2.head.Case === "T_MOV") {
-                        if (_arg2.tail.tail != null) {
-                            if (_arg2.tail.head.Case === "T_REG") {
-                                if (_arg2.tail.tail.tail != null) {
-                                    if (_arg2.tail.tail.head.Case === "T_COMMA") {
-                                        if (_arg2.tail.tail.tail.tail != null) {
-                                            if (_arg2.tail.tail.tail.head.Case === "T_INT") {
-                                                var c = _arg2.head.Fields[0];
-                                                var i = _arg2.tail.tail.tail.head.Fields[0];
-                                                var rd = _arg2.tail.head.Fields[0];
-                                                var s = _arg2.head.Fields[1];
-                                                var t = _arg2.tail.tail.tail.tail;
-                                                return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function (state) {
-                                                    return movI(c, s, rd, i, state);
-                                                }])]])))(t);
-                                            } else if (_arg2.tail.tail.tail.head.Case === "T_REG") {
-                                                if (_arg2.tail.tail.tail.tail.tail != null) {
-                                                    if (_arg2.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                        if (_arg2.tail.tail.tail.tail.tail.tail != null) {
-                                                            if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
-                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
-                                                                        var _c = _arg2.head.Fields[0];
-                                                                        var _i = _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        var _rd = _arg2.tail.head.Fields[0];
-                                                                        var rm = _arg2.tail.tail.tail.head.Fields[0];
-                                                                        var _s = _arg2.head.Fields[1];
-                                                                        var _t3 = _arg2.tail.tail.tail.tail.tail.tail.tail;
-                                                                        var z = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                            var rstype = "i";
-                                                                            return function (state) {
-                                                                                return movR(_c, _s, _rd, rm, z, _i, rstype, state);
-                                                                            };
-                                                                        }()])]])))(_t3);
-                                                                    } else if (_arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                        var _c2 = _arg2.head.Fields[0];
-                                                                        var _rd2 = _arg2.tail.head.Fields[0];
-                                                                        var _rm = _arg2.tail.tail.tail.head.Fields[0];
-                                                                        var rs = _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        var _s2 = _arg2.head.Fields[1];
-                                                                        var _t4 = _arg2.tail.tail.tail.tail.tail.tail.tail;
-                                                                        var _z = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                            var rstype = "r";
-                                                                            return function (state) {
-                                                                                return movR(_c2, _s2, _rd2, _rm, _z, rs, rstype, state);
-                                                                            };
-                                                                        }()])]])))(_t4);
-                                                                    } else {
-                                                                        return _target3(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail);
-                                                                    }
-                                                                } else {
-                                                                    return _target3(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail);
-                                                                }
-                                                            } else {
-                                                                return _target3(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail);
-                                                            }
-                                                        } else {
-                                                            return _target3(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail);
-                                                        }
-                                                    } else {
-                                                        return _target3(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail);
-                                                    }
-                                                } else {
-                                                    return _target3(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail);
-                                                }
+                                            if (_matchValue.Case === "Err") {
+                                                return new _Error("Err", [0, _matchValue.Fields[1]]);
                                             } else {
-                                                return _target83(_arg2.tail, _arg2.head);
+                                                return new _Error("Ok", [[append$$1(outLst, _matchValue.Fields[0]), _t4]]);
                                             }
-                                        } else {
-                                            return _target83(_arg2.tail, _arg2.head);
                                         }
                                     } else {
-                                        return _target83(_arg2.tail, _arg2.head);
+                                        return _target5(_arg1.tail, _arg1.head);
                                     }
                                 } else {
-                                    return _target83(_arg2.tail, _arg2.head);
+                                    return _target5(_arg1.tail, _arg1.head);
                                 }
                             } else {
-                                return _target83(_arg2.tail, _arg2.head);
+                                return _target5(_arg1.tail, _arg1.head);
                             }
                         } else {
-                            return _target83(_arg2.tail, _arg2.head);
+                            return _target5(_arg1.tail, _arg1.head);
                         }
-                    } else if (_arg2.head.Case === "T_MVN") {
-                        if (_arg2.tail.tail != null) {
-                            if (_arg2.tail.head.Case === "T_REG") {
-                                if (_arg2.tail.tail.tail != null) {
-                                    if (_arg2.tail.tail.head.Case === "T_COMMA") {
-                                        if (_arg2.tail.tail.tail.tail != null) {
-                                            if (_arg2.tail.tail.tail.head.Case === "T_INT") {
-                                                var _c3 = _arg2.head.Fields[0];
-                                                var _i2 = _arg2.tail.tail.tail.head.Fields[0];
-                                                var _rd3 = _arg2.tail.head.Fields[0];
-                                                var _s3 = _arg2.head.Fields[1];
-                                                var _t5 = _arg2.tail.tail.tail.tail;
-                                                return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function (state) {
-                                                    return mvnI(_c3, _s3, _rd3, _i2, state);
-                                                }])]])))(_t5);
-                                            } else if (_arg2.tail.tail.tail.head.Case === "T_REG") {
-                                                if (_arg2.tail.tail.tail.tail.tail != null) {
-                                                    if (_arg2.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                        if (_arg2.tail.tail.tail.tail.tail.tail != null) {
-                                                            if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
-                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
-                                                                        var _c4 = _arg2.head.Fields[0];
-                                                                        var _i3 = _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        var _rd4 = _arg2.tail.head.Fields[0];
-                                                                        var _rm2 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                        var _s4 = _arg2.head.Fields[1];
-                                                                        var _t6 = _arg2.tail.tail.tail.tail.tail.tail.tail;
-                                                                        var _z2 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                            var rstype = "i";
-                                                                            return function (state) {
-                                                                                return mvnR(_c4, _s4, _rd4, _rm2, _z2, _i3, rstype, state);
-                                                                            };
-                                                                        }()])]])))(_t6);
-                                                                    } else if (_arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                        var _c5 = _arg2.head.Fields[0];
-                                                                        var _rd5 = _arg2.tail.head.Fields[0];
-                                                                        var _rm3 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                        var _rs = _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        var _s5 = _arg2.head.Fields[1];
-                                                                        var _t7 = _arg2.tail.tail.tail.tail.tail.tail.tail;
-                                                                        var _z3 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                            var rstype = "r";
-                                                                            return function (state) {
-                                                                                return mvnR(_c5, _s5, _rd5, _rm3, _z3, _rs, rstype, state);
-                                                                            };
-                                                                        }()])]])))(_t7);
-                                                                    } else {
-                                                                        return _target7(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail);
-                                                                    }
-                                                                } else {
-                                                                    return _target7(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail);
-                                                                }
-                                                            } else {
-                                                                return _target7(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail);
-                                                            }
-                                                        } else {
-                                                            return _target7(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail);
-                                                        }
-                                                    } else {
-                                                        return _target7(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail);
-                                                    }
-                                                } else {
-                                                    return _target7(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail);
-                                                }
-                                            } else {
-                                                return _target83(_arg2.tail, _arg2.head);
-                                            }
-                                        } else {
-                                            return _target83(_arg2.tail, _arg2.head);
-                                        }
-                                    } else {
-                                        return _target83(_arg2.tail, _arg2.head);
-                                    }
-                                } else {
-                                    return _target83(_arg2.tail, _arg2.head);
-                                }
-                            } else {
-                                return _target83(_arg2.tail, _arg2.head);
-                            }
-                        } else {
-                            return _target83(_arg2.tail, _arg2.head);
-                        }
-                    } else if (_arg2.head.Case === "T_ADD") {
-                        if (_arg2.tail.tail != null) {
-                            if (_arg2.tail.head.Case === "T_REG") {
-                                if (_arg2.tail.tail.tail != null) {
-                                    if (_arg2.tail.tail.head.Case === "T_COMMA") {
-                                        if (_arg2.tail.tail.tail.tail != null) {
-                                            if (_arg2.tail.tail.tail.head.Case === "T_REG") {
-                                                if (_arg2.tail.tail.tail.tail.tail != null) {
-                                                    if (_arg2.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                        if (_arg2.tail.tail.tail.tail.tail.tail != null) {
-                                                            if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_INT") {
-                                                                var _c6 = _arg2.head.Fields[0];
-                                                                var _i4 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                var _rd6 = _arg2.tail.head.Fields[0];
-                                                                var rn = _arg2.tail.tail.tail.head.Fields[0];
-                                                                var _s6 = _arg2.head.Fields[1];
-                                                                var _t8 = _arg2.tail.tail.tail.tail.tail.tail;
-                                                                return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function (state) {
-                                                                    return addI(_c6, _s6, _rd6, rn, _i4, state);
-                                                                }])]])))(_t8);
-                                                            } else if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                                        if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                            if (_arg2.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
-                                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
-                                                                                        var _c7 = _arg2.head.Fields[0];
-                                                                                        var _i5 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rd7 = _arg2.tail.head.Fields[0];
-                                                                                        var _rm4 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rn = _arg2.tail.tail.tail.head.Fields[0];
-                                                                                        var _s7 = _arg2.head.Fields[1];
-                                                                                        var _t9 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                        var _z4 = _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                                            var rstype = "i";
-                                                                                            return function (state) {
-                                                                                                return addR(_c7, _s7, _rd7, _rn, _rm4, _z4, _i5, rstype, state);
-                                                                                            };
-                                                                                        }()])]])))(_t9);
-                                                                                    } else if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                                        var _c8 = _arg2.head.Fields[0];
-                                                                                        var _rd8 = _arg2.tail.head.Fields[0];
-                                                                                        var _rm5 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rn2 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                                        var _rs2 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _s8 = _arg2.head.Fields[1];
-                                                                                        var _t10 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                        var _z5 = _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                                            var rstype = "r";
-                                                                                            return function (state) {
-                                                                                                return addR(_c8, _s8, _rd8, _rn2, _rm5, _z5, _rs2, rstype, state);
-                                                                                            };
-                                                                                        }()])]])))(_t10);
-                                                                                    } else {
-                                                                                        return _target11(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                                    }
-                                                                                } else {
-                                                                                    return _target11(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                                }
-                                                                            } else {
-                                                                                return _target11(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                            }
-                                                                        } else {
-                                                                            return _target11(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                        }
-                                                                    } else {
-                                                                        return _target11(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                    }
-                                                                } else {
-                                                                    return _target11(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                }
-                                                            } else {
-                                                                return _target83(_arg2.tail, _arg2.head);
-                                                            }
-                                                        } else {
-                                                            return _target83(_arg2.tail, _arg2.head);
-                                                        }
-                                                    } else {
-                                                        return _target83(_arg2.tail, _arg2.head);
-                                                    }
-                                                } else {
-                                                    return _target83(_arg2.tail, _arg2.head);
-                                                }
-                                            } else {
-                                                return _target83(_arg2.tail, _arg2.head);
-                                            }
-                                        } else {
-                                            return _target83(_arg2.tail, _arg2.head);
-                                        }
-                                    } else {
-                                        return _target83(_arg2.tail, _arg2.head);
-                                    }
-                                } else {
-                                    return _target83(_arg2.tail, _arg2.head);
-                                }
-                            } else {
-                                return _target83(_arg2.tail, _arg2.head);
-                            }
-                        } else {
-                            return _target83(_arg2.tail, _arg2.head);
-                        }
-                    } else if (_arg2.head.Case === "T_ADC") {
-                        if (_arg2.tail.tail != null) {
-                            if (_arg2.tail.head.Case === "T_REG") {
-                                if (_arg2.tail.tail.tail != null) {
-                                    if (_arg2.tail.tail.head.Case === "T_COMMA") {
-                                        if (_arg2.tail.tail.tail.tail != null) {
-                                            if (_arg2.tail.tail.tail.head.Case === "T_REG") {
-                                                if (_arg2.tail.tail.tail.tail.tail != null) {
-                                                    if (_arg2.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                        if (_arg2.tail.tail.tail.tail.tail.tail != null) {
-                                                            if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_INT") {
-                                                                var _c9 = _arg2.head.Fields[0];
-                                                                var _i6 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                var _rd9 = _arg2.tail.head.Fields[0];
-                                                                var _rn3 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                var _s9 = _arg2.head.Fields[1];
-                                                                var _t11 = _arg2.tail.tail.tail.tail.tail.tail;
-                                                                return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function (state) {
-                                                                    return adcI(_c9, _s9, _rd9, _rn3, _i6, state);
-                                                                }])]])))(_t11);
-                                                            } else if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                                        if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                            if (_arg2.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
-                                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
-                                                                                        var _c10 = _arg2.head.Fields[0];
-                                                                                        var _i7 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rd10 = _arg2.tail.head.Fields[0];
-                                                                                        var _rm6 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rn4 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                                        var _s10 = _arg2.head.Fields[1];
-                                                                                        var _t12 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                        var _z6 = _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                                            var rstype = "i";
-                                                                                            return function (state) {
-                                                                                                return adcR(_c10, _s10, _rd10, _rn4, _rm6, _z6, _i7, rstype, state);
-                                                                                            };
-                                                                                        }()])]])))(_t12);
-                                                                                    } else if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                                        var _c11 = _arg2.head.Fields[0];
-                                                                                        var _rd11 = _arg2.tail.head.Fields[0];
-                                                                                        var _rm7 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rn5 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                                        var _rs3 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _s11 = _arg2.head.Fields[1];
-                                                                                        var _t13 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                        var _z7 = _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                                            var rstype = "r";
-                                                                                            return function (state) {
-                                                                                                return adcR(_c11, _s11, _rd11, _rn5, _rm7, _z7, _rs3, rstype, state);
-                                                                                            };
-                                                                                        }()])]])))(_t13);
-                                                                                    } else {
-                                                                                        return _target15(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                                    }
-                                                                                } else {
-                                                                                    return _target15(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                                }
-                                                                            } else {
-                                                                                return _target15(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                            }
-                                                                        } else {
-                                                                            return _target15(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                        }
-                                                                    } else {
-                                                                        return _target15(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                    }
-                                                                } else {
-                                                                    return _target15(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                }
-                                                            } else {
-                                                                return _target83(_arg2.tail, _arg2.head);
-                                                            }
-                                                        } else {
-                                                            return _target83(_arg2.tail, _arg2.head);
-                                                        }
-                                                    } else {
-                                                        return _target83(_arg2.tail, _arg2.head);
-                                                    }
-                                                } else {
-                                                    return _target83(_arg2.tail, _arg2.head);
-                                                }
-                                            } else {
-                                                return _target83(_arg2.tail, _arg2.head);
-                                            }
-                                        } else {
-                                            return _target83(_arg2.tail, _arg2.head);
-                                        }
-                                    } else {
-                                        return _target83(_arg2.tail, _arg2.head);
-                                    }
-                                } else {
-                                    return _target83(_arg2.tail, _arg2.head);
-                                }
-                            } else {
-                                return _target83(_arg2.tail, _arg2.head);
-                            }
-                        } else {
-                            return _target83(_arg2.tail, _arg2.head);
-                        }
-                    } else if (_arg2.head.Case === "T_SUB") {
-                        if (_arg2.tail.tail != null) {
-                            if (_arg2.tail.head.Case === "T_REG") {
-                                if (_arg2.tail.tail.tail != null) {
-                                    if (_arg2.tail.tail.head.Case === "T_COMMA") {
-                                        if (_arg2.tail.tail.tail.tail != null) {
-                                            if (_arg2.tail.tail.tail.head.Case === "T_REG") {
-                                                if (_arg2.tail.tail.tail.tail.tail != null) {
-                                                    if (_arg2.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                        if (_arg2.tail.tail.tail.tail.tail.tail != null) {
-                                                            if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_INT") {
-                                                                var _c12 = _arg2.head.Fields[0];
-                                                                var _i8 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                var _rd12 = _arg2.tail.head.Fields[0];
-                                                                var _rn6 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                var _s12 = _arg2.head.Fields[1];
-                                                                var _t14 = _arg2.tail.tail.tail.tail.tail.tail;
-                                                                return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function (state) {
-                                                                    return subI(_c12, _s12, _rd12, _rn6, _i8, state);
-                                                                }])]])))(_t14);
-                                                            } else if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                                        if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                            if (_arg2.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
-                                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
-                                                                                        var _c13 = _arg2.head.Fields[0];
-                                                                                        var _i9 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rd13 = _arg2.tail.head.Fields[0];
-                                                                                        var _rm8 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rn7 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                                        var _s13 = _arg2.head.Fields[1];
-                                                                                        var _t15 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                        var _z8 = _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                                            var rstype = "i";
-                                                                                            return function (state) {
-                                                                                                return subR(_c13, _s13, _rd13, _rn7, _rm8, _z8, _i9, rstype, state);
-                                                                                            };
-                                                                                        }()])]])))(_t15);
-                                                                                    } else if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                                        var _c14 = _arg2.head.Fields[0];
-                                                                                        var _rd14 = _arg2.tail.head.Fields[0];
-                                                                                        var _rm9 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rn8 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                                        var _rs4 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _s14 = _arg2.head.Fields[1];
-                                                                                        var _t16 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                        var _z9 = _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                                            var rstype = "r";
-                                                                                            return function (state) {
-                                                                                                return subR(_c14, _s14, _rd14, _rn8, _rm9, _z9, _rs4, rstype, state);
-                                                                                            };
-                                                                                        }()])]])))(_t16);
-                                                                                    } else {
-                                                                                        return _target19(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                                    }
-                                                                                } else {
-                                                                                    return _target19(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                                }
-                                                                            } else {
-                                                                                return _target19(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                            }
-                                                                        } else {
-                                                                            return _target19(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                        }
-                                                                    } else {
-                                                                        return _target19(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                    }
-                                                                } else {
-                                                                    return _target19(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                }
-                                                            } else {
-                                                                return _target83(_arg2.tail, _arg2.head);
-                                                            }
-                                                        } else {
-                                                            return _target83(_arg2.tail, _arg2.head);
-                                                        }
-                                                    } else {
-                                                        return _target83(_arg2.tail, _arg2.head);
-                                                    }
-                                                } else {
-                                                    return _target83(_arg2.tail, _arg2.head);
-                                                }
-                                            } else {
-                                                return _target83(_arg2.tail, _arg2.head);
-                                            }
-                                        } else {
-                                            return _target83(_arg2.tail, _arg2.head);
-                                        }
-                                    } else {
-                                        return _target83(_arg2.tail, _arg2.head);
-                                    }
-                                } else {
-                                    return _target83(_arg2.tail, _arg2.head);
-                                }
-                            } else {
-                                return _target83(_arg2.tail, _arg2.head);
-                            }
-                        } else {
-                            return _target83(_arg2.tail, _arg2.head);
-                        }
-                    } else if (_arg2.head.Case === "T_SBC") {
-                        if (_arg2.tail.tail != null) {
-                            if (_arg2.tail.head.Case === "T_REG") {
-                                if (_arg2.tail.tail.tail != null) {
-                                    if (_arg2.tail.tail.head.Case === "T_COMMA") {
-                                        if (_arg2.tail.tail.tail.tail != null) {
-                                            if (_arg2.tail.tail.tail.head.Case === "T_REG") {
-                                                if (_arg2.tail.tail.tail.tail.tail != null) {
-                                                    if (_arg2.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                        if (_arg2.tail.tail.tail.tail.tail.tail != null) {
-                                                            if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_INT") {
-                                                                var _c15 = _arg2.head.Fields[0];
-                                                                var _i10 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                var _rd15 = _arg2.tail.head.Fields[0];
-                                                                var _rn9 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                var _s15 = _arg2.head.Fields[1];
-                                                                var _t17 = _arg2.tail.tail.tail.tail.tail.tail;
-                                                                return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function (state) {
-                                                                    return sbcI(_c15, _s15, _rd15, _rn9, _i10, state);
-                                                                }])]])))(_t17);
-                                                            } else if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                                        if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                            if (_arg2.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
-                                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
-                                                                                        var _c16 = _arg2.head.Fields[0];
-                                                                                        var _i11 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rd16 = _arg2.tail.head.Fields[0];
-                                                                                        var _rm10 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rn10 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                                        var _s16 = _arg2.head.Fields[1];
-                                                                                        var _t18 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                        var _z10 = _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                                            var rstype = "i";
-                                                                                            return function (state) {
-                                                                                                return sbcR(_c16, _s16, _rd16, _rn10, _rm10, _z10, _i11, rstype, state);
-                                                                                            };
-                                                                                        }()])]])))(_t18);
-                                                                                    } else if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                                        var _c17 = _arg2.head.Fields[0];
-                                                                                        var _rd17 = _arg2.tail.head.Fields[0];
-                                                                                        var _rm11 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rn11 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                                        var _rs5 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _s17 = _arg2.head.Fields[1];
-                                                                                        var _t19 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                        var _z11 = _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                                            var rstype = "r";
-                                                                                            return function (state) {
-                                                                                                return sbcR(_c17, _s17, _rd17, _rn11, _rm11, _z11, _rs5, rstype, state);
-                                                                                            };
-                                                                                        }()])]])))(_t19);
-                                                                                    } else {
-                                                                                        return _target23(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                                    }
-                                                                                } else {
-                                                                                    return _target23(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                                }
-                                                                            } else {
-                                                                                return _target23(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                            }
-                                                                        } else {
-                                                                            return _target23(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                        }
-                                                                    } else {
-                                                                        return _target23(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                    }
-                                                                } else {
-                                                                    return _target23(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                }
-                                                            } else {
-                                                                return _target83(_arg2.tail, _arg2.head);
-                                                            }
-                                                        } else {
-                                                            return _target83(_arg2.tail, _arg2.head);
-                                                        }
-                                                    } else {
-                                                        return _target83(_arg2.tail, _arg2.head);
-                                                    }
-                                                } else {
-                                                    return _target83(_arg2.tail, _arg2.head);
-                                                }
-                                            } else {
-                                                return _target83(_arg2.tail, _arg2.head);
-                                            }
-                                        } else {
-                                            return _target83(_arg2.tail, _arg2.head);
-                                        }
-                                    } else {
-                                        return _target83(_arg2.tail, _arg2.head);
-                                    }
-                                } else {
-                                    return _target83(_arg2.tail, _arg2.head);
-                                }
-                            } else {
-                                return _target83(_arg2.tail, _arg2.head);
-                            }
-                        } else {
-                            return _target83(_arg2.tail, _arg2.head);
-                        }
-                    } else if (_arg2.head.Case === "T_RSB") {
-                        if (_arg2.tail.tail != null) {
-                            if (_arg2.tail.head.Case === "T_REG") {
-                                if (_arg2.tail.tail.tail != null) {
-                                    if (_arg2.tail.tail.head.Case === "T_COMMA") {
-                                        if (_arg2.tail.tail.tail.tail != null) {
-                                            if (_arg2.tail.tail.tail.head.Case === "T_REG") {
-                                                if (_arg2.tail.tail.tail.tail.tail != null) {
-                                                    if (_arg2.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                        if (_arg2.tail.tail.tail.tail.tail.tail != null) {
-                                                            if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_INT") {
-                                                                var _c18 = _arg2.head.Fields[0];
-                                                                var _i12 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                var _rd18 = _arg2.tail.head.Fields[0];
-                                                                var _rn12 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                var _s18 = _arg2.head.Fields[1];
-                                                                var _t20 = _arg2.tail.tail.tail.tail.tail.tail;
-                                                                return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function (state) {
-                                                                    return rsbI(_c18, _s18, _rd18, _rn12, _i12, state);
-                                                                }])]])))(_t20);
-                                                            } else if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                                        if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                            if (_arg2.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
-                                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
-                                                                                        var _c19 = _arg2.head.Fields[0];
-                                                                                        var _i13 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rd19 = _arg2.tail.head.Fields[0];
-                                                                                        var _rm12 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rn13 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                                        var _s19 = _arg2.head.Fields[1];
-                                                                                        var _t21 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                        var _z12 = _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                                            var rstype = "i";
-                                                                                            return function (state) {
-                                                                                                return rsbR(_c19, _s19, _rd19, _rn13, _rm12, _z12, _i13, rstype, state);
-                                                                                            };
-                                                                                        }()])]])))(_t21);
-                                                                                    } else if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                                        var _c20 = _arg2.head.Fields[0];
-                                                                                        var _rd20 = _arg2.tail.head.Fields[0];
-                                                                                        var _rm13 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rn14 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                                        var _rs6 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _s20 = _arg2.head.Fields[1];
-                                                                                        var _t22 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                        var _z13 = _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                                            var rstype = "r";
-                                                                                            return function (state) {
-                                                                                                return rsbR(_c20, _s20, _rd20, _rn14, _rm13, _z13, _rs6, rstype, state);
-                                                                                            };
-                                                                                        }()])]])))(_t22);
-                                                                                    } else {
-                                                                                        return _target27(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                                    }
-                                                                                } else {
-                                                                                    return _target27(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                                }
-                                                                            } else {
-                                                                                return _target27(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                            }
-                                                                        } else {
-                                                                            return _target27(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                        }
-                                                                    } else {
-                                                                        return _target27(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                    }
-                                                                } else {
-                                                                    return _target27(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                }
-                                                            } else {
-                                                                return _target83(_arg2.tail, _arg2.head);
-                                                            }
-                                                        } else {
-                                                            return _target83(_arg2.tail, _arg2.head);
-                                                        }
-                                                    } else {
-                                                        return _target83(_arg2.tail, _arg2.head);
-                                                    }
-                                                } else {
-                                                    return _target83(_arg2.tail, _arg2.head);
-                                                }
-                                            } else {
-                                                return _target83(_arg2.tail, _arg2.head);
-                                            }
-                                        } else {
-                                            return _target83(_arg2.tail, _arg2.head);
-                                        }
-                                    } else {
-                                        return _target83(_arg2.tail, _arg2.head);
-                                    }
-                                } else {
-                                    return _target83(_arg2.tail, _arg2.head);
-                                }
-                            } else {
-                                return _target83(_arg2.tail, _arg2.head);
-                            }
-                        } else {
-                            return _target83(_arg2.tail, _arg2.head);
-                        }
-                    } else if (_arg2.head.Case === "T_RSC") {
-                        if (_arg2.tail.tail != null) {
-                            if (_arg2.tail.head.Case === "T_REG") {
-                                if (_arg2.tail.tail.tail != null) {
-                                    if (_arg2.tail.tail.head.Case === "T_COMMA") {
-                                        if (_arg2.tail.tail.tail.tail != null) {
-                                            if (_arg2.tail.tail.tail.head.Case === "T_REG") {
-                                                if (_arg2.tail.tail.tail.tail.tail != null) {
-                                                    if (_arg2.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                        if (_arg2.tail.tail.tail.tail.tail.tail != null) {
-                                                            if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_INT") {
-                                                                var _c21 = _arg2.head.Fields[0];
-                                                                var _i14 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                var _rd21 = _arg2.tail.head.Fields[0];
-                                                                var _rn15 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                var _s21 = _arg2.head.Fields[1];
-                                                                var _t23 = _arg2.tail.tail.tail.tail.tail.tail;
-                                                                return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function (state) {
-                                                                    return rscI(_c21, _s21, _rd21, _rn15, _i14, state);
-                                                                }])]])))(_t23);
-                                                            } else if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                                        if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                            if (_arg2.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
-                                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
-                                                                                        var _c22 = _arg2.head.Fields[0];
-                                                                                        var _i15 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rd22 = _arg2.tail.head.Fields[0];
-                                                                                        var _rm14 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rn16 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                                        var _s22 = _arg2.head.Fields[1];
-                                                                                        var _t24 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                        var _z14 = _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                                            var rstype = "i";
-                                                                                            return function (state) {
-                                                                                                return rscR(_c22, _s22, _rd22, _rn16, _rm14, _z14, _i15, rstype, state);
-                                                                                            };
-                                                                                        }()])]])))(_t24);
-                                                                                    } else if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                                        var _c23 = _arg2.head.Fields[0];
-                                                                                        var _rd23 = _arg2.tail.head.Fields[0];
-                                                                                        var _rm15 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rn17 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                                        var _rs7 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _s23 = _arg2.head.Fields[1];
-                                                                                        var _t25 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                        var _z15 = _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                                            var rstype = "r";
-                                                                                            return function (state) {
-                                                                                                return rscR(_c23, _s23, _rd23, _rn17, _rm15, _z15, _rs7, rstype, state);
-                                                                                            };
-                                                                                        }()])]])))(_t25);
-                                                                                    } else {
-                                                                                        return _target31(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                                    }
-                                                                                } else {
-                                                                                    return _target31(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                                }
-                                                                            } else {
-                                                                                return _target31(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                            }
-                                                                        } else {
-                                                                            return _target31(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                        }
-                                                                    } else {
-                                                                        return _target31(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                    }
-                                                                } else {
-                                                                    return _target31(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                }
-                                                            } else {
-                                                                return _target83(_arg2.tail, _arg2.head);
-                                                            }
-                                                        } else {
-                                                            return _target83(_arg2.tail, _arg2.head);
-                                                        }
-                                                    } else {
-                                                        return _target83(_arg2.tail, _arg2.head);
-                                                    }
-                                                } else {
-                                                    return _target83(_arg2.tail, _arg2.head);
-                                                }
-                                            } else {
-                                                return _target83(_arg2.tail, _arg2.head);
-                                            }
-                                        } else {
-                                            return _target83(_arg2.tail, _arg2.head);
-                                        }
-                                    } else {
-                                        return _target83(_arg2.tail, _arg2.head);
-                                    }
-                                } else {
-                                    return _target83(_arg2.tail, _arg2.head);
-                                }
-                            } else {
-                                return _target83(_arg2.tail, _arg2.head);
-                            }
-                        } else {
-                            return _target83(_arg2.tail, _arg2.head);
-                        }
-                    } else if (_arg2.head.Case === "T_MUL") {
-                        if (_arg2.tail.tail != null) {
-                            if (_arg2.tail.head.Case === "T_REG") {
-                                if (_arg2.tail.tail.tail != null) {
-                                    if (_arg2.tail.tail.head.Case === "T_COMMA") {
-                                        if (_arg2.tail.tail.tail.tail != null) {
-                                            if (_arg2.tail.tail.tail.head.Case === "T_REG") {
-                                                if (_arg2.tail.tail.tail.tail.tail != null) {
-                                                    if (_arg2.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                        if (_arg2.tail.tail.tail.tail.tail.tail != null) {
-                                                            if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                var _c24 = _arg2.head.Fields[0];
-                                                                var _rd24 = _arg2.tail.head.Fields[0];
-                                                                var _rm16 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                var _rs8 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                var _s24 = _arg2.head.Fields[1];
-                                                                var _t26 = _arg2.tail.tail.tail.tail.tail.tail;
-                                                                return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function (state) {
-                                                                    return mulR(_c24, _s24, _rd24, _rm16, _rs8, state);
-                                                                }])]])))(_t26);
-                                                            } else {
-                                                                return _target83(_arg2.tail, _arg2.head);
-                                                            }
-                                                        } else {
-                                                            return _target83(_arg2.tail, _arg2.head);
-                                                        }
-                                                    } else {
-                                                        return _target83(_arg2.tail, _arg2.head);
-                                                    }
-                                                } else {
-                                                    return _target83(_arg2.tail, _arg2.head);
-                                                }
-                                            } else {
-                                                return _target83(_arg2.tail, _arg2.head);
-                                            }
-                                        } else {
-                                            return _target83(_arg2.tail, _arg2.head);
-                                        }
-                                    } else {
-                                        return _target83(_arg2.tail, _arg2.head);
-                                    }
-                                } else {
-                                    return _target83(_arg2.tail, _arg2.head);
-                                }
-                            } else {
-                                return _target83(_arg2.tail, _arg2.head);
-                            }
-                        } else {
-                            return _target83(_arg2.tail, _arg2.head);
-                        }
-                    } else if (_arg2.head.Case === "T_MLA") {
-                        if (_arg2.tail.tail != null) {
-                            if (_arg2.tail.head.Case === "T_REG") {
-                                if (_arg2.tail.tail.tail != null) {
-                                    if (_arg2.tail.tail.head.Case === "T_COMMA") {
-                                        if (_arg2.tail.tail.tail.tail != null) {
-                                            if (_arg2.tail.tail.tail.head.Case === "T_REG") {
-                                                if (_arg2.tail.tail.tail.tail.tail != null) {
-                                                    if (_arg2.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                        if (_arg2.tail.tail.tail.tail.tail.tail != null) {
-                                                            if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                                        if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                            if (_arg2.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                                var _c25 = _arg2.head.Fields[0];
-                                                                                var _rd25 = _arg2.tail.head.Fields[0];
-                                                                                var _rm17 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                                var _rn18 = _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                var _rs9 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                var _s25 = _arg2.head.Fields[1];
-                                                                                var _t27 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function (state) {
-                                                                                    return mlaR(_c25, _s25, _rd25, _rm17, _rs9, _rn18, state);
-                                                                                }])]])))(_t27);
-                                                                            } else {
-                                                                                return _target83(_arg2.tail, _arg2.head);
-                                                                            }
-                                                                        } else {
-                                                                            return _target83(_arg2.tail, _arg2.head);
-                                                                        }
-                                                                    } else {
-                                                                        return _target83(_arg2.tail, _arg2.head);
-                                                                    }
-                                                                } else {
-                                                                    return _target83(_arg2.tail, _arg2.head);
-                                                                }
-                                                            } else {
-                                                                return _target83(_arg2.tail, _arg2.head);
-                                                            }
-                                                        } else {
-                                                            return _target83(_arg2.tail, _arg2.head);
-                                                        }
-                                                    } else {
-                                                        return _target83(_arg2.tail, _arg2.head);
-                                                    }
-                                                } else {
-                                                    return _target83(_arg2.tail, _arg2.head);
-                                                }
-                                            } else {
-                                                return _target83(_arg2.tail, _arg2.head);
-                                            }
-                                        } else {
-                                            return _target83(_arg2.tail, _arg2.head);
-                                        }
-                                    } else {
-                                        return _target83(_arg2.tail, _arg2.head);
-                                    }
-                                } else {
-                                    return _target83(_arg2.tail, _arg2.head);
-                                }
-                            } else {
-                                return _target83(_arg2.tail, _arg2.head);
-                            }
-                        } else {
-                            return _target83(_arg2.tail, _arg2.head);
-                        }
-                    } else if (_arg2.head.Case === "T_AND") {
-                        if (_arg2.tail.tail != null) {
-                            if (_arg2.tail.head.Case === "T_REG") {
-                                if (_arg2.tail.tail.tail != null) {
-                                    if (_arg2.tail.tail.head.Case === "T_COMMA") {
-                                        if (_arg2.tail.tail.tail.tail != null) {
-                                            if (_arg2.tail.tail.tail.head.Case === "T_REG") {
-                                                if (_arg2.tail.tail.tail.tail.tail != null) {
-                                                    if (_arg2.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                        if (_arg2.tail.tail.tail.tail.tail.tail != null) {
-                                                            if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_INT") {
-                                                                var _c26 = _arg2.head.Fields[0];
-                                                                var _i16 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                var _rd26 = _arg2.tail.head.Fields[0];
-                                                                var _rn19 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                var _s26 = _arg2.head.Fields[1];
-                                                                var _t28 = _arg2.tail.tail.tail.tail.tail.tail;
-                                                                return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function (state) {
-                                                                    return andI(_c26, _s26, _rd26, _rn19, _i16, state);
-                                                                }])]])))(_t28);
-                                                            } else if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                                        if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                            if (_arg2.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
-                                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
-                                                                                        var _c27 = _arg2.head.Fields[0];
-                                                                                        var _i17 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rd27 = _arg2.tail.head.Fields[0];
-                                                                                        var _rm18 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rn20 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                                        var _s27 = _arg2.head.Fields[1];
-                                                                                        var _t29 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                        var _z16 = _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                                            var rstype = "i";
-                                                                                            return function (state) {
-                                                                                                return andR(_c27, _s27, _rd27, _rn20, _rm18, _z16, _i17, rstype, state);
-                                                                                            };
-                                                                                        }()])]])))(_t29);
-                                                                                    } else if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                                        var _c28 = _arg2.head.Fields[0];
-                                                                                        var _rd28 = _arg2.tail.head.Fields[0];
-                                                                                        var _rm19 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rn21 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                                        var _rs10 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _s28 = _arg2.head.Fields[1];
-                                                                                        var _t30 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                        var _z17 = _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                                            var rstype = "r";
-                                                                                            return function (state) {
-                                                                                                return andR(_c28, _s28, _rd28, _rn21, _rm19, _z17, _rs10, rstype, state);
-                                                                                            };
-                                                                                        }()])]])))(_t30);
-                                                                                    } else {
-                                                                                        return _target37(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                                    }
-                                                                                } else {
-                                                                                    return _target37(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                                }
-                                                                            } else {
-                                                                                return _target37(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                            }
-                                                                        } else {
-                                                                            return _target37(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                        }
-                                                                    } else {
-                                                                        return _target37(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                    }
-                                                                } else {
-                                                                    return _target37(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                }
-                                                            } else {
-                                                                return _target83(_arg2.tail, _arg2.head);
-                                                            }
-                                                        } else {
-                                                            return _target83(_arg2.tail, _arg2.head);
-                                                        }
-                                                    } else {
-                                                        return _target83(_arg2.tail, _arg2.head);
-                                                    }
-                                                } else {
-                                                    return _target83(_arg2.tail, _arg2.head);
-                                                }
-                                            } else {
-                                                return _target83(_arg2.tail, _arg2.head);
-                                            }
-                                        } else {
-                                            return _target83(_arg2.tail, _arg2.head);
-                                        }
-                                    } else {
-                                        return _target83(_arg2.tail, _arg2.head);
-                                    }
-                                } else {
-                                    return _target83(_arg2.tail, _arg2.head);
-                                }
-                            } else {
-                                return _target83(_arg2.tail, _arg2.head);
-                            }
-                        } else {
-                            return _target83(_arg2.tail, _arg2.head);
-                        }
-                    } else if (_arg2.head.Case === "T_ORR") {
-                        if (_arg2.tail.tail != null) {
-                            if (_arg2.tail.head.Case === "T_REG") {
-                                if (_arg2.tail.tail.tail != null) {
-                                    if (_arg2.tail.tail.head.Case === "T_COMMA") {
-                                        if (_arg2.tail.tail.tail.tail != null) {
-                                            if (_arg2.tail.tail.tail.head.Case === "T_REG") {
-                                                if (_arg2.tail.tail.tail.tail.tail != null) {
-                                                    if (_arg2.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                        if (_arg2.tail.tail.tail.tail.tail.tail != null) {
-                                                            if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_INT") {
-                                                                var _c29 = _arg2.head.Fields[0];
-                                                                var _i18 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                var _rd29 = _arg2.tail.head.Fields[0];
-                                                                var _rn22 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                var _s29 = _arg2.head.Fields[1];
-                                                                var _t31 = _arg2.tail.tail.tail.tail.tail.tail;
-                                                                return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function (state) {
-                                                                    return orrI(_c29, _s29, _rd29, _rn22, _i18, state);
-                                                                }])]])))(_t31);
-                                                            } else if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                                        if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                            if (_arg2.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
-                                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
-                                                                                        var _c30 = _arg2.head.Fields[0];
-                                                                                        var _i19 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rd30 = _arg2.tail.head.Fields[0];
-                                                                                        var _rm20 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rn23 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                                        var _s30 = _arg2.head.Fields[1];
-                                                                                        var _t32 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                        var _z18 = _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                                            var rstype = "i";
-                                                                                            return function (state) {
-                                                                                                return orrR(_c30, _s30, _rd30, _rn23, _rm20, _z18, _i19, rstype, state);
-                                                                                            };
-                                                                                        }()])]])))(_t32);
-                                                                                    } else if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                                        var _c31 = _arg2.head.Fields[0];
-                                                                                        var _rd31 = _arg2.tail.head.Fields[0];
-                                                                                        var _rm21 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rn24 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                                        var _rs11 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _s31 = _arg2.head.Fields[1];
-                                                                                        var _t33 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                        var _z19 = _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                                            var rstype = "r";
-                                                                                            return function (state) {
-                                                                                                return orrR(_c31, _s31, _rd31, _rn24, _rm21, _z19, _rs11, rstype, state);
-                                                                                            };
-                                                                                        }()])]])))(_t33);
-                                                                                    } else {
-                                                                                        return _target41(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                                    }
-                                                                                } else {
-                                                                                    return _target41(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                                }
-                                                                            } else {
-                                                                                return _target41(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                            }
-                                                                        } else {
-                                                                            return _target41(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                        }
-                                                                    } else {
-                                                                        return _target41(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                    }
-                                                                } else {
-                                                                    return _target41(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                }
-                                                            } else {
-                                                                return _target83(_arg2.tail, _arg2.head);
-                                                            }
-                                                        } else {
-                                                            return _target83(_arg2.tail, _arg2.head);
-                                                        }
-                                                    } else {
-                                                        return _target83(_arg2.tail, _arg2.head);
-                                                    }
-                                                } else {
-                                                    return _target83(_arg2.tail, _arg2.head);
-                                                }
-                                            } else {
-                                                return _target83(_arg2.tail, _arg2.head);
-                                            }
-                                        } else {
-                                            return _target83(_arg2.tail, _arg2.head);
-                                        }
-                                    } else {
-                                        return _target83(_arg2.tail, _arg2.head);
-                                    }
-                                } else {
-                                    return _target83(_arg2.tail, _arg2.head);
-                                }
-                            } else {
-                                return _target83(_arg2.tail, _arg2.head);
-                            }
-                        } else {
-                            return _target83(_arg2.tail, _arg2.head);
-                        }
-                    } else if (_arg2.head.Case === "T_EOR") {
-                        if (_arg2.tail.tail != null) {
-                            if (_arg2.tail.head.Case === "T_REG") {
-                                if (_arg2.tail.tail.tail != null) {
-                                    if (_arg2.tail.tail.head.Case === "T_COMMA") {
-                                        if (_arg2.tail.tail.tail.tail != null) {
-                                            if (_arg2.tail.tail.tail.head.Case === "T_REG") {
-                                                if (_arg2.tail.tail.tail.tail.tail != null) {
-                                                    if (_arg2.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                        if (_arg2.tail.tail.tail.tail.tail.tail != null) {
-                                                            if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_INT") {
-                                                                var _c32 = _arg2.head.Fields[0];
-                                                                var _i20 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                var _rd32 = _arg2.tail.head.Fields[0];
-                                                                var _rn25 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                var _s32 = _arg2.head.Fields[1];
-                                                                var _t34 = _arg2.tail.tail.tail.tail.tail.tail;
-                                                                return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function (state) {
-                                                                    return eorI(_c32, _s32, _rd32, _rn25, _i20, state);
-                                                                }])]])))(_t34);
-                                                            } else if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                                        if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                            if (_arg2.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
-                                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
-                                                                                        var _c33 = _arg2.head.Fields[0];
-                                                                                        var _i21 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rd33 = _arg2.tail.head.Fields[0];
-                                                                                        var _rm22 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rn26 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                                        var _s33 = _arg2.head.Fields[1];
-                                                                                        var _t35 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                        var _z20 = _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                                            var rstype = "i";
-                                                                                            return function (state) {
-                                                                                                return eorR(_c33, _s33, _rd33, _rn26, _rm22, _z20, _i21, rstype, state);
-                                                                                            };
-                                                                                        }()])]])))(_t35);
-                                                                                    } else if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                                        var _c34 = _arg2.head.Fields[0];
-                                                                                        var _rd34 = _arg2.tail.head.Fields[0];
-                                                                                        var _rm23 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rn27 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                                        var _rs12 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _s34 = _arg2.head.Fields[1];
-                                                                                        var _t36 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                        var _z21 = _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                                            var rstype = "r";
-                                                                                            return function (state) {
-                                                                                                return eorR(_c34, _s34, _rd34, _rn27, _rm23, _z21, _rs12, rstype, state);
-                                                                                            };
-                                                                                        }()])]])))(_t36);
-                                                                                    } else {
-                                                                                        return _target45(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                                    }
-                                                                                } else {
-                                                                                    return _target45(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                                }
-                                                                            } else {
-                                                                                return _target45(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                            }
-                                                                        } else {
-                                                                            return _target45(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                        }
-                                                                    } else {
-                                                                        return _target45(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                    }
-                                                                } else {
-                                                                    return _target45(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                }
-                                                            } else {
-                                                                return _target83(_arg2.tail, _arg2.head);
-                                                            }
-                                                        } else {
-                                                            return _target83(_arg2.tail, _arg2.head);
-                                                        }
-                                                    } else {
-                                                        return _target83(_arg2.tail, _arg2.head);
-                                                    }
-                                                } else {
-                                                    return _target83(_arg2.tail, _arg2.head);
-                                                }
-                                            } else {
-                                                return _target83(_arg2.tail, _arg2.head);
-                                            }
-                                        } else {
-                                            return _target83(_arg2.tail, _arg2.head);
-                                        }
-                                    } else {
-                                        return _target83(_arg2.tail, _arg2.head);
-                                    }
-                                } else {
-                                    return _target83(_arg2.tail, _arg2.head);
-                                }
-                            } else {
-                                return _target83(_arg2.tail, _arg2.head);
-                            }
-                        } else {
-                            return _target83(_arg2.tail, _arg2.head);
-                        }
-                    } else if (_arg2.head.Case === "T_BIC") {
-                        if (_arg2.tail.tail != null) {
-                            if (_arg2.tail.head.Case === "T_REG") {
-                                if (_arg2.tail.tail.tail != null) {
-                                    if (_arg2.tail.tail.head.Case === "T_COMMA") {
-                                        if (_arg2.tail.tail.tail.tail != null) {
-                                            if (_arg2.tail.tail.tail.head.Case === "T_REG") {
-                                                if (_arg2.tail.tail.tail.tail.tail != null) {
-                                                    if (_arg2.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                        if (_arg2.tail.tail.tail.tail.tail.tail != null) {
-                                                            if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_INT") {
-                                                                var _c35 = _arg2.head.Fields[0];
-                                                                var _i22 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                var _rd35 = _arg2.tail.head.Fields[0];
-                                                                var _rn28 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                var _s35 = _arg2.head.Fields[1];
-                                                                var _t37 = _arg2.tail.tail.tail.tail.tail.tail;
-                                                                return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function (state) {
-                                                                    return bicI(_c35, _s35, _rd35, _rn28, _i22, state);
-                                                                }])]])))(_t37);
-                                                            } else if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                                        if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                            if (_arg2.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
-                                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
-                                                                                        var _c36 = _arg2.head.Fields[0];
-                                                                                        var _i23 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rd36 = _arg2.tail.head.Fields[0];
-                                                                                        var _rm24 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rn29 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                                        var _s36 = _arg2.head.Fields[1];
-                                                                                        var _t38 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                        var _z22 = _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                                            var rstype = "i";
-                                                                                            return function (state) {
-                                                                                                return bicR(_c36, _s36, _rd36, _rn29, _rm24, _z22, _i23, rstype, state);
-                                                                                            };
-                                                                                        }()])]])))(_t38);
-                                                                                    } else if (_arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                                        var _c37 = _arg2.head.Fields[0];
-                                                                                        var _rd37 = _arg2.tail.head.Fields[0];
-                                                                                        var _rm25 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _rn30 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                                        var _rs13 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        var _s37 = _arg2.head.Fields[1];
-                                                                                        var _t39 = _arg2.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                        var _z23 = _arg2.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                                            var rstype = "r";
-                                                                                            return function (state) {
-                                                                                                return bicR(_c37, _s37, _rd37, _rn30, _rm25, _z23, _rs13, rstype, state);
-                                                                                            };
-                                                                                        }()])]])))(_t39);
-                                                                                    } else {
-                                                                                        return _target49(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                                    }
-                                                                                } else {
-                                                                                    return _target49(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                                }
-                                                                            } else {
-                                                                                return _target49(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                            }
-                                                                        } else {
-                                                                            return _target49(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                        }
-                                                                    } else {
-                                                                        return _target49(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                    }
-                                                                } else {
-                                                                    return _target49(_arg2.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail.tail.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.head.Fields[1], _arg2.tail.tail.tail.tail.tail.tail);
-                                                                }
-                                                            } else {
-                                                                return _target83(_arg2.tail, _arg2.head);
-                                                            }
-                                                        } else {
-                                                            return _target83(_arg2.tail, _arg2.head);
-                                                        }
-                                                    } else {
-                                                        return _target83(_arg2.tail, _arg2.head);
-                                                    }
-                                                } else {
-                                                    return _target83(_arg2.tail, _arg2.head);
-                                                }
-                                            } else {
-                                                return _target83(_arg2.tail, _arg2.head);
-                                            }
-                                        } else {
-                                            return _target83(_arg2.tail, _arg2.head);
-                                        }
-                                    } else {
-                                        return _target83(_arg2.tail, _arg2.head);
-                                    }
-                                } else {
-                                    return _target83(_arg2.tail, _arg2.head);
-                                }
-                            } else {
-                                return _target83(_arg2.tail, _arg2.head);
-                            }
-                        } else {
-                            return _target83(_arg2.tail, _arg2.head);
-                        }
-                    } else if (_arg2.head.Case === "T_CMP") {
-                        if (_arg2.tail.tail != null) {
-                            if (_arg2.tail.head.Case === "T_REG") {
-                                if (_arg2.tail.tail.tail != null) {
-                                    if (_arg2.tail.tail.head.Case === "T_COMMA") {
-                                        if (_arg2.tail.tail.tail.tail != null) {
-                                            if (_arg2.tail.tail.tail.head.Case === "T_INT") {
-                                                var _c38 = _arg2.head.Fields[0];
-                                                var _i24 = _arg2.tail.tail.tail.head.Fields[0];
-                                                var _rn31 = _arg2.tail.head.Fields[0];
-                                                var _t40 = _arg2.tail.tail.tail.tail;
-                                                return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function (state) {
-                                                    return cmpI(_c38, _rn31, _i24, state);
-                                                }])]])))(_t40);
-                                            } else if (_arg2.tail.tail.tail.head.Case === "T_REG") {
-                                                if (_arg2.tail.tail.tail.tail.tail != null) {
-                                                    if (_arg2.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                        if (_arg2.tail.tail.tail.tail.tail.tail != null) {
-                                                            if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
-                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
-                                                                        var _c39 = _arg2.head.Fields[0];
-                                                                        var _i25 = _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        var _rm26 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                        var _rn32 = _arg2.tail.head.Fields[0];
-                                                                        var _t41 = _arg2.tail.tail.tail.tail.tail.tail.tail;
-                                                                        var _z24 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                            var rstype = "i";
-                                                                            return function (state) {
-                                                                                return cmpR(_c39, _rn32, _rm26, _z24, _i25, rstype, state);
-                                                                            };
-                                                                        }()])]])))(_t41);
-                                                                    } else if (_arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                        var _c40 = _arg2.head.Fields[0];
-                                                                        var _rm27 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                        var _rn33 = _arg2.tail.head.Fields[0];
-                                                                        var _rs14 = _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        var _t42 = _arg2.tail.tail.tail.tail.tail.tail.tail;
-                                                                        var _z25 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                            var rstype = "r";
-                                                                            return function (state) {
-                                                                                return cmpR(_c40, _rn33, _rm27, _z25, _rs14, rstype, state);
-                                                                            };
-                                                                        }()])]])))(_t42);
-                                                                    } else {
-                                                                        return _target53(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                                    }
-                                                                } else {
-                                                                    return _target53(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                                }
-                                                            } else {
-                                                                return _target53(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                            }
-                                                        } else {
-                                                            return _target53(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                        }
-                                                    } else {
-                                                        return _target53(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                    }
-                                                } else {
-                                                    return _target53(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                }
-                                            } else {
-                                                return _target83(_arg2.tail, _arg2.head);
-                                            }
-                                        } else {
-                                            return _target83(_arg2.tail, _arg2.head);
-                                        }
-                                    } else {
-                                        return _target83(_arg2.tail, _arg2.head);
-                                    }
-                                } else {
-                                    return _target83(_arg2.tail, _arg2.head);
-                                }
-                            } else {
-                                return _target83(_arg2.tail, _arg2.head);
-                            }
-                        } else {
-                            return _target83(_arg2.tail, _arg2.head);
-                        }
-                    } else if (_arg2.head.Case === "T_CMN") {
-                        if (_arg2.tail.tail != null) {
-                            if (_arg2.tail.head.Case === "T_REG") {
-                                if (_arg2.tail.tail.tail != null) {
-                                    if (_arg2.tail.tail.head.Case === "T_COMMA") {
-                                        if (_arg2.tail.tail.tail.tail != null) {
-                                            if (_arg2.tail.tail.tail.head.Case === "T_INT") {
-                                                var _c41 = _arg2.head.Fields[0];
-                                                var _i26 = _arg2.tail.tail.tail.head.Fields[0];
-                                                var _rn34 = _arg2.tail.head.Fields[0];
-                                                var _t43 = _arg2.tail.tail.tail.tail;
-                                                return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function (state) {
-                                                    return cmnI(_c41, _rn34, _i26, state);
-                                                }])]])))(_t43);
-                                            } else if (_arg2.tail.tail.tail.head.Case === "T_REG") {
-                                                if (_arg2.tail.tail.tail.tail.tail != null) {
-                                                    if (_arg2.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                        if (_arg2.tail.tail.tail.tail.tail.tail != null) {
-                                                            if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
-                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
-                                                                        var _c42 = _arg2.head.Fields[0];
-                                                                        var _i27 = _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        var _rm28 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                        var _rn35 = _arg2.tail.head.Fields[0];
-                                                                        var _t44 = _arg2.tail.tail.tail.tail.tail.tail.tail;
-                                                                        var _z26 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                            var rstype = "i";
-                                                                            return function (state) {
-                                                                                return cmnR(_c42, _rn35, _rm28, _z26, _i27, rstype, state);
-                                                                            };
-                                                                        }()])]])))(_t44);
-                                                                    } else if (_arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                        var _c43 = _arg2.head.Fields[0];
-                                                                        var _rm29 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                        var _rn36 = _arg2.tail.head.Fields[0];
-                                                                        var _rs15 = _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        var _t45 = _arg2.tail.tail.tail.tail.tail.tail.tail;
-                                                                        var _z27 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                            var rstype = "r";
-                                                                            return function (state) {
-                                                                                return cmnR(_c43, _rn36, _rm29, _z27, _rs15, rstype, state);
-                                                                            };
-                                                                        }()])]])))(_t45);
-                                                                    } else {
-                                                                        return _target57(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                                    }
-                                                                } else {
-                                                                    return _target57(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                                }
-                                                            } else {
-                                                                return _target57(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                            }
-                                                        } else {
-                                                            return _target57(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                        }
-                                                    } else {
-                                                        return _target57(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                    }
-                                                } else {
-                                                    return _target57(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                }
-                                            } else {
-                                                return _target83(_arg2.tail, _arg2.head);
-                                            }
-                                        } else {
-                                            return _target83(_arg2.tail, _arg2.head);
-                                        }
-                                    } else {
-                                        return _target83(_arg2.tail, _arg2.head);
-                                    }
-                                } else {
-                                    return _target83(_arg2.tail, _arg2.head);
-                                }
-                            } else {
-                                return _target83(_arg2.tail, _arg2.head);
-                            }
-                        } else {
-                            return _target83(_arg2.tail, _arg2.head);
-                        }
-                    } else if (_arg2.head.Case === "T_TST") {
-                        if (_arg2.tail.tail != null) {
-                            if (_arg2.tail.head.Case === "T_REG") {
-                                if (_arg2.tail.tail.tail != null) {
-                                    if (_arg2.tail.tail.head.Case === "T_COMMA") {
-                                        if (_arg2.tail.tail.tail.tail != null) {
-                                            if (_arg2.tail.tail.tail.head.Case === "T_INT") {
-                                                var _c44 = _arg2.head.Fields[0];
-                                                var _i28 = _arg2.tail.tail.tail.head.Fields[0];
-                                                var _rn37 = _arg2.tail.head.Fields[0];
-                                                var _t46 = _arg2.tail.tail.tail.tail;
-                                                return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function (state) {
-                                                    return tstI(_c44, _rn37, _i28, state);
-                                                }])]])))(_t46);
-                                            } else if (_arg2.tail.tail.tail.head.Case === "T_REG") {
-                                                if (_arg2.tail.tail.tail.tail.tail != null) {
-                                                    if (_arg2.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                        if (_arg2.tail.tail.tail.tail.tail.tail != null) {
-                                                            if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
-                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
-                                                                        var _c45 = _arg2.head.Fields[0];
-                                                                        var _i29 = _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        var _rm30 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                        var _rn38 = _arg2.tail.head.Fields[0];
-                                                                        var _t47 = _arg2.tail.tail.tail.tail.tail.tail.tail;
-                                                                        var _z28 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                            var rstype = "i";
-                                                                            return function (state) {
-                                                                                return tstR(_c45, _rn38, _rm30, _z28, _i29, rstype, state);
-                                                                            };
-                                                                        }()])]])))(_t47);
-                                                                    } else if (_arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                        var _c46 = _arg2.head.Fields[0];
-                                                                        var _rm31 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                        var _rn39 = _arg2.tail.head.Fields[0];
-                                                                        var _rs16 = _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        var _t48 = _arg2.tail.tail.tail.tail.tail.tail.tail;
-                                                                        var _z29 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                            var rstype = "r";
-                                                                            return function (state) {
-                                                                                return tstR(_c46, _rn39, _rm31, _z29, _rs16, rstype, state);
-                                                                            };
-                                                                        }()])]])))(_t48);
-                                                                    } else {
-                                                                        return _target61(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                                    }
-                                                                } else {
-                                                                    return _target61(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                                }
-                                                            } else {
-                                                                return _target61(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                            }
-                                                        } else {
-                                                            return _target61(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                        }
-                                                    } else {
-                                                        return _target61(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                    }
-                                                } else {
-                                                    return _target61(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                }
-                                            } else {
-                                                return _target83(_arg2.tail, _arg2.head);
-                                            }
-                                        } else {
-                                            return _target83(_arg2.tail, _arg2.head);
-                                        }
-                                    } else {
-                                        return _target83(_arg2.tail, _arg2.head);
-                                    }
-                                } else {
-                                    return _target83(_arg2.tail, _arg2.head);
-                                }
-                            } else {
-                                return _target83(_arg2.tail, _arg2.head);
-                            }
-                        } else {
-                            return _target83(_arg2.tail, _arg2.head);
-                        }
-                    } else if (_arg2.head.Case === "T_TEQ") {
-                        if (_arg2.tail.tail != null) {
-                            if (_arg2.tail.head.Case === "T_REG") {
-                                if (_arg2.tail.tail.tail != null) {
-                                    if (_arg2.tail.tail.head.Case === "T_COMMA") {
-                                        if (_arg2.tail.tail.tail.tail != null) {
-                                            if (_arg2.tail.tail.tail.head.Case === "T_INT") {
-                                                var _c47 = _arg2.head.Fields[0];
-                                                var _i30 = _arg2.tail.tail.tail.head.Fields[0];
-                                                var _rn40 = _arg2.tail.head.Fields[0];
-                                                var _t49 = _arg2.tail.tail.tail.tail;
-                                                return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function (state) {
-                                                    return teqI(_c47, _rn40, _i30, state);
-                                                }])]])))(_t49);
-                                            } else if (_arg2.tail.tail.tail.head.Case === "T_REG") {
-                                                if (_arg2.tail.tail.tail.tail.tail != null) {
-                                                    if (_arg2.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                        if (_arg2.tail.tail.tail.tail.tail.tail != null) {
-                                                            if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
-                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
-                                                                        var _c48 = _arg2.head.Fields[0];
-                                                                        var _i31 = _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        var _rm32 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                        var _rn41 = _arg2.tail.head.Fields[0];
-                                                                        var _t50 = _arg2.tail.tail.tail.tail.tail.tail.tail;
-                                                                        var _z30 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                            var rstype = "i";
-                                                                            return function (state) {
-                                                                                return teqR(_c48, _rn41, _rm32, _z30, _i31, rstype, state);
-                                                                            };
-                                                                        }()])]])))(_t50);
-                                                                    } else if (_arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                        var _c49 = _arg2.head.Fields[0];
-                                                                        var _rm33 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                        var _rn42 = _arg2.tail.head.Fields[0];
-                                                                        var _rs17 = _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        var _t51 = _arg2.tail.tail.tail.tail.tail.tail.tail;
-                                                                        var _z31 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                            var rstype = "r";
-                                                                            return function (state) {
-                                                                                return teqR(_c49, _rn42, _rm33, _z31, _rs17, rstype, state);
-                                                                            };
-                                                                        }()])]])))(_t51);
-                                                                    } else {
-                                                                        return _target65(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                                    }
-                                                                } else {
-                                                                    return _target65(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                                }
-                                                            } else {
-                                                                return _target65(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                            }
-                                                        } else {
-                                                            return _target65(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                        }
-                                                    } else {
-                                                        return _target65(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                    }
-                                                } else {
-                                                    return _target65(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                }
-                                            } else {
-                                                return _target83(_arg2.tail, _arg2.head);
-                                            }
-                                        } else {
-                                            return _target83(_arg2.tail, _arg2.head);
-                                        }
-                                    } else {
-                                        return _target83(_arg2.tail, _arg2.head);
-                                    }
-                                } else {
-                                    return _target83(_arg2.tail, _arg2.head);
-                                }
-                            } else {
-                                return _target83(_arg2.tail, _arg2.head);
-                            }
-                        } else {
-                            return _target83(_arg2.tail, _arg2.head);
-                        }
-                    } else if (_arg2.head.Case === "T_CLZ") {
-                        if (_arg2.tail.tail != null) {
-                            if (_arg2.tail.head.Case === "T_REG") {
-                                if (_arg2.tail.tail.tail != null) {
-                                    if (_arg2.tail.tail.head.Case === "T_COMMA") {
-                                        if (_arg2.tail.tail.tail.tail != null) {
-                                            if (_arg2.tail.tail.tail.head.Case === "T_INT") {
-                                                var _c50 = _arg2.head.Fields[0];
-                                                var _i32 = _arg2.tail.tail.tail.head.Fields[0];
-                                                var _rn43 = _arg2.tail.head.Fields[0];
-                                                var _t52 = _arg2.tail.tail.tail.tail;
-                                                return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function (state) {
-                                                    return tstI(_c50, _rn43, _i32, state);
-                                                }])]])))(_t52);
-                                            } else if (_arg2.tail.tail.tail.head.Case === "T_REG") {
-                                                if (_arg2.tail.tail.tail.tail.tail != null) {
-                                                    if (_arg2.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                        if (_arg2.tail.tail.tail.tail.tail.tail != null) {
-                                                            if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
-                                                                if (_arg2.tail.tail.tail.tail.tail.tail.tail != null) {
-                                                                    if (_arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
-                                                                        var _c51 = _arg2.head.Fields[0];
-                                                                        var _i33 = _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        var _rm34 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                        var _rn44 = _arg2.tail.head.Fields[0];
-                                                                        var _t53 = _arg2.tail.tail.tail.tail.tail.tail.tail;
-                                                                        var _z32 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                            var rstype = "i";
-                                                                            return function (state) {
-                                                                                return tstR(_c51, _rn44, _rm34, _z32, _i33, rstype, state);
-                                                                            };
-                                                                        }()])]])))(_t53);
-                                                                    } else if (_arg2.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                        var _c52 = _arg2.head.Fields[0];
-                                                                        var _rm35 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                        var _rn45 = _arg2.tail.head.Fields[0];
-                                                                        var _rs18 = _arg2.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        var _t54 = _arg2.tail.tail.tail.tail.tail.tail.tail;
-                                                                        var _z33 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function () {
-                                                                            var rstype = "r";
-                                                                            return function (state) {
-                                                                                return tstR(_c52, _rn45, _rm35, _z33, _rs18, rstype, state);
-                                                                            };
-                                                                        }()])]])))(_t54);
-                                                                    } else {
-                                                                        return _target69(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                                    }
-                                                                } else {
-                                                                    return _target69(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                                }
-                                                            } else {
-                                                                return _target69(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                            }
-                                                        } else {
-                                                            return _target69(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                        }
-                                                    } else {
-                                                        return _target69(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                    }
-                                                } else {
-                                                    return _target69(_arg2.head.Fields[0], _arg2.tail.tail.tail.head.Fields[0], _arg2.tail.head.Fields[0], _arg2.tail.tail.tail.tail);
-                                                }
-                                            } else {
-                                                return _target83(_arg2.tail, _arg2.head);
-                                            }
-                                        } else {
-                                            return _target83(_arg2.tail, _arg2.head);
-                                        }
-                                    } else {
-                                        return _target83(_arg2.tail, _arg2.head);
-                                    }
-                                } else {
-                                    return _target83(_arg2.tail, _arg2.head);
-                                }
-                            } else {
-                                return _target83(_arg2.tail, _arg2.head);
-                            }
-                        } else {
-                            return _target83(_arg2.tail, _arg2.head);
-                        }
-                    } else if (_arg2.head.Case === "T_SHIFT") {
-                        if (_arg2.head.Fields[0].Case === "T_LSL") {
-                            if (_arg2.tail.tail != null) {
-                                if (_arg2.tail.head.Case === "T_REG") {
-                                    if (_arg2.tail.tail.tail != null) {
-                                        if (_arg2.tail.tail.head.Case === "T_COMMA") {
-                                            if (_arg2.tail.tail.tail.tail != null) {
-                                                if (_arg2.tail.tail.tail.head.Case === "T_REG") {
-                                                    if (_arg2.tail.tail.tail.tail.tail != null) {
-                                                        if (_arg2.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                            if (_arg2.tail.tail.tail.tail.tail.tail != null) {
-                                                                if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                    var _c53 = _arg2.head.Fields[1][0];
-                                                                    var _rd38 = _arg2.tail.head.Fields[0];
-                                                                    var _rm36 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                    var _rn46 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                    var _s38 = _arg2.head.Fields[1][1];
-                                                                    var _t55 = _arg2.tail.tail.tail.tail.tail.tail;
-                                                                    return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function (state) {
-                                                                        return lslR(_c53, _s38, _rd38, _rm36, _rn46, state);
-                                                                    }])]])))(_t55);
-                                                                } else {
-                                                                    return _target83(_arg2.tail, _arg2.head);
-                                                                }
-                                                            } else {
-                                                                return _target83(_arg2.tail, _arg2.head);
-                                                            }
-                                                        } else {
-                                                            return _target83(_arg2.tail, _arg2.head);
-                                                        }
-                                                    } else {
-                                                        return _target83(_arg2.tail, _arg2.head);
-                                                    }
-                                                } else {
-                                                    return _target83(_arg2.tail, _arg2.head);
-                                                }
-                                            } else {
-                                                return _target83(_arg2.tail, _arg2.head);
-                                            }
-                                        } else {
-                                            return _target83(_arg2.tail, _arg2.head);
-                                        }
-                                    } else {
-                                        return _target83(_arg2.tail, _arg2.head);
-                                    }
-                                } else {
-                                    return _target83(_arg2.tail, _arg2.head);
-                                }
-                            } else {
-                                return _target83(_arg2.tail, _arg2.head);
-                            }
-                        } else if (_arg2.head.Fields[0].Case === "T_LSR") {
-                            if (_arg2.tail.tail != null) {
-                                if (_arg2.tail.head.Case === "T_REG") {
-                                    if (_arg2.tail.tail.tail != null) {
-                                        if (_arg2.tail.tail.head.Case === "T_COMMA") {
-                                            if (_arg2.tail.tail.tail.tail != null) {
-                                                if (_arg2.tail.tail.tail.head.Case === "T_REG") {
-                                                    if (_arg2.tail.tail.tail.tail.tail != null) {
-                                                        if (_arg2.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                            if (_arg2.tail.tail.tail.tail.tail.tail != null) {
-                                                                if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                    var _c54 = _arg2.head.Fields[1][0];
-                                                                    var _rd39 = _arg2.tail.head.Fields[0];
-                                                                    var _rm37 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                    var _rn47 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                    var _s39 = _arg2.head.Fields[1][1];
-                                                                    var _t56 = _arg2.tail.tail.tail.tail.tail.tail;
-                                                                    return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function (state) {
-                                                                        return lsrR(_c54, _s39, _rd39, _rm37, _rn47, state);
-                                                                    }])]])))(_t56);
-                                                                } else {
-                                                                    return _target83(_arg2.tail, _arg2.head);
-                                                                }
-                                                            } else {
-                                                                return _target83(_arg2.tail, _arg2.head);
-                                                            }
-                                                        } else {
-                                                            return _target83(_arg2.tail, _arg2.head);
-                                                        }
-                                                    } else {
-                                                        return _target83(_arg2.tail, _arg2.head);
-                                                    }
-                                                } else {
-                                                    return _target83(_arg2.tail, _arg2.head);
-                                                }
-                                            } else {
-                                                return _target83(_arg2.tail, _arg2.head);
-                                            }
-                                        } else {
-                                            return _target83(_arg2.tail, _arg2.head);
-                                        }
-                                    } else {
-                                        return _target83(_arg2.tail, _arg2.head);
-                                    }
-                                } else {
-                                    return _target83(_arg2.tail, _arg2.head);
-                                }
-                            } else {
-                                return _target83(_arg2.tail, _arg2.head);
-                            }
-                        } else if (_arg2.head.Fields[0].Case === "T_ASR") {
-                            if (_arg2.tail.tail != null) {
-                                if (_arg2.tail.head.Case === "T_REG") {
-                                    if (_arg2.tail.tail.tail != null) {
-                                        if (_arg2.tail.tail.head.Case === "T_COMMA") {
-                                            if (_arg2.tail.tail.tail.tail != null) {
-                                                if (_arg2.tail.tail.tail.head.Case === "T_REG") {
-                                                    if (_arg2.tail.tail.tail.tail.tail != null) {
-                                                        if (_arg2.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                            if (_arg2.tail.tail.tail.tail.tail.tail != null) {
-                                                                if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                    var _c55 = _arg2.head.Fields[1][0];
-                                                                    var _rd40 = _arg2.tail.head.Fields[0];
-                                                                    var _rm38 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                    var _rn48 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                    var _s40 = _arg2.head.Fields[1][1];
-                                                                    var _t57 = _arg2.tail.tail.tail.tail.tail.tail;
-                                                                    return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function (state) {
-                                                                        return asrR(_c55, _s40, _rd40, _rm38, _rn48, state);
-                                                                    }])]])))(_t57);
-                                                                } else {
-                                                                    return _target83(_arg2.tail, _arg2.head);
-                                                                }
-                                                            } else {
-                                                                return _target83(_arg2.tail, _arg2.head);
-                                                            }
-                                                        } else {
-                                                            return _target83(_arg2.tail, _arg2.head);
-                                                        }
-                                                    } else {
-                                                        return _target83(_arg2.tail, _arg2.head);
-                                                    }
-                                                } else {
-                                                    return _target83(_arg2.tail, _arg2.head);
-                                                }
-                                            } else {
-                                                return _target83(_arg2.tail, _arg2.head);
-                                            }
-                                        } else {
-                                            return _target83(_arg2.tail, _arg2.head);
-                                        }
-                                    } else {
-                                        return _target83(_arg2.tail, _arg2.head);
-                                    }
-                                } else {
-                                    return _target83(_arg2.tail, _arg2.head);
-                                }
-                            } else {
-                                return _target83(_arg2.tail, _arg2.head);
-                            }
-                        } else if (_arg2.head.Fields[0].Case === "T_ROR") {
-                            if (_arg2.tail.tail != null) {
-                                if (_arg2.tail.head.Case === "T_REG") {
-                                    if (_arg2.tail.tail.tail != null) {
-                                        if (_arg2.tail.tail.head.Case === "T_COMMA") {
-                                            if (_arg2.tail.tail.tail.tail != null) {
-                                                if (_arg2.tail.tail.tail.head.Case === "T_REG") {
-                                                    if (_arg2.tail.tail.tail.tail.tail != null) {
-                                                        if (_arg2.tail.tail.tail.tail.head.Case === "T_COMMA") {
-                                                            if (_arg2.tail.tail.tail.tail.tail.tail != null) {
-                                                                if (_arg2.tail.tail.tail.tail.tail.head.Case === "T_REG") {
-                                                                    var _c56 = _arg2.head.Fields[1][0];
-                                                                    var _rd41 = _arg2.tail.head.Fields[0];
-                                                                    var _rm39 = _arg2.tail.tail.tail.head.Fields[0];
-                                                                    var _rn49 = _arg2.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                    var _s41 = _arg2.head.Fields[1][1];
-                                                                    var _t58 = _arg2.tail.tail.tail.tail.tail.tail;
-                                                                    return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function (state) {
-                                                                        return rorR(_c56, _s41, _rd41, _rm39, _rn49, state);
-                                                                    }])]])))(_t58);
-                                                                } else {
-                                                                    return _target83(_arg2.tail, _arg2.head);
-                                                                }
-                                                            } else {
-                                                                return _target83(_arg2.tail, _arg2.head);
-                                                            }
-                                                        } else {
-                                                            return _target83(_arg2.tail, _arg2.head);
-                                                        }
-                                                    } else {
-                                                        return _target83(_arg2.tail, _arg2.head);
-                                                    }
-                                                } else {
-                                                    return _target83(_arg2.tail, _arg2.head);
-                                                }
-                                            } else {
-                                                return _target83(_arg2.tail, _arg2.head);
-                                            }
-                                        } else {
-                                            return _target83(_arg2.tail, _arg2.head);
-                                        }
-                                    } else {
-                                        return _target83(_arg2.tail, _arg2.head);
-                                    }
-                                } else {
-                                    return _target83(_arg2.tail, _arg2.head);
-                                }
-                            } else {
-                                return _target83(_arg2.tail, _arg2.head);
-                            }
-                        } else if (_arg2.head.Fields[0].Case === "T_RRX") {
-                            if (_arg2.tail.tail != null) {
-                                if (_arg2.tail.head.Case === "T_REG") {
-                                    if (_arg2.tail.tail.tail != null) {
-                                        if (_arg2.tail.tail.head.Case === "T_COMMA") {
-                                            if (_arg2.tail.tail.tail.tail != null) {
-                                                if (_arg2.tail.tail.tail.head.Case === "T_REG") {
-                                                    var _c57 = _arg2.head.Fields[1][0];
-                                                    var _rd42 = _arg2.tail.head.Fields[0];
-                                                    var _rm40 = _arg2.tail.tail.tail.head.Fields[0];
-                                                    var _s42 = _arg2.head.Fields[1][1];
-                                                    var _t59 = _arg2.tail.tail.tail.tail;
-                                                    return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function (state) {
-                                                        return rrxR(_c57, _s42, _rd42, _rm40, state);
-                                                    }])]])))(_t59);
-                                                } else {
-                                                    return _target83(_arg2.tail, _arg2.head);
-                                                }
-                                            } else {
-                                                return _target83(_arg2.tail, _arg2.head);
-                                            }
-                                        } else {
-                                            return _target83(_arg2.tail, _arg2.head);
-                                        }
-                                    } else {
-                                        return _target83(_arg2.tail, _arg2.head);
-                                    }
-                                } else {
-                                    return _target83(_arg2.tail, _arg2.head);
-                                }
-                            } else {
-                                return _target83(_arg2.tail, _arg2.head);
-                            }
-                        } else {
-                            return _target83(_arg2.tail, _arg2.head);
-                        }
-                    } else if (_arg2.head.Case === "T_B") {
-                        if (_arg2.tail.tail != null) {
-                            if (_arg2.tail.head.Case === "T_LABEL") {
-                                var _c58 = _arg2.head.Fields[0];
-                                var _s43 = _arg2.tail.head.Fields[0];
-                                var _t60 = _arg2.tail.tail;
-                                return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("LabelRef", [branchRef(_c58)(_s43)(function (c_1) {
-                                    return function (label) {
-                                        return function (state) {
-                                            return b(c_1, label, state);
-                                        };
-                                    };
-                                })])]])))(_t60);
-                            } else {
-                                return _target83(_arg2.tail, _arg2.head);
-                            }
-                        } else {
-                            return _target83(_arg2.tail, _arg2.head);
-                        }
-                    } else if (_arg2.head.Case === "T_BL") {
-                        if (_arg2.tail.tail != null) {
-                            if (_arg2.tail.head.Case === "T_LABEL") {
-                                var _c59 = _arg2.head.Fields[0];
-                                var _s44 = _arg2.tail.head.Fields[0];
-                                var _t61 = _arg2.tail.tail;
-                                return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("LabelRef", [branchRef(_c59)(_s44)(function (c_1) {
-                                    return function (label) {
-                                        return function (state) {
-                                            return bl(c_1, label, state);
-                                        };
-                                    };
-                                })])]])))(_t61);
-                            } else {
-                                return _target83(_arg2.tail, _arg2.head);
-                            }
-                        } else {
-                            return _target83(_arg2.tail, _arg2.head);
-                        }
-                    } else if (_arg2.head.Case === "T_BX") {
-                        if (_arg2.tail.tail != null) {
-                            if (_arg2.tail.head.Case === "T_REG") {
-                                var _c60 = _arg2.head.Fields[0];
-                                var r = _arg2.tail.head.Fields[0];
-                                var _t62 = _arg2.tail.tail;
-                                return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("Instr", [function (state) {
-                                    return bx(_c60, r, state);
-                                }])]])))(_t62);
-                            } else {
-                                return _target83(_arg2.tail, _arg2.head);
-                            }
-                        } else {
-                            return _target83(_arg2.tail, _arg2.head);
-                        }
-                    } else if (_arg2.head.Case === "T_ADR") {
-                        if (_arg2.tail.tail != null) {
-                            if (_arg2.tail.head.Case === "T_REG") {
-                                if (_arg2.tail.tail.tail != null) {
-                                    if (_arg2.tail.tail.head.Case === "T_COMMA") {
-                                        if (_arg2.tail.tail.tail.tail != null) {
-                                            if (_arg2.tail.tail.tail.head.Case === "T_LABEL") {
-                                                var _c61 = _arg2.head.Fields[0];
-                                                var _rd43 = _arg2.tail.head.Fields[0];
-                                                var _s45 = _arg2.tail.tail.tail.head.Fields[0];
-                                                var _t63 = _arg2.tail.tail.tail.tail;
-                                                return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("LabelRef", [adrRef(_c61)(_rd43)(_s45)])]])))(_t63);
-                                            } else {
-                                                return _target83(_arg2.tail, _arg2.head);
-                                            }
-                                        } else {
-                                            return _target83(_arg2.tail, _arg2.head);
-                                        }
-                                    } else {
-                                        return _target83(_arg2.tail, _arg2.head);
-                                    }
-                                } else {
-                                    return _target83(_arg2.tail, _arg2.head);
-                                }
-                            } else {
-                                return _target83(_arg2.tail, _arg2.head);
-                            }
-                        } else {
-                            return _target83(_arg2.tail, _arg2.head);
-                        }
-                    } else if (_arg2.head.Case === "T_END") {
-                        var _c62 = _arg2.head.Fields[0];
-                        var _t64 = _arg2.tail;
-                        return parseRec(mem + 4)(labels)(append$$1(outLst, ofArray([[mem, new Instruction("EndRef", [endRef(_c62)])]])))(_t64);
-                    } else if (_arg2.head.Case === "T_LABEL") {
-                        var _s46 = _arg2.head.Fields[0];
-                        var _t65 = _arg2.tail;
-                        return parseRec(mem)(add(_s46, mem, labels))(outLst)(_t65);
-                    } else if (_arg2.head.Case === "T_ERROR") {
-                        var _s47 = _arg2.head.Fields[0];
-                        var _t66 = _arg2.tail;
-                        return new _Error("Err", [fsFormat("Invalid input string: %s.")(function (x) {
-                            return x;
-                        })(_s47)]);
+                    } else if (_arg1.tail.head.Case === "T_R_CBR") {
+                        var _r3 = _arg1.head.Fields[0];
+                        var _t5 = _arg1.tail.tail;
+                        return new _Error("Ok", [[append$$1(outLst, ofArray([_r3])), _t5]]);
                     } else {
-                        return _target83(_arg2.tail, _arg2.head);
+                        return _target5(_arg1.tail, _arg1.head);
                     }
+                } else {
+                    return _target5(_arg1.tail, _arg1.head);
+                }
+            } else if (_arg1.head.Case === "T_ERROR") {
+                var s = _arg1.head.Fields[0];
+                var _t6 = _arg1.tail;
+                return new _Error("Err", [0, fsFormat("Invalid input string: %s.")(function (x) {
+                    return x;
+                })(s)]);
+            } else {
+                return _target5(_arg1.tail, _arg1.head);
+            }
+        };
+    };
+
+    return regRec(new List$1())(tokLst);
+}
+
+function parser(tokLst) {
+    var branchRef = function branchRef(l) {
+        return function (c) {
+            return function (s) {
+                return function (bInst) {
+                    return function (labels) {
+                        var matchValue = tryFind$1(s, labels);
+
+                        if (matchValue == null) {
+                            return new _Error("Err", [l, fsFormat("Label undefined: %s.")(function (x) {
+                                return x;
+                            })(s)]);
+                        } else {
+                            return new _Error("Ok", [new Instruction("Instr", [l, bInst(c)(matchValue - 4)])]);
+                        }
+                    };
                 };
             };
         };
     };
 
-    var matchValue = parseRec(0)(create(null, new GenericComparer(function (x, y) {
+    var lsaRef = function lsaRef(l) {
+        return function (c) {
+            return function (rd) {
+                return function (s) {
+                    return function (inst) {
+                        return function (labels) {
+                            var matchValue = tryFind$1(s, labels);
+
+                            if (matchValue == null) {
+                                return new _Error("Err", [l, fsFormat("Label undefined: %s.")(function (x) {
+                                    return x;
+                                })(s)]);
+                            } else {
+                                return new _Error("Ok", [new Instruction("Instr", [l, inst(c)(rd)(matchValue)])]);
+                            }
+                        };
+                    };
+                };
+            };
+        };
+    };
+
+    var endRef = function endRef(l) {
+        return function (c) {
+            return function (endMem) {
+                return new Instruction("Instr", [l, function () {
+                    var finalInstAddr = endMem - 4;
+                    return function (state) {
+                        return endI(c, finalInstAddr, state);
+                    };
+                }()]);
+            };
+        };
+    };
+
+    var parseRec = function parseRec(m) {
+        return function (l) {
+            return function (labels) {
+                return function (outLst) {
+                    return function (_arg1) {
+                        var _target3 = function _target3(c, rd, rm, s, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var rsinst = new shiftOp("T_LSL", []);
+                                var nORrn = 0;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return movR(c, s, rd, rm, rsinst, nORrn, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target7 = function _target7(c, rd, rm, s, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var rsinst = new shiftOp("T_LSL", []);
+                                var nORrn = 0;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return mvnR(c, s, rd, rm, rsinst, nORrn, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target11 = function _target11(c, rd, rm, rn, s, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var rsinst = new shiftOp("T_LSL", []);
+                                var nORrn = 0;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return addR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target15 = function _target15(c, rd, rm, rn, s, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var rsinst = new shiftOp("T_LSL", []);
+                                var nORrn = 0;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return adcR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target19 = function _target19(c, rd, rm, rn, s, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var rsinst = new shiftOp("T_LSL", []);
+                                var nORrn = 0;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return subR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target23 = function _target23(c, rd, rm, rn, s, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var rsinst = new shiftOp("T_LSL", []);
+                                var nORrn = 0;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return sbcR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target27 = function _target27(c, rd, rm, rn, s, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var rsinst = new shiftOp("T_LSL", []);
+                                var nORrn = 0;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return rsbR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target31 = function _target31(c, rd, rm, rn, s, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var rsinst = new shiftOp("T_LSL", []);
+                                var nORrn = 0;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return rscR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target37 = function _target37(c, rd, rm, rn, s, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var rsinst = new shiftOp("T_LSL", []);
+                                var nORrn = 0;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return andR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target41 = function _target41(c, rd, rm, rn, s, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var rsinst = new shiftOp("T_LSL", []);
+                                var nORrn = 0;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return orrR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target45 = function _target45(c, rd, rm, rn, s, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var rsinst = new shiftOp("T_LSL", []);
+                                var nORrn = 0;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return eorR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target49 = function _target49(c, rd, rm, rn, s, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var rsinst = new shiftOp("T_LSL", []);
+                                var nORrn = 0;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return bicR(c, s, rd, rn, rm, rsinst, nORrn, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target53 = function _target53(c, rm, rn, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var rsinst = new shiftOp("T_LSL", []);
+                                var nORrn = 0;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return cmpR(c, rn, rm, rsinst, nORrn, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target57 = function _target57(c, rm, rn, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var rsinst = new shiftOp("T_LSL", []);
+                                var nORrn = 0;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return cmnR(c, rn, rm, rsinst, nORrn, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target61 = function _target61(c, rm, rn, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var rsinst = new shiftOp("T_LSL", []);
+                                var nORrn = 0;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return tstR(c, rn, rm, rsinst, nORrn, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target65 = function _target65(c, rm, rn, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var rsinst = new shiftOp("T_LSL", []);
+                                var nORrn = 0;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return teqR(c, rn, rm, rsinst, nORrn, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target69 = function _target69(c, rm, rn, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var rsinst = new shiftOp("T_LSL", []);
+                                var nORrn = 0;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return tstR(c, rn, rm, rsinst, nORrn, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target82 = function _target82(c, rd, rm, rn, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var rsinst = new shiftOp("T_LSL", []);
+                                var nORrn = 0;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return ldrWaR(c, rd, rn, rm, rsinst, nORrn, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target86 = function _target86(c, rd, rm, rn, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var rsinst = new shiftOp("T_LSL", []);
+                                var nORrn = 0;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return ldrBaR(c, rd, rn, rm, rsinst, nORrn, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target88 = function _target88(c, rd, rn, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var inc = false;
+                                var i = 0;
+                                return function (state) {
+                                    return ldrWbI(c, inc, rd, rn, i, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target90 = function _target90(c, i, rd, rn, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var inc = false;
+                                return function (state) {
+                                    return ldrWbI(c, inc, rd, rn, i, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target92 = function _target92(c, rd, rm, rn, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var inc = false;
+                                var rsinst = new shiftOp("T_LSL", []);
+                                var nORrn = 0;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return ldrWbR(c, inc, rd, rn, rm, rsinst, nORrn, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target94 = function _target94(c, i, rd, rm, rn, t, z) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var inc = false;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return ldrWbR(c, inc, rd, rn, rm, z, i, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target96 = function _target96(c, rd, rm, rn, rs, t, z) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var inc = false;
+                                var rstype = new opType("T_R", []);
+                                return function (state) {
+                                    return ldrWbR(c, inc, rd, rn, rm, z, rs, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target98 = function _target98(c, rd, rn, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var inc = false;
+                                var i = 0;
+                                return function (state) {
+                                    return ldrBbI(c, inc, rd, rn, i, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target100 = function _target100(c, i, rd, rn, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var inc = false;
+                                return function (state) {
+                                    return ldrBbI(c, inc, rd, rn, i, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target102 = function _target102(c, rd, rm, rn, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var inc = false;
+                                var rsinst = new shiftOp("T_LSL", []);
+                                var nORrn = 0;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return ldrBbR(c, inc, rd, rn, rm, rsinst, nORrn, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target104 = function _target104(c, i, rd, rm, rn, t, z) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var inc = false;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return ldrBbR(c, inc, rd, rn, rm, z, i, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target106 = function _target106(c, rd, rm, rn, rs, t, z) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var inc = false;
+                                var rstype = new opType("T_R", []);
+                                return function (state) {
+                                    return ldrBbR(c, inc, rd, rn, rm, z, rs, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target110 = function _target110(c, rd, rm, rn, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var rsinst = new shiftOp("T_LSL", []);
+                                var nORrn = 0;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return strWaR(c, rd, rn, rm, rsinst, nORrn, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target114 = function _target114(c, rd, rm, rn, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var rsinst = new shiftOp("T_LSL", []);
+                                var nORrn = 0;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return strBaR(c, rd, rn, rm, rsinst, nORrn, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target115 = function _target115(c, rd, rn, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var inc = false;
+                                var i = 0;
+                                return function (state) {
+                                    return strWbI(c, inc, rd, rn, i, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target117 = function _target117(c, i, rd, rn, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var inc = false;
+                                return function (state) {
+                                    return strWbI(c, inc, rd, rn, i, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target119 = function _target119(c, rd, rm, rn, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var inc = false;
+                                var rsinst = new shiftOp("T_LSL", []);
+                                var nORrn = 0;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return strWbR(c, inc, rd, rn, rm, rsinst, nORrn, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target121 = function _target121(c, i, rd, rm, rn, t, z) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var inc = false;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return strWbR(c, inc, rd, rn, rm, z, i, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target123 = function _target123(c, rd, rm, rn, rs, t, z) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var inc = false;
+                                var rstype = new opType("T_R", []);
+                                return function (state) {
+                                    return strWbR(c, inc, rd, rn, rm, z, rs, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target124 = function _target124(c, rd, rn, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var inc = false;
+                                var i = 0;
+                                return function (state) {
+                                    return strBbI(c, inc, rd, rn, i, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target126 = function _target126(c, i, rd, rn, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var inc = false;
+                                return function (state) {
+                                    return strBbI(c, inc, rd, rn, i, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target128 = function _target128(c, rd, rm, rn, t) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var inc = false;
+                                var rsinst = new shiftOp("T_LSL", []);
+                                var nORrn = 0;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return strBbR(c, inc, rd, rn, rm, rsinst, nORrn, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target130 = function _target130(c, i, rd, rm, rn, t, z) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var inc = false;
+                                var rstype = new opType("T_I", []);
+                                return function (state) {
+                                    return strBbR(c, inc, rd, rn, rm, z, i, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target132 = function _target132(c, rd, rm, rn, rs, t, z) {
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                var inc = false;
+                                var rstype = new opType("T_R", []);
+                                return function (state) {
+                                    return strBbR(c, inc, rd, rn, rm, z, rs, rstype, state);
+                                };
+                            }()])]])))(t);
+                        };
+
+                        var _target152 = function _target152(s, t) {
+                            return parseRec(m)(l)(add(s, m, labels))(outLst)(t);
+                        };
+
+                        var _target156 = function _target156(t, tok) {
+                            return new _Error("Err", [l, fsFormat("Unexpected token: %A. Followed by: %s.")(function (x) {
+                                return x;
+                            })(tok)(errorList(t))]);
+                        };
+
+                        if (_arg1.tail == null) {
+                            return resolveRefs(labels, m, append$$1(outLst, ofArray([[m, new Instruction("Terminate", [l])]])));
+                        } else if (_arg1.head.Case === "T_MOV") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                            if (_arg1.tail.tail.tail.tail != null) {
+                                                if (_arg1.tail.tail.tail.head.Case === "T_INT") {
+                                                    var c = _arg1.head.Fields[0];
+                                                    var i = _arg1.tail.tail.tail.head.Fields[0];
+                                                    var rd = _arg1.tail.head.Fields[0];
+                                                    var s = _arg1.head.Fields[1];
+                                                    var t = _arg1.tail.tail.tail.tail;
+                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                        return movI(c, s, rd, i, state);
+                                                    }])]])))(t);
+                                                } else if (_arg1.tail.tail.tail.head.Case === "T_REG") {
+                                                    if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                        if (_arg1.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                            if (_arg1.tail.tail.tail.tail.tail.tail != null) {
+                                                                if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                            var _c = _arg1.head.Fields[0];
+                                                                            var _i = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            var _rd = _arg1.tail.head.Fields[0];
+                                                                            var rm = _arg1.tail.tail.tail.head.Fields[0];
+                                                                            var _s = _arg1.head.Fields[1];
+                                                                            var _t7 = _arg1.tail.tail.tail.tail.tail.tail.tail;
+                                                                            var z = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                var rstype = new opType("T_I", []);
+                                                                                return function (state) {
+                                                                                    return movR(_c, _s, _rd, rm, z, _i, rstype, state);
+                                                                                };
+                                                                            }()])]])))(_t7);
+                                                                        } else if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                            var _c2 = _arg1.head.Fields[0];
+                                                                            var _rd2 = _arg1.tail.head.Fields[0];
+                                                                            var _rm = _arg1.tail.tail.tail.head.Fields[0];
+                                                                            var rs = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            var _s2 = _arg1.head.Fields[1];
+                                                                            var _t8 = _arg1.tail.tail.tail.tail.tail.tail.tail;
+                                                                            var _z = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                var rstype = new opType("T_R", []);
+                                                                                return function (state) {
+                                                                                    return movR(_c2, _s2, _rd2, _rm, _z, rs, rstype, state);
+                                                                                };
+                                                                            }()])]])))(_t8);
+                                                                        } else {
+                                                                            return _target3(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail);
+                                                                        }
+                                                                    } else {
+                                                                        return _target3(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail);
+                                                                    }
+                                                                } else {
+                                                                    return _target3(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail);
+                                                                }
+                                                            } else {
+                                                                return _target3(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail);
+                                                            }
+                                                        } else {
+                                                            return _target3(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail);
+                                                        }
+                                                    } else {
+                                                        return _target3(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_MVN") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                            if (_arg1.tail.tail.tail.tail != null) {
+                                                if (_arg1.tail.tail.tail.head.Case === "T_INT") {
+                                                    var _c3 = _arg1.head.Fields[0];
+                                                    var _i2 = _arg1.tail.tail.tail.head.Fields[0];
+                                                    var _rd3 = _arg1.tail.head.Fields[0];
+                                                    var _s3 = _arg1.head.Fields[1];
+                                                    var _t9 = _arg1.tail.tail.tail.tail;
+                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                        return mvnI(_c3, _s3, _rd3, _i2, state);
+                                                    }])]])))(_t9);
+                                                } else if (_arg1.tail.tail.tail.head.Case === "T_REG") {
+                                                    if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                        if (_arg1.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                            if (_arg1.tail.tail.tail.tail.tail.tail != null) {
+                                                                if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                            var _c4 = _arg1.head.Fields[0];
+                                                                            var _i3 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            var _rd4 = _arg1.tail.head.Fields[0];
+                                                                            var _rm2 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                            var _s4 = _arg1.head.Fields[1];
+                                                                            var _t10 = _arg1.tail.tail.tail.tail.tail.tail.tail;
+                                                                            var _z2 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                var rstype = new opType("T_I", []);
+                                                                                return function (state) {
+                                                                                    return mvnR(_c4, _s4, _rd4, _rm2, _z2, _i3, rstype, state);
+                                                                                };
+                                                                            }()])]])))(_t10);
+                                                                        } else if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                            var _c5 = _arg1.head.Fields[0];
+                                                                            var _rd5 = _arg1.tail.head.Fields[0];
+                                                                            var _rm3 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                            var _rs = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            var _s5 = _arg1.head.Fields[1];
+                                                                            var _t11 = _arg1.tail.tail.tail.tail.tail.tail.tail;
+                                                                            var _z3 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                var rstype = new opType("T_R", []);
+                                                                                return function (state) {
+                                                                                    return mvnR(_c5, _s5, _rd5, _rm3, _z3, _rs, rstype, state);
+                                                                                };
+                                                                            }()])]])))(_t11);
+                                                                        } else {
+                                                                            return _target7(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail);
+                                                                        }
+                                                                    } else {
+                                                                        return _target7(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail);
+                                                                    }
+                                                                } else {
+                                                                    return _target7(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail);
+                                                                }
+                                                            } else {
+                                                                return _target7(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail);
+                                                            }
+                                                        } else {
+                                                            return _target7(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail);
+                                                        }
+                                                    } else {
+                                                        return _target7(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_ADD") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                            if (_arg1.tail.tail.tail.tail != null) {
+                                                if (_arg1.tail.tail.tail.head.Case === "T_REG") {
+                                                    if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                        if (_arg1.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                            if (_arg1.tail.tail.tail.tail.tail.tail != null) {
+                                                                if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                    var _c6 = _arg1.head.Fields[0];
+                                                                    var _i4 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                    var _rd6 = _arg1.tail.head.Fields[0];
+                                                                    var rn = _arg1.tail.tail.tail.head.Fields[0];
+                                                                    var _s6 = _arg1.head.Fields[1];
+                                                                    var _t12 = _arg1.tail.tail.tail.tail.tail.tail;
+                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                        return addI(_c6, _s6, _rd6, rn, _i4, state);
+                                                                    }])]])))(_t12);
+                                                                } else if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
+                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                                            var _c7 = _arg1.head.Fields[0];
+                                                                                            var _i5 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rd7 = _arg1.tail.head.Fields[0];
+                                                                                            var _rm4 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rn = _arg1.tail.tail.tail.head.Fields[0];
+                                                                                            var _s7 = _arg1.head.Fields[1];
+                                                                                            var _t13 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            var _z4 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var rstype = new opType("T_I", []);
+                                                                                                return function (state) {
+                                                                                                    return addR(_c7, _s7, _rd7, _rn, _rm4, _z4, _i5, rstype, state);
+                                                                                                };
+                                                                                            }()])]])))(_t13);
+                                                                                        } else if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                                            var _c8 = _arg1.head.Fields[0];
+                                                                                            var _rd8 = _arg1.tail.head.Fields[0];
+                                                                                            var _rm5 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rn2 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                                            var _rs2 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _s8 = _arg1.head.Fields[1];
+                                                                                            var _t14 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            var _z5 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var rstype = new opType("T_R", []);
+                                                                                                return function (state) {
+                                                                                                    return addR(_c8, _s8, _rd8, _rn2, _rm5, _z5, _rs2, rstype, state);
+                                                                                                };
+                                                                                            }()])]])))(_t14);
+                                                                                        } else {
+                                                                                            return _target11(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                        }
+                                                                                    } else {
+                                                                                        return _target11(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                    }
+                                                                                } else {
+                                                                                    return _target11(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                }
+                                                                            } else {
+                                                                                return _target11(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                            }
+                                                                        } else {
+                                                                            return _target11(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                        }
+                                                                    } else {
+                                                                        return _target11(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                    }
+                                                                } else {
+                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                }
+                                                            } else {
+                                                                return _target156(_arg1.tail, _arg1.head);
+                                                            }
+                                                        } else {
+                                                            return _target156(_arg1.tail, _arg1.head);
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_ADC") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                            if (_arg1.tail.tail.tail.tail != null) {
+                                                if (_arg1.tail.tail.tail.head.Case === "T_REG") {
+                                                    if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                        if (_arg1.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                            if (_arg1.tail.tail.tail.tail.tail.tail != null) {
+                                                                if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                    var _c9 = _arg1.head.Fields[0];
+                                                                    var _i6 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                    var _rd9 = _arg1.tail.head.Fields[0];
+                                                                    var _rn3 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                    var _s9 = _arg1.head.Fields[1];
+                                                                    var _t15 = _arg1.tail.tail.tail.tail.tail.tail;
+                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                        return adcI(_c9, _s9, _rd9, _rn3, _i6, state);
+                                                                    }])]])))(_t15);
+                                                                } else if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
+                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                                            var _c10 = _arg1.head.Fields[0];
+                                                                                            var _i7 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rd10 = _arg1.tail.head.Fields[0];
+                                                                                            var _rm6 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rn4 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                                            var _s10 = _arg1.head.Fields[1];
+                                                                                            var _t16 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            var _z6 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var rstype = new opType("T_I", []);
+                                                                                                return function (state) {
+                                                                                                    return adcR(_c10, _s10, _rd10, _rn4, _rm6, _z6, _i7, rstype, state);
+                                                                                                };
+                                                                                            }()])]])))(_t16);
+                                                                                        } else if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                                            var _c11 = _arg1.head.Fields[0];
+                                                                                            var _rd11 = _arg1.tail.head.Fields[0];
+                                                                                            var _rm7 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rn5 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                                            var _rs3 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _s11 = _arg1.head.Fields[1];
+                                                                                            var _t17 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            var _z7 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var rstype = new opType("T_R", []);
+                                                                                                return function (state) {
+                                                                                                    return adcR(_c11, _s11, _rd11, _rn5, _rm7, _z7, _rs3, rstype, state);
+                                                                                                };
+                                                                                            }()])]])))(_t17);
+                                                                                        } else {
+                                                                                            return _target15(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                        }
+                                                                                    } else {
+                                                                                        return _target15(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                    }
+                                                                                } else {
+                                                                                    return _target15(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                }
+                                                                            } else {
+                                                                                return _target15(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                            }
+                                                                        } else {
+                                                                            return _target15(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                        }
+                                                                    } else {
+                                                                        return _target15(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                    }
+                                                                } else {
+                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                }
+                                                            } else {
+                                                                return _target156(_arg1.tail, _arg1.head);
+                                                            }
+                                                        } else {
+                                                            return _target156(_arg1.tail, _arg1.head);
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_SUB") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                            if (_arg1.tail.tail.tail.tail != null) {
+                                                if (_arg1.tail.tail.tail.head.Case === "T_REG") {
+                                                    if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                        if (_arg1.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                            if (_arg1.tail.tail.tail.tail.tail.tail != null) {
+                                                                if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                    var _c12 = _arg1.head.Fields[0];
+                                                                    var _i8 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                    var _rd12 = _arg1.tail.head.Fields[0];
+                                                                    var _rn6 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                    var _s12 = _arg1.head.Fields[1];
+                                                                    var _t18 = _arg1.tail.tail.tail.tail.tail.tail;
+                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                        return subI(_c12, _s12, _rd12, _rn6, _i8, state);
+                                                                    }])]])))(_t18);
+                                                                } else if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
+                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                                            var _c13 = _arg1.head.Fields[0];
+                                                                                            var _i9 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rd13 = _arg1.tail.head.Fields[0];
+                                                                                            var _rm8 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rn7 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                                            var _s13 = _arg1.head.Fields[1];
+                                                                                            var _t19 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            var _z8 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var rstype = new opType("T_I", []);
+                                                                                                return function (state) {
+                                                                                                    return subR(_c13, _s13, _rd13, _rn7, _rm8, _z8, _i9, rstype, state);
+                                                                                                };
+                                                                                            }()])]])))(_t19);
+                                                                                        } else if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                                            var _c14 = _arg1.head.Fields[0];
+                                                                                            var _rd14 = _arg1.tail.head.Fields[0];
+                                                                                            var _rm9 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rn8 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                                            var _rs4 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _s14 = _arg1.head.Fields[1];
+                                                                                            var _t20 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            var _z9 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var rstype = new opType("T_R", []);
+                                                                                                return function (state) {
+                                                                                                    return subR(_c14, _s14, _rd14, _rn8, _rm9, _z9, _rs4, rstype, state);
+                                                                                                };
+                                                                                            }()])]])))(_t20);
+                                                                                        } else {
+                                                                                            return _target19(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                        }
+                                                                                    } else {
+                                                                                        return _target19(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                    }
+                                                                                } else {
+                                                                                    return _target19(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                }
+                                                                            } else {
+                                                                                return _target19(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                            }
+                                                                        } else {
+                                                                            return _target19(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                        }
+                                                                    } else {
+                                                                        return _target19(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                    }
+                                                                } else {
+                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                }
+                                                            } else {
+                                                                return _target156(_arg1.tail, _arg1.head);
+                                                            }
+                                                        } else {
+                                                            return _target156(_arg1.tail, _arg1.head);
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_SBC") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                            if (_arg1.tail.tail.tail.tail != null) {
+                                                if (_arg1.tail.tail.tail.head.Case === "T_REG") {
+                                                    if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                        if (_arg1.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                            if (_arg1.tail.tail.tail.tail.tail.tail != null) {
+                                                                if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                    var _c15 = _arg1.head.Fields[0];
+                                                                    var _i10 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                    var _rd15 = _arg1.tail.head.Fields[0];
+                                                                    var _rn9 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                    var _s15 = _arg1.head.Fields[1];
+                                                                    var _t21 = _arg1.tail.tail.tail.tail.tail.tail;
+                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                        return sbcI(_c15, _s15, _rd15, _rn9, _i10, state);
+                                                                    }])]])))(_t21);
+                                                                } else if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
+                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                                            var _c16 = _arg1.head.Fields[0];
+                                                                                            var _i11 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rd16 = _arg1.tail.head.Fields[0];
+                                                                                            var _rm10 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rn10 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                                            var _s16 = _arg1.head.Fields[1];
+                                                                                            var _t22 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            var _z10 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var rstype = new opType("T_I", []);
+                                                                                                return function (state) {
+                                                                                                    return sbcR(_c16, _s16, _rd16, _rn10, _rm10, _z10, _i11, rstype, state);
+                                                                                                };
+                                                                                            }()])]])))(_t22);
+                                                                                        } else if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                                            var _c17 = _arg1.head.Fields[0];
+                                                                                            var _rd17 = _arg1.tail.head.Fields[0];
+                                                                                            var _rm11 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rn11 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                                            var _rs5 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _s17 = _arg1.head.Fields[1];
+                                                                                            var _t23 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            var _z11 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var rstype = new opType("T_R", []);
+                                                                                                return function (state) {
+                                                                                                    return sbcR(_c17, _s17, _rd17, _rn11, _rm11, _z11, _rs5, rstype, state);
+                                                                                                };
+                                                                                            }()])]])))(_t23);
+                                                                                        } else {
+                                                                                            return _target23(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                        }
+                                                                                    } else {
+                                                                                        return _target23(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                    }
+                                                                                } else {
+                                                                                    return _target23(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                }
+                                                                            } else {
+                                                                                return _target23(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                            }
+                                                                        } else {
+                                                                            return _target23(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                        }
+                                                                    } else {
+                                                                        return _target23(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                    }
+                                                                } else {
+                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                }
+                                                            } else {
+                                                                return _target156(_arg1.tail, _arg1.head);
+                                                            }
+                                                        } else {
+                                                            return _target156(_arg1.tail, _arg1.head);
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_RSB") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                            if (_arg1.tail.tail.tail.tail != null) {
+                                                if (_arg1.tail.tail.tail.head.Case === "T_REG") {
+                                                    if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                        if (_arg1.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                            if (_arg1.tail.tail.tail.tail.tail.tail != null) {
+                                                                if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                    var _c18 = _arg1.head.Fields[0];
+                                                                    var _i12 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                    var _rd18 = _arg1.tail.head.Fields[0];
+                                                                    var _rn12 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                    var _s18 = _arg1.head.Fields[1];
+                                                                    var _t24 = _arg1.tail.tail.tail.tail.tail.tail;
+                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                        return rsbI(_c18, _s18, _rd18, _rn12, _i12, state);
+                                                                    }])]])))(_t24);
+                                                                } else if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
+                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                                            var _c19 = _arg1.head.Fields[0];
+                                                                                            var _i13 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rd19 = _arg1.tail.head.Fields[0];
+                                                                                            var _rm12 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rn13 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                                            var _s19 = _arg1.head.Fields[1];
+                                                                                            var _t25 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            var _z12 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var rstype = new opType("T_I", []);
+                                                                                                return function (state) {
+                                                                                                    return rsbR(_c19, _s19, _rd19, _rn13, _rm12, _z12, _i13, rstype, state);
+                                                                                                };
+                                                                                            }()])]])))(_t25);
+                                                                                        } else if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                                            var _c20 = _arg1.head.Fields[0];
+                                                                                            var _rd20 = _arg1.tail.head.Fields[0];
+                                                                                            var _rm13 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rn14 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                                            var _rs6 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _s20 = _arg1.head.Fields[1];
+                                                                                            var _t26 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            var _z13 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var rstype = new opType("T_R", []);
+                                                                                                return function (state) {
+                                                                                                    return rsbR(_c20, _s20, _rd20, _rn14, _rm13, _z13, _rs6, rstype, state);
+                                                                                                };
+                                                                                            }()])]])))(_t26);
+                                                                                        } else {
+                                                                                            return _target27(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                        }
+                                                                                    } else {
+                                                                                        return _target27(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                    }
+                                                                                } else {
+                                                                                    return _target27(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                }
+                                                                            } else {
+                                                                                return _target27(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                            }
+                                                                        } else {
+                                                                            return _target27(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                        }
+                                                                    } else {
+                                                                        return _target27(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                    }
+                                                                } else {
+                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                }
+                                                            } else {
+                                                                return _target156(_arg1.tail, _arg1.head);
+                                                            }
+                                                        } else {
+                                                            return _target156(_arg1.tail, _arg1.head);
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_RSC") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                            if (_arg1.tail.tail.tail.tail != null) {
+                                                if (_arg1.tail.tail.tail.head.Case === "T_REG") {
+                                                    if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                        if (_arg1.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                            if (_arg1.tail.tail.tail.tail.tail.tail != null) {
+                                                                if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                    var _c21 = _arg1.head.Fields[0];
+                                                                    var _i14 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                    var _rd21 = _arg1.tail.head.Fields[0];
+                                                                    var _rn15 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                    var _s21 = _arg1.head.Fields[1];
+                                                                    var _t27 = _arg1.tail.tail.tail.tail.tail.tail;
+                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                        return rscI(_c21, _s21, _rd21, _rn15, _i14, state);
+                                                                    }])]])))(_t27);
+                                                                } else if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
+                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                                            var _c22 = _arg1.head.Fields[0];
+                                                                                            var _i15 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rd22 = _arg1.tail.head.Fields[0];
+                                                                                            var _rm14 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rn16 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                                            var _s22 = _arg1.head.Fields[1];
+                                                                                            var _t28 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            var _z14 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var rstype = new opType("T_I", []);
+                                                                                                return function (state) {
+                                                                                                    return rscR(_c22, _s22, _rd22, _rn16, _rm14, _z14, _i15, rstype, state);
+                                                                                                };
+                                                                                            }()])]])))(_t28);
+                                                                                        } else if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                                            var _c23 = _arg1.head.Fields[0];
+                                                                                            var _rd23 = _arg1.tail.head.Fields[0];
+                                                                                            var _rm15 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rn17 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                                            var _rs7 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _s23 = _arg1.head.Fields[1];
+                                                                                            var _t29 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            var _z15 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var rstype = new opType("T_R", []);
+                                                                                                return function (state) {
+                                                                                                    return rscR(_c23, _s23, _rd23, _rn17, _rm15, _z15, _rs7, rstype, state);
+                                                                                                };
+                                                                                            }()])]])))(_t29);
+                                                                                        } else {
+                                                                                            return _target31(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                        }
+                                                                                    } else {
+                                                                                        return _target31(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                    }
+                                                                                } else {
+                                                                                    return _target31(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                }
+                                                                            } else {
+                                                                                return _target31(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                            }
+                                                                        } else {
+                                                                            return _target31(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                        }
+                                                                    } else {
+                                                                        return _target31(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                    }
+                                                                } else {
+                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                }
+                                                            } else {
+                                                                return _target156(_arg1.tail, _arg1.head);
+                                                            }
+                                                        } else {
+                                                            return _target156(_arg1.tail, _arg1.head);
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_MUL") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                            if (_arg1.tail.tail.tail.tail != null) {
+                                                if (_arg1.tail.tail.tail.head.Case === "T_REG") {
+                                                    if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                        if (_arg1.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                            if (_arg1.tail.tail.tail.tail.tail.tail != null) {
+                                                                if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                    var _c24 = _arg1.head.Fields[0];
+                                                                    var _rd24 = _arg1.tail.head.Fields[0];
+                                                                    var _rm16 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                    var _rs8 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                    var _s24 = _arg1.head.Fields[1];
+                                                                    var _t30 = _arg1.tail.tail.tail.tail.tail.tail;
+                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                        return mulR(_c24, _s24, _rd24, _rm16, _rs8, state);
+                                                                    }])]])))(_t30);
+                                                                } else {
+                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                }
+                                                            } else {
+                                                                return _target156(_arg1.tail, _arg1.head);
+                                                            }
+                                                        } else {
+                                                            return _target156(_arg1.tail, _arg1.head);
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_MLA") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                            if (_arg1.tail.tail.tail.tail != null) {
+                                                if (_arg1.tail.tail.tail.head.Case === "T_REG") {
+                                                    if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                        if (_arg1.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                            if (_arg1.tail.tail.tail.tail.tail.tail != null) {
+                                                                if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                                    var _c25 = _arg1.head.Fields[0];
+                                                                                    var _rd25 = _arg1.tail.head.Fields[0];
+                                                                                    var _rm17 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                                    var _rn18 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                    var _rs9 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                    var _s25 = _arg1.head.Fields[1];
+                                                                                    var _t31 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                                        return mlaR(_c25, _s25, _rd25, _rm17, _rs9, _rn18, state);
+                                                                                    }])]])))(_t31);
+                                                                                } else {
+                                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                                }
+                                                                            } else {
+                                                                                return _target156(_arg1.tail, _arg1.head);
+                                                                            }
+                                                                        } else {
+                                                                            return _target156(_arg1.tail, _arg1.head);
+                                                                        }
+                                                                    } else {
+                                                                        return _target156(_arg1.tail, _arg1.head);
+                                                                    }
+                                                                } else {
+                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                }
+                                                            } else {
+                                                                return _target156(_arg1.tail, _arg1.head);
+                                                            }
+                                                        } else {
+                                                            return _target156(_arg1.tail, _arg1.head);
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_AND") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                            if (_arg1.tail.tail.tail.tail != null) {
+                                                if (_arg1.tail.tail.tail.head.Case === "T_REG") {
+                                                    if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                        if (_arg1.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                            if (_arg1.tail.tail.tail.tail.tail.tail != null) {
+                                                                if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                    var _c26 = _arg1.head.Fields[0];
+                                                                    var _i16 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                    var _rd26 = _arg1.tail.head.Fields[0];
+                                                                    var _rn19 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                    var _s26 = _arg1.head.Fields[1];
+                                                                    var _t32 = _arg1.tail.tail.tail.tail.tail.tail;
+                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                        return andI(_c26, _s26, _rd26, _rn19, _i16, state);
+                                                                    }])]])))(_t32);
+                                                                } else if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
+                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                                            var _c27 = _arg1.head.Fields[0];
+                                                                                            var _i17 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rd27 = _arg1.tail.head.Fields[0];
+                                                                                            var _rm18 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rn20 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                                            var _s27 = _arg1.head.Fields[1];
+                                                                                            var _t33 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            var _z16 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var rstype = new opType("T_I", []);
+                                                                                                return function (state) {
+                                                                                                    return andR(_c27, _s27, _rd27, _rn20, _rm18, _z16, _i17, rstype, state);
+                                                                                                };
+                                                                                            }()])]])))(_t33);
+                                                                                        } else if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                                            var _c28 = _arg1.head.Fields[0];
+                                                                                            var _rd28 = _arg1.tail.head.Fields[0];
+                                                                                            var _rm19 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rn21 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                                            var _rs10 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _s28 = _arg1.head.Fields[1];
+                                                                                            var _t34 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            var _z17 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var rstype = new opType("T_R", []);
+                                                                                                return function (state) {
+                                                                                                    return andR(_c28, _s28, _rd28, _rn21, _rm19, _z17, _rs10, rstype, state);
+                                                                                                };
+                                                                                            }()])]])))(_t34);
+                                                                                        } else {
+                                                                                            return _target37(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                        }
+                                                                                    } else {
+                                                                                        return _target37(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                    }
+                                                                                } else {
+                                                                                    return _target37(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                }
+                                                                            } else {
+                                                                                return _target37(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                            }
+                                                                        } else {
+                                                                            return _target37(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                        }
+                                                                    } else {
+                                                                        return _target37(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                    }
+                                                                } else {
+                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                }
+                                                            } else {
+                                                                return _target156(_arg1.tail, _arg1.head);
+                                                            }
+                                                        } else {
+                                                            return _target156(_arg1.tail, _arg1.head);
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_ORR") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                            if (_arg1.tail.tail.tail.tail != null) {
+                                                if (_arg1.tail.tail.tail.head.Case === "T_REG") {
+                                                    if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                        if (_arg1.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                            if (_arg1.tail.tail.tail.tail.tail.tail != null) {
+                                                                if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                    var _c29 = _arg1.head.Fields[0];
+                                                                    var _i18 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                    var _rd29 = _arg1.tail.head.Fields[0];
+                                                                    var _rn22 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                    var _s29 = _arg1.head.Fields[1];
+                                                                    var _t35 = _arg1.tail.tail.tail.tail.tail.tail;
+                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                        return orrI(_c29, _s29, _rd29, _rn22, _i18, state);
+                                                                    }])]])))(_t35);
+                                                                } else if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
+                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                                            var _c30 = _arg1.head.Fields[0];
+                                                                                            var _i19 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rd30 = _arg1.tail.head.Fields[0];
+                                                                                            var _rm20 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rn23 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                                            var _s30 = _arg1.head.Fields[1];
+                                                                                            var _t36 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            var _z18 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var rstype = new opType("T_I", []);
+                                                                                                return function (state) {
+                                                                                                    return orrR(_c30, _s30, _rd30, _rn23, _rm20, _z18, _i19, rstype, state);
+                                                                                                };
+                                                                                            }()])]])))(_t36);
+                                                                                        } else if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                                            var _c31 = _arg1.head.Fields[0];
+                                                                                            var _rd31 = _arg1.tail.head.Fields[0];
+                                                                                            var _rm21 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rn24 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                                            var _rs11 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _s31 = _arg1.head.Fields[1];
+                                                                                            var _t37 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            var _z19 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var rstype = new opType("T_R", []);
+                                                                                                return function (state) {
+                                                                                                    return orrR(_c31, _s31, _rd31, _rn24, _rm21, _z19, _rs11, rstype, state);
+                                                                                                };
+                                                                                            }()])]])))(_t37);
+                                                                                        } else {
+                                                                                            return _target41(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                        }
+                                                                                    } else {
+                                                                                        return _target41(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                    }
+                                                                                } else {
+                                                                                    return _target41(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                }
+                                                                            } else {
+                                                                                return _target41(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                            }
+                                                                        } else {
+                                                                            return _target41(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                        }
+                                                                    } else {
+                                                                        return _target41(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                    }
+                                                                } else {
+                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                }
+                                                            } else {
+                                                                return _target156(_arg1.tail, _arg1.head);
+                                                            }
+                                                        } else {
+                                                            return _target156(_arg1.tail, _arg1.head);
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_EOR") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                            if (_arg1.tail.tail.tail.tail != null) {
+                                                if (_arg1.tail.tail.tail.head.Case === "T_REG") {
+                                                    if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                        if (_arg1.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                            if (_arg1.tail.tail.tail.tail.tail.tail != null) {
+                                                                if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                    var _c32 = _arg1.head.Fields[0];
+                                                                    var _i20 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                    var _rd32 = _arg1.tail.head.Fields[0];
+                                                                    var _rn25 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                    var _s32 = _arg1.head.Fields[1];
+                                                                    var _t38 = _arg1.tail.tail.tail.tail.tail.tail;
+                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                        return eorI(_c32, _s32, _rd32, _rn25, _i20, state);
+                                                                    }])]])))(_t38);
+                                                                } else if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
+                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                                            var _c33 = _arg1.head.Fields[0];
+                                                                                            var _i21 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rd33 = _arg1.tail.head.Fields[0];
+                                                                                            var _rm22 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rn26 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                                            var _s33 = _arg1.head.Fields[1];
+                                                                                            var _t39 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            var _z20 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var rstype = new opType("T_I", []);
+                                                                                                return function (state) {
+                                                                                                    return eorR(_c33, _s33, _rd33, _rn26, _rm22, _z20, _i21, rstype, state);
+                                                                                                };
+                                                                                            }()])]])))(_t39);
+                                                                                        } else if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                                            var _c34 = _arg1.head.Fields[0];
+                                                                                            var _rd34 = _arg1.tail.head.Fields[0];
+                                                                                            var _rm23 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rn27 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                                            var _rs12 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _s34 = _arg1.head.Fields[1];
+                                                                                            var _t40 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            var _z21 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var rstype = new opType("T_R", []);
+                                                                                                return function (state) {
+                                                                                                    return eorR(_c34, _s34, _rd34, _rn27, _rm23, _z21, _rs12, rstype, state);
+                                                                                                };
+                                                                                            }()])]])))(_t40);
+                                                                                        } else {
+                                                                                            return _target45(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                        }
+                                                                                    } else {
+                                                                                        return _target45(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                    }
+                                                                                } else {
+                                                                                    return _target45(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                }
+                                                                            } else {
+                                                                                return _target45(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                            }
+                                                                        } else {
+                                                                            return _target45(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                        }
+                                                                    } else {
+                                                                        return _target45(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                    }
+                                                                } else {
+                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                }
+                                                            } else {
+                                                                return _target156(_arg1.tail, _arg1.head);
+                                                            }
+                                                        } else {
+                                                            return _target156(_arg1.tail, _arg1.head);
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_BIC") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                            if (_arg1.tail.tail.tail.tail != null) {
+                                                if (_arg1.tail.tail.tail.head.Case === "T_REG") {
+                                                    if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                        if (_arg1.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                            if (_arg1.tail.tail.tail.tail.tail.tail != null) {
+                                                                if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                    var _c35 = _arg1.head.Fields[0];
+                                                                    var _i22 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                    var _rd35 = _arg1.tail.head.Fields[0];
+                                                                    var _rn28 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                    var _s35 = _arg1.head.Fields[1];
+                                                                    var _t41 = _arg1.tail.tail.tail.tail.tail.tail;
+                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                        return bicI(_c35, _s35, _rd35, _rn28, _i22, state);
+                                                                    }])]])))(_t41);
+                                                                } else if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
+                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                                            var _c36 = _arg1.head.Fields[0];
+                                                                                            var _i23 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rd36 = _arg1.tail.head.Fields[0];
+                                                                                            var _rm24 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rn29 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                                            var _s36 = _arg1.head.Fields[1];
+                                                                                            var _t42 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            var _z22 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var rstype = new opType("T_I", []);
+                                                                                                return function (state) {
+                                                                                                    return bicR(_c36, _s36, _rd36, _rn29, _rm24, _z22, _i23, rstype, state);
+                                                                                                };
+                                                                                            }()])]])))(_t42);
+                                                                                        } else if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                                            var _c37 = _arg1.head.Fields[0];
+                                                                                            var _rd37 = _arg1.tail.head.Fields[0];
+                                                                                            var _rm25 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rn30 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                                            var _rs13 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _s37 = _arg1.head.Fields[1];
+                                                                                            var _t43 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            var _z23 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var rstype = new opType("T_R", []);
+                                                                                                return function (state) {
+                                                                                                    return bicR(_c37, _s37, _rd37, _rn30, _rm25, _z23, _rs13, rstype, state);
+                                                                                                };
+                                                                                            }()])]])))(_t43);
+                                                                                        } else {
+                                                                                            return _target49(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                        }
+                                                                                    } else {
+                                                                                        return _target49(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                    }
+                                                                                } else {
+                                                                                    return _target49(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                }
+                                                                            } else {
+                                                                                return _target49(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                            }
+                                                                        } else {
+                                                                            return _target49(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                        }
+                                                                    } else {
+                                                                        return _target49(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.head.Fields[1], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                    }
+                                                                } else {
+                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                }
+                                                            } else {
+                                                                return _target156(_arg1.tail, _arg1.head);
+                                                            }
+                                                        } else {
+                                                            return _target156(_arg1.tail, _arg1.head);
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_CMP") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                            if (_arg1.tail.tail.tail.tail != null) {
+                                                if (_arg1.tail.tail.tail.head.Case === "T_INT") {
+                                                    var _c38 = _arg1.head.Fields[0];
+                                                    var _i24 = _arg1.tail.tail.tail.head.Fields[0];
+                                                    var _rn31 = _arg1.tail.head.Fields[0];
+                                                    var _t44 = _arg1.tail.tail.tail.tail;
+                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                        return cmpI(_c38, _rn31, _i24, state);
+                                                    }])]])))(_t44);
+                                                } else if (_arg1.tail.tail.tail.head.Case === "T_REG") {
+                                                    if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                        if (_arg1.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                            if (_arg1.tail.tail.tail.tail.tail.tail != null) {
+                                                                if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                            var _c39 = _arg1.head.Fields[0];
+                                                                            var _i25 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            var _rm26 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                            var _rn32 = _arg1.tail.head.Fields[0];
+                                                                            var _t45 = _arg1.tail.tail.tail.tail.tail.tail.tail;
+                                                                            var _z24 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                var rstype = new opType("T_I", []);
+                                                                                return function (state) {
+                                                                                    return cmpR(_c39, _rn32, _rm26, _z24, _i25, rstype, state);
+                                                                                };
+                                                                            }()])]])))(_t45);
+                                                                        } else if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                            var _c40 = _arg1.head.Fields[0];
+                                                                            var _rm27 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                            var _rn33 = _arg1.tail.head.Fields[0];
+                                                                            var _rs14 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            var _t46 = _arg1.tail.tail.tail.tail.tail.tail.tail;
+                                                                            var _z25 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                var rstype = new opType("T_R", []);
+                                                                                return function (state) {
+                                                                                    return cmpR(_c40, _rn33, _rm27, _z25, _rs14, rstype, state);
+                                                                                };
+                                                                            }()])]])))(_t46);
+                                                                        } else {
+                                                                            return _target53(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                                        }
+                                                                    } else {
+                                                                        return _target53(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                                    }
+                                                                } else {
+                                                                    return _target53(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                                }
+                                                            } else {
+                                                                return _target53(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                            }
+                                                        } else {
+                                                            return _target53(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                        }
+                                                    } else {
+                                                        return _target53(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_CMN") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                            if (_arg1.tail.tail.tail.tail != null) {
+                                                if (_arg1.tail.tail.tail.head.Case === "T_INT") {
+                                                    var _c41 = _arg1.head.Fields[0];
+                                                    var _i26 = _arg1.tail.tail.tail.head.Fields[0];
+                                                    var _rn34 = _arg1.tail.head.Fields[0];
+                                                    var _t47 = _arg1.tail.tail.tail.tail;
+                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                        return cmnI(_c41, _rn34, _i26, state);
+                                                    }])]])))(_t47);
+                                                } else if (_arg1.tail.tail.tail.head.Case === "T_REG") {
+                                                    if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                        if (_arg1.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                            if (_arg1.tail.tail.tail.tail.tail.tail != null) {
+                                                                if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                            var _c42 = _arg1.head.Fields[0];
+                                                                            var _i27 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            var _rm28 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                            var _rn35 = _arg1.tail.head.Fields[0];
+                                                                            var _t48 = _arg1.tail.tail.tail.tail.tail.tail.tail;
+                                                                            var _z26 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                var rstype = new opType("T_I", []);
+                                                                                return function (state) {
+                                                                                    return cmnR(_c42, _rn35, _rm28, _z26, _i27, rstype, state);
+                                                                                };
+                                                                            }()])]])))(_t48);
+                                                                        } else if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                            var _c43 = _arg1.head.Fields[0];
+                                                                            var _rm29 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                            var _rn36 = _arg1.tail.head.Fields[0];
+                                                                            var _rs15 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            var _t49 = _arg1.tail.tail.tail.tail.tail.tail.tail;
+                                                                            var _z27 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                var rstype = new opType("T_R", []);
+                                                                                return function (state) {
+                                                                                    return cmnR(_c43, _rn36, _rm29, _z27, _rs15, rstype, state);
+                                                                                };
+                                                                            }()])]])))(_t49);
+                                                                        } else {
+                                                                            return _target57(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                                        }
+                                                                    } else {
+                                                                        return _target57(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                                    }
+                                                                } else {
+                                                                    return _target57(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                                }
+                                                            } else {
+                                                                return _target57(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                            }
+                                                        } else {
+                                                            return _target57(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                        }
+                                                    } else {
+                                                        return _target57(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_TST") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                            if (_arg1.tail.tail.tail.tail != null) {
+                                                if (_arg1.tail.tail.tail.head.Case === "T_INT") {
+                                                    var _c44 = _arg1.head.Fields[0];
+                                                    var _i28 = _arg1.tail.tail.tail.head.Fields[0];
+                                                    var _rn37 = _arg1.tail.head.Fields[0];
+                                                    var _t50 = _arg1.tail.tail.tail.tail;
+                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                        return tstI(_c44, _rn37, _i28, state);
+                                                    }])]])))(_t50);
+                                                } else if (_arg1.tail.tail.tail.head.Case === "T_REG") {
+                                                    if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                        if (_arg1.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                            if (_arg1.tail.tail.tail.tail.tail.tail != null) {
+                                                                if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                            var _c45 = _arg1.head.Fields[0];
+                                                                            var _i29 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            var _rm30 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                            var _rn38 = _arg1.tail.head.Fields[0];
+                                                                            var _t51 = _arg1.tail.tail.tail.tail.tail.tail.tail;
+                                                                            var _z28 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                var rstype = new opType("T_I", []);
+                                                                                return function (state) {
+                                                                                    return tstR(_c45, _rn38, _rm30, _z28, _i29, rstype, state);
+                                                                                };
+                                                                            }()])]])))(_t51);
+                                                                        } else if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                            var _c46 = _arg1.head.Fields[0];
+                                                                            var _rm31 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                            var _rn39 = _arg1.tail.head.Fields[0];
+                                                                            var _rs16 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            var _t52 = _arg1.tail.tail.tail.tail.tail.tail.tail;
+                                                                            var _z29 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                var rstype = new opType("T_R", []);
+                                                                                return function (state) {
+                                                                                    return tstR(_c46, _rn39, _rm31, _z29, _rs16, rstype, state);
+                                                                                };
+                                                                            }()])]])))(_t52);
+                                                                        } else {
+                                                                            return _target61(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                                        }
+                                                                    } else {
+                                                                        return _target61(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                                    }
+                                                                } else {
+                                                                    return _target61(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                                }
+                                                            } else {
+                                                                return _target61(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                            }
+                                                        } else {
+                                                            return _target61(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                        }
+                                                    } else {
+                                                        return _target61(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_TEQ") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                            if (_arg1.tail.tail.tail.tail != null) {
+                                                if (_arg1.tail.tail.tail.head.Case === "T_INT") {
+                                                    var _c47 = _arg1.head.Fields[0];
+                                                    var _i30 = _arg1.tail.tail.tail.head.Fields[0];
+                                                    var _rn40 = _arg1.tail.head.Fields[0];
+                                                    var _t53 = _arg1.tail.tail.tail.tail;
+                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                        return teqI(_c47, _rn40, _i30, state);
+                                                    }])]])))(_t53);
+                                                } else if (_arg1.tail.tail.tail.head.Case === "T_REG") {
+                                                    if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                        if (_arg1.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                            if (_arg1.tail.tail.tail.tail.tail.tail != null) {
+                                                                if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                            var _c48 = _arg1.head.Fields[0];
+                                                                            var _i31 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            var _rm32 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                            var _rn41 = _arg1.tail.head.Fields[0];
+                                                                            var _t54 = _arg1.tail.tail.tail.tail.tail.tail.tail;
+                                                                            var _z30 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                var rstype = new opType("T_I", []);
+                                                                                return function (state) {
+                                                                                    return teqR(_c48, _rn41, _rm32, _z30, _i31, rstype, state);
+                                                                                };
+                                                                            }()])]])))(_t54);
+                                                                        } else if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                            var _c49 = _arg1.head.Fields[0];
+                                                                            var _rm33 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                            var _rn42 = _arg1.tail.head.Fields[0];
+                                                                            var _rs17 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            var _t55 = _arg1.tail.tail.tail.tail.tail.tail.tail;
+                                                                            var _z31 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                var rstype = new opType("T_R", []);
+                                                                                return function (state) {
+                                                                                    return teqR(_c49, _rn42, _rm33, _z31, _rs17, rstype, state);
+                                                                                };
+                                                                            }()])]])))(_t55);
+                                                                        } else {
+                                                                            return _target65(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                                        }
+                                                                    } else {
+                                                                        return _target65(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                                    }
+                                                                } else {
+                                                                    return _target65(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                                }
+                                                            } else {
+                                                                return _target65(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                            }
+                                                        } else {
+                                                            return _target65(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                        }
+                                                    } else {
+                                                        return _target65(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_CLZ") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                            if (_arg1.tail.tail.tail.tail != null) {
+                                                if (_arg1.tail.tail.tail.head.Case === "T_INT") {
+                                                    var _c50 = _arg1.head.Fields[0];
+                                                    var _i32 = _arg1.tail.tail.tail.head.Fields[0];
+                                                    var _rn43 = _arg1.tail.head.Fields[0];
+                                                    var _t56 = _arg1.tail.tail.tail.tail;
+                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                        return tstI(_c50, _rn43, _i32, state);
+                                                    }])]])))(_t56);
+                                                } else if (_arg1.tail.tail.tail.head.Case === "T_REG") {
+                                                    if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                        if (_arg1.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                            if (_arg1.tail.tail.tail.tail.tail.tail != null) {
+                                                                if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                            var _c51 = _arg1.head.Fields[0];
+                                                                            var _i33 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            var _rm34 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                            var _rn44 = _arg1.tail.head.Fields[0];
+                                                                            var _t57 = _arg1.tail.tail.tail.tail.tail.tail.tail;
+                                                                            var _z32 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                var rstype = new opType("T_I", []);
+                                                                                return function (state) {
+                                                                                    return tstR(_c51, _rn44, _rm34, _z32, _i33, rstype, state);
+                                                                                };
+                                                                            }()])]])))(_t57);
+                                                                        } else if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                            var _c52 = _arg1.head.Fields[0];
+                                                                            var _rm35 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                            var _rn45 = _arg1.tail.head.Fields[0];
+                                                                            var _rs18 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            var _t58 = _arg1.tail.tail.tail.tail.tail.tail.tail;
+                                                                            var _z33 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                var rstype = new opType("T_R", []);
+                                                                                return function (state) {
+                                                                                    return tstR(_c52, _rn45, _rm35, _z33, _rs18, rstype, state);
+                                                                                };
+                                                                            }()])]])))(_t58);
+                                                                        } else {
+                                                                            return _target69(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                                        }
+                                                                    } else {
+                                                                        return _target69(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                                    }
+                                                                } else {
+                                                                    return _target69(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                                }
+                                                            } else {
+                                                                return _target69(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                            }
+                                                        } else {
+                                                            return _target69(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                        }
+                                                    } else {
+                                                        return _target69(_arg1.head.Fields[0], _arg1.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_SHIFT") {
+                            if (_arg1.head.Fields[0].Case === "T_LSR") {
+                                if (_arg1.tail.tail != null) {
+                                    if (_arg1.tail.head.Case === "T_REG") {
+                                        if (_arg1.tail.tail.tail != null) {
+                                            if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                                if (_arg1.tail.tail.tail.tail != null) {
+                                                    if (_arg1.tail.tail.tail.head.Case === "T_REG") {
+                                                        if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                            if (_arg1.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                if (_arg1.tail.tail.tail.tail.tail.tail != null) {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                        var _c53 = _arg1.head.Fields[1][0];
+                                                                        var _rd38 = _arg1.tail.head.Fields[0];
+                                                                        var _rm36 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                        var _rn46 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                        var _s38 = _arg1.head.Fields[1][1];
+                                                                        var _t59 = _arg1.tail.tail.tail.tail.tail.tail;
+                                                                        return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                            return lsrR(_c53, _s38, _rd38, _rm36, _rn46, state);
+                                                                        }])]])))(_t59);
+                                                                    } else {
+                                                                        return _target156(_arg1.tail, _arg1.head);
+                                                                    }
+                                                                } else {
+                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                }
+                                                            } else {
+                                                                return _target156(_arg1.tail, _arg1.head);
+                                                            }
+                                                        } else {
+                                                            return _target156(_arg1.tail, _arg1.head);
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else if (_arg1.head.Fields[0].Case === "T_ASR") {
+                                if (_arg1.tail.tail != null) {
+                                    if (_arg1.tail.head.Case === "T_REG") {
+                                        if (_arg1.tail.tail.tail != null) {
+                                            if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                                if (_arg1.tail.tail.tail.tail != null) {
+                                                    if (_arg1.tail.tail.tail.head.Case === "T_REG") {
+                                                        if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                            if (_arg1.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                if (_arg1.tail.tail.tail.tail.tail.tail != null) {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                        var _c54 = _arg1.head.Fields[1][0];
+                                                                        var _rd39 = _arg1.tail.head.Fields[0];
+                                                                        var _rm37 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                        var _rn47 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                        var _s39 = _arg1.head.Fields[1][1];
+                                                                        var _t60 = _arg1.tail.tail.tail.tail.tail.tail;
+                                                                        return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                            return asrR(_c54, _s39, _rd39, _rm37, _rn47, state);
+                                                                        }])]])))(_t60);
+                                                                    } else {
+                                                                        return _target156(_arg1.tail, _arg1.head);
+                                                                    }
+                                                                } else {
+                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                }
+                                                            } else {
+                                                                return _target156(_arg1.tail, _arg1.head);
+                                                            }
+                                                        } else {
+                                                            return _target156(_arg1.tail, _arg1.head);
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else if (_arg1.head.Fields[0].Case === "T_ROR") {
+                                if (_arg1.tail.tail != null) {
+                                    if (_arg1.tail.head.Case === "T_REG") {
+                                        if (_arg1.tail.tail.tail != null) {
+                                            if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                                if (_arg1.tail.tail.tail.tail != null) {
+                                                    if (_arg1.tail.tail.tail.head.Case === "T_REG") {
+                                                        if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                            if (_arg1.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                if (_arg1.tail.tail.tail.tail.tail.tail != null) {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                        var _c55 = _arg1.head.Fields[1][0];
+                                                                        var _rd40 = _arg1.tail.head.Fields[0];
+                                                                        var _rm38 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                        var _rn48 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                        var _s40 = _arg1.head.Fields[1][1];
+                                                                        var _t61 = _arg1.tail.tail.tail.tail.tail.tail;
+                                                                        return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                            return rorR(_c55, _s40, _rd40, _rm38, _rn48, state);
+                                                                        }])]])))(_t61);
+                                                                    } else {
+                                                                        return _target156(_arg1.tail, _arg1.head);
+                                                                    }
+                                                                } else {
+                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                }
+                                                            } else {
+                                                                return _target156(_arg1.tail, _arg1.head);
+                                                            }
+                                                        } else {
+                                                            return _target156(_arg1.tail, _arg1.head);
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else if (_arg1.head.Fields[0].Case === "T_RRX") {
+                                if (_arg1.tail.tail != null) {
+                                    if (_arg1.tail.head.Case === "T_REG") {
+                                        if (_arg1.tail.tail.tail != null) {
+                                            if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                                if (_arg1.tail.tail.tail.tail != null) {
+                                                    if (_arg1.tail.tail.tail.head.Case === "T_REG") {
+                                                        var _c56 = _arg1.head.Fields[1][0];
+                                                        var _rd41 = _arg1.tail.head.Fields[0];
+                                                        var _rm39 = _arg1.tail.tail.tail.head.Fields[0];
+                                                        var _s41 = _arg1.head.Fields[1][1];
+                                                        var _t62 = _arg1.tail.tail.tail.tail;
+                                                        return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                            return rrxR(_c56, _s41, _rd41, _rm39, state);
+                                                        }])]])))(_t62);
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                            if (_arg1.tail.tail.tail.tail != null) {
+                                                if (_arg1.tail.tail.tail.head.Case === "T_REG") {
+                                                    if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                        if (_arg1.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                            if (_arg1.tail.tail.tail.tail.tail.tail != null) {
+                                                                if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                    var _c57 = _arg1.head.Fields[1][0];
+                                                                    var _rd42 = _arg1.tail.head.Fields[0];
+                                                                    var _rm40 = _arg1.tail.tail.tail.head.Fields[0];
+                                                                    var _rn49 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                    var _s42 = _arg1.head.Fields[1][1];
+                                                                    var _t63 = _arg1.tail.tail.tail.tail.tail.tail;
+                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                        return lslR(_c57, _s42, _rd42, _rm40, _rn49, state);
+                                                                    }])]])))(_t63);
+                                                                } else {
+                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                }
+                                                            } else {
+                                                                return _target156(_arg1.tail, _arg1.head);
+                                                            }
+                                                        } else {
+                                                            return _target156(_arg1.tail, _arg1.head);
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_B") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_LABEL") {
+                                    var _c58 = _arg1.head.Fields[0];
+                                    var _s43 = _arg1.tail.head.Fields[0];
+                                    var _t64 = _arg1.tail.tail;
+                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("LabelRef", [branchRef(l)(_c58)(_s43)(function (c_1) {
+                                        return function (label) {
+                                            return function (state) {
+                                                return b(c_1, label, state);
+                                            };
+                                        };
+                                    })])]])))(_t64);
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_BL") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_LABEL") {
+                                    var _c59 = _arg1.head.Fields[0];
+                                    var _s44 = _arg1.tail.head.Fields[0];
+                                    var _t65 = _arg1.tail.tail;
+                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("LabelRef", [branchRef(l)(_c59)(_s44)(function (c_1) {
+                                        return function (label) {
+                                            return function (state) {
+                                                return bl(c_1, label, state);
+                                            };
+                                        };
+                                    })])]])))(_t65);
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_BX") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    var _c60 = _arg1.head.Fields[0];
+                                    var r = _arg1.tail.head.Fields[0];
+                                    var _t66 = _arg1.tail.tail;
+                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                        return bx(_c60, r, state);
+                                    }])]])))(_t66);
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_ADR") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                            if (_arg1.tail.tail.tail.tail != null) {
+                                                if (_arg1.tail.tail.tail.head.Case === "T_LABEL") {
+                                                    var _c61 = _arg1.head.Fields[0];
+                                                    var _rd43 = _arg1.tail.head.Fields[0];
+                                                    var _s45 = _arg1.tail.tail.tail.head.Fields[0];
+                                                    var _t67 = _arg1.tail.tail.tail.tail;
+                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("LabelRef", [lsaRef(l)(_c61)(_rd43)(_s45)(function (c_1) {
+                                                        return function (rd_1) {
+                                                            return function (label) {
+                                                                return function (state) {
+                                                                    return adr(c_1, rd_1, label, state);
+                                                                };
+                                                            };
+                                                        };
+                                                    })])]])))(_t67);
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_LDR") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                            if (_arg1.tail.tail.tail.tail != null) {
+                                                if (_arg1.tail.tail.tail.head.Case === "T_L_BRAC") {
+                                                    if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                        if (_arg1.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                            if (_arg1.tail.tail.tail.tail.tail.tail != null) {
+                                                                if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_R_BRAC") {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
+                                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                                                            var _c62 = _arg1.head.Fields[0];
+                                                                                                            var _i34 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            var _rd44 = _arg1.tail.head.Fields[0];
+                                                                                                            var _rm41 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            var _rn50 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            var _t68 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                                            var _z34 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                                var rstype = new opType("T_I", []);
+                                                                                                                return function (state) {
+                                                                                                                    return ldrWaR(_c62, _rd44, _rn50, _rm41, _z34, _i34, rstype, state);
+                                                                                                                };
+                                                                                                            }()])]])))(_t68);
+                                                                                                        } else if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                                                            var _c63 = _arg1.head.Fields[0];
+                                                                                                            var _rd45 = _arg1.tail.head.Fields[0];
+                                                                                                            var _rm42 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            var _rn51 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            var _rs19 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            var _t69 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                                            var _z35 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                                var rstype = new opType("T_R", []);
+                                                                                                                return function (state) {
+                                                                                                                    return ldrWaR(_c63, _rd45, _rn51, _rm42, _z35, _rs19, rstype, state);
+                                                                                                                };
+                                                                                                            }()])]])))(_t69);
+                                                                                                        } else {
+                                                                                                            return _target82(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                                        }
+                                                                                                    } else {
+                                                                                                        return _target82(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                                    }
+                                                                                                } else {
+                                                                                                    return _target82(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                                }
+                                                                                            } else {
+                                                                                                return _target82(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                            }
+                                                                                        } else {
+                                                                                            return _target82(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                        }
+                                                                                    } else {
+                                                                                        return _target82(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                    }
+                                                                                } else if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                                    var _c64 = _arg1.head.Fields[0];
+                                                                                    var _i35 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                    var _rd46 = _arg1.tail.head.Fields[0];
+                                                                                    var _rn52 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                    var _t70 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                                        return ldrWaI(_c64, _rd46, _rn52, _i35, state);
+                                                                                    }])]])))(_t70);
+                                                                                } else {
+                                                                                    return _target88(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                }
+                                                                            } else {
+                                                                                return _target88(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                            }
+                                                                        } else {
+                                                                            return _target88(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                        }
+                                                                    } else {
+                                                                        return _target88(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                    }
+                                                                } else if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_R_BRAC") {
+                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_EXCL") {
+                                                                                            var _c65 = _arg1.head.Fields[0];
+                                                                                            var _i36 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rd47 = _arg1.tail.head.Fields[0];
+                                                                                            var _rn53 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _t71 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var inc = true;
+                                                                                                return function (state) {
+                                                                                                    return ldrWbI(_c65, inc, _rd47, _rn53, _i36, state);
+                                                                                                };
+                                                                                            }()])]])))(_t71);
+                                                                                        } else {
+                                                                                            return _target90(_arg1.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                        }
+                                                                                    } else {
+                                                                                        return _target90(_arg1.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                    }
+                                                                                } else {
+                                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                                }
+                                                                            } else {
+                                                                                return _target156(_arg1.tail, _arg1.head);
+                                                                            }
+                                                                        } else if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_R_BRAC") {
+                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_EXCL") {
+                                                                                            var _c66 = _arg1.head.Fields[0];
+                                                                                            var _rd48 = _arg1.tail.head.Fields[0];
+                                                                                            var _rm43 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rn54 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _t72 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var inc = true;
+                                                                                                var rsinst = new shiftOp("T_LSL", []);
+                                                                                                var nORrn = 0;
+                                                                                                var rstype = new opType("T_I", []);
+                                                                                                return function (state) {
+                                                                                                    return ldrWbR(_c66, inc, _rd48, _rn54, _rm43, rsinst, nORrn, rstype, state);
+                                                                                                };
+                                                                                            }()])]])))(_t72);
+                                                                                        } else {
+                                                                                            return _target92(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                        }
+                                                                                    } else {
+                                                                                        return _target92(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                    }
+                                                                                } else if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
+                                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_R_BRAC") {
+                                                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_EXCL") {
+                                                                                                                    var _c67 = _arg1.head.Fields[0];
+                                                                                                                    var _i37 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    var _rd49 = _arg1.tail.head.Fields[0];
+                                                                                                                    var _rm44 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    var _rn55 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    var _t73 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                                                    var _z36 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                                        var inc = true;
+                                                                                                                        var rstype = new opType("T_I", []);
+                                                                                                                        return function (state) {
+                                                                                                                            return ldrWbR(_c67, inc, _rd49, _rn55, _rm44, _z36, _i37, rstype, state);
+                                                                                                                        };
+                                                                                                                    }()])]])))(_t73);
+                                                                                                                } else {
+                                                                                                                    return _target94(_arg1.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]);
+                                                                                                                }
+                                                                                                            } else {
+                                                                                                                return _target94(_arg1.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]);
+                                                                                                            }
+                                                                                                        } else {
+                                                                                                            return _target156(_arg1.tail, _arg1.head);
+                                                                                                        }
+                                                                                                    } else {
+                                                                                                        return _target156(_arg1.tail, _arg1.head);
+                                                                                                    }
+                                                                                                } else if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_R_BRAC") {
+                                                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_EXCL") {
+                                                                                                                    var _c68 = _arg1.head.Fields[0];
+                                                                                                                    var _rd50 = _arg1.tail.head.Fields[0];
+                                                                                                                    var _rm45 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    var _rn56 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    var _rs20 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    var _t74 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                                                    var _z37 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                                        var inc = true;
+                                                                                                                        var rstype = new opType("T_R", []);
+                                                                                                                        return function (state) {
+                                                                                                                            return ldrWbR(_c68, inc, _rd50, _rn56, _rm45, _z37, _rs20, rstype, state);
+                                                                                                                        };
+                                                                                                                    }()])]])))(_t74);
+                                                                                                                } else {
+                                                                                                                    return _target96(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]);
+                                                                                                                }
+                                                                                                            } else {
+                                                                                                                return _target96(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]);
+                                                                                                            }
+                                                                                                        } else {
+                                                                                                            return _target156(_arg1.tail, _arg1.head);
+                                                                                                        }
+                                                                                                    } else {
+                                                                                                        return _target156(_arg1.tail, _arg1.head);
+                                                                                                    }
+                                                                                                } else {
+                                                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                                                }
+                                                                                            } else {
+                                                                                                return _target156(_arg1.tail, _arg1.head);
+                                                                                            }
+                                                                                        } else {
+                                                                                            return _target156(_arg1.tail, _arg1.head);
+                                                                                        }
+                                                                                    } else {
+                                                                                        return _target156(_arg1.tail, _arg1.head);
+                                                                                    }
+                                                                                } else {
+                                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                                }
+                                                                            } else {
+                                                                                return _target156(_arg1.tail, _arg1.head);
+                                                                            }
+                                                                        } else {
+                                                                            return _target156(_arg1.tail, _arg1.head);
+                                                                        }
+                                                                    } else {
+                                                                        return _target156(_arg1.tail, _arg1.head);
+                                                                    }
+                                                                } else {
+                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                }
+                                                            } else {
+                                                                return _target156(_arg1.tail, _arg1.head);
+                                                            }
+                                                        } else {
+                                                            return _target156(_arg1.tail, _arg1.head);
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else if (_arg1.tail.tail.tail.head.Case === "T_EQUAL") {
+                                                    if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                        if (_arg1.tail.tail.tail.tail.head.Case === "T_LABEL") {
+                                                            var _c69 = _arg1.head.Fields[0];
+                                                            var _rd51 = _arg1.tail.head.Fields[0];
+                                                            var _s46 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                            var _t75 = _arg1.tail.tail.tail.tail.tail;
+                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("LabelRef", [lsaRef(l)(_c69)(_rd51)(_s46)(function (c_1) {
+                                                                return function (rd_1) {
+                                                                    return function (label) {
+                                                                        return function (state) {
+                                                                            return ldrWL(c_1, rd_1, label, state);
+                                                                        };
+                                                                    };
+                                                                };
+                                                            })])]])))(_t75);
+                                                        } else {
+                                                            return _target156(_arg1.tail, _arg1.head);
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_LDRB") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                            if (_arg1.tail.tail.tail.tail != null) {
+                                                if (_arg1.tail.tail.tail.head.Case === "T_L_BRAC") {
+                                                    if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                        if (_arg1.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                            if (_arg1.tail.tail.tail.tail.tail.tail != null) {
+                                                                if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_R_BRAC") {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
+                                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                                                            var _c70 = _arg1.head.Fields[0];
+                                                                                                            var _i38 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            var _rd52 = _arg1.tail.head.Fields[0];
+                                                                                                            var _rm46 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            var _rn57 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            var _t76 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                                            var _z38 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                                var rstype = new opType("T_I", []);
+                                                                                                                return function (state) {
+                                                                                                                    return ldrBaR(_c70, _rd52, _rn57, _rm46, _z38, _i38, rstype, state);
+                                                                                                                };
+                                                                                                            }()])]])))(_t76);
+                                                                                                        } else if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                                                            var _c71 = _arg1.head.Fields[0];
+                                                                                                            var _rd53 = _arg1.tail.head.Fields[0];
+                                                                                                            var _rm47 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            var _rn58 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            var _rs21 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            var _t77 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                                            var _z39 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                                var rstype = new opType("T_R", []);
+                                                                                                                return function (state) {
+                                                                                                                    return ldrBaR(_c71, _rd53, _rn58, _rm47, _z39, _rs21, rstype, state);
+                                                                                                                };
+                                                                                                            }()])]])))(_t77);
+                                                                                                        } else {
+                                                                                                            return _target86(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                                        }
+                                                                                                    } else {
+                                                                                                        return _target86(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                                    }
+                                                                                                } else {
+                                                                                                    return _target86(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                                }
+                                                                                            } else {
+                                                                                                return _target86(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                            }
+                                                                                        } else {
+                                                                                            return _target86(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                        }
+                                                                                    } else {
+                                                                                        return _target86(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                    }
+                                                                                } else if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                                    var _c72 = _arg1.head.Fields[0];
+                                                                                    var _i39 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                    var _rd54 = _arg1.tail.head.Fields[0];
+                                                                                    var _rn59 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                    var _t78 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                                        return ldrBaI(_c72, _rd54, _rn59, _i39, state);
+                                                                                    }])]])))(_t78);
+                                                                                } else {
+                                                                                    return _target98(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                }
+                                                                            } else {
+                                                                                return _target98(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                            }
+                                                                        } else {
+                                                                            return _target98(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                        }
+                                                                    } else {
+                                                                        return _target98(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                    }
+                                                                } else if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_R_BRAC") {
+                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_EXCL") {
+                                                                                            var _c73 = _arg1.head.Fields[0];
+                                                                                            var _i40 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rd55 = _arg1.tail.head.Fields[0];
+                                                                                            var _rn60 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _t79 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var inc = true;
+                                                                                                return function (state) {
+                                                                                                    return ldrBbI(_c73, inc, _rd55, _rn60, _i40, state);
+                                                                                                };
+                                                                                            }()])]])))(_t79);
+                                                                                        } else {
+                                                                                            return _target100(_arg1.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                        }
+                                                                                    } else {
+                                                                                        return _target100(_arg1.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                    }
+                                                                                } else {
+                                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                                }
+                                                                            } else {
+                                                                                return _target156(_arg1.tail, _arg1.head);
+                                                                            }
+                                                                        } else if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_R_BRAC") {
+                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_EXCL") {
+                                                                                            var _c74 = _arg1.head.Fields[0];
+                                                                                            var _rd56 = _arg1.tail.head.Fields[0];
+                                                                                            var _rm48 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rn61 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _t80 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var inc = true;
+                                                                                                var rsinst = new shiftOp("T_LSL", []);
+                                                                                                var nORrn = 0;
+                                                                                                var rstype = new opType("T_I", []);
+                                                                                                return function (state) {
+                                                                                                    return ldrBbR(_c74, inc, _rd56, _rn61, _rm48, rsinst, nORrn, rstype, state);
+                                                                                                };
+                                                                                            }()])]])))(_t80);
+                                                                                        } else {
+                                                                                            return _target102(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                        }
+                                                                                    } else {
+                                                                                        return _target102(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                    }
+                                                                                } else if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
+                                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_R_BRAC") {
+                                                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_EXCL") {
+                                                                                                                    var _c75 = _arg1.head.Fields[0];
+                                                                                                                    var _i41 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    var _rd57 = _arg1.tail.head.Fields[0];
+                                                                                                                    var _rm49 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    var _rn62 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    var _t81 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                                                    var _z40 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                                        var inc = true;
+                                                                                                                        var rstype = new opType("T_I", []);
+                                                                                                                        return function (state) {
+                                                                                                                            return ldrBbR(_c75, inc, _rd57, _rn62, _rm49, _z40, _i41, rstype, state);
+                                                                                                                        };
+                                                                                                                    }()])]])))(_t81);
+                                                                                                                } else {
+                                                                                                                    return _target104(_arg1.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]);
+                                                                                                                }
+                                                                                                            } else {
+                                                                                                                return _target104(_arg1.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]);
+                                                                                                            }
+                                                                                                        } else {
+                                                                                                            return _target156(_arg1.tail, _arg1.head);
+                                                                                                        }
+                                                                                                    } else {
+                                                                                                        return _target156(_arg1.tail, _arg1.head);
+                                                                                                    }
+                                                                                                } else if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_R_BRAC") {
+                                                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_EXCL") {
+                                                                                                                    var _c76 = _arg1.head.Fields[0];
+                                                                                                                    var _rd58 = _arg1.tail.head.Fields[0];
+                                                                                                                    var _rm50 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    var _rn63 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    var _rs22 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    var _t82 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                                                    var _z41 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                                        var inc = true;
+                                                                                                                        var rstype = new opType("T_R", []);
+                                                                                                                        return function (state) {
+                                                                                                                            return ldrBbR(_c76, inc, _rd58, _rn63, _rm50, _z41, _rs22, rstype, state);
+                                                                                                                        };
+                                                                                                                    }()])]])))(_t82);
+                                                                                                                } else {
+                                                                                                                    return _target106(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]);
+                                                                                                                }
+                                                                                                            } else {
+                                                                                                                return _target106(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]);
+                                                                                                            }
+                                                                                                        } else {
+                                                                                                            return _target156(_arg1.tail, _arg1.head);
+                                                                                                        }
+                                                                                                    } else {
+                                                                                                        return _target156(_arg1.tail, _arg1.head);
+                                                                                                    }
+                                                                                                } else {
+                                                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                                                }
+                                                                                            } else {
+                                                                                                return _target156(_arg1.tail, _arg1.head);
+                                                                                            }
+                                                                                        } else {
+                                                                                            return _target156(_arg1.tail, _arg1.head);
+                                                                                        }
+                                                                                    } else {
+                                                                                        return _target156(_arg1.tail, _arg1.head);
+                                                                                    }
+                                                                                } else {
+                                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                                }
+                                                                            } else {
+                                                                                return _target156(_arg1.tail, _arg1.head);
+                                                                            }
+                                                                        } else {
+                                                                            return _target156(_arg1.tail, _arg1.head);
+                                                                        }
+                                                                    } else {
+                                                                        return _target156(_arg1.tail, _arg1.head);
+                                                                    }
+                                                                } else {
+                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                }
+                                                            } else {
+                                                                return _target156(_arg1.tail, _arg1.head);
+                                                            }
+                                                        } else {
+                                                            return _target156(_arg1.tail, _arg1.head);
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else if (_arg1.tail.tail.tail.head.Case === "T_EQUAL") {
+                                                    if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                        if (_arg1.tail.tail.tail.tail.head.Case === "T_LABEL") {
+                                                            var _c77 = _arg1.head.Fields[0];
+                                                            var _rd59 = _arg1.tail.head.Fields[0];
+                                                            var _s47 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                            var _t83 = _arg1.tail.tail.tail.tail.tail;
+                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("LabelRef", [lsaRef(l)(_c77)(_rd59)(_s47)(function (c_1) {
+                                                                return function (rd_1) {
+                                                                    return function (label) {
+                                                                        return function (state) {
+                                                                            return ldrBL(c_1, rd_1, label, state);
+                                                                        };
+                                                                    };
+                                                                };
+                                                            })])]])))(_t83);
+                                                        } else {
+                                                            return _target156(_arg1.tail, _arg1.head);
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_STR") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                            if (_arg1.tail.tail.tail.tail != null) {
+                                                if (_arg1.tail.tail.tail.head.Case === "T_L_BRAC") {
+                                                    if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                        if (_arg1.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                            if (_arg1.tail.tail.tail.tail.tail.tail != null) {
+                                                                if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_R_BRAC") {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
+                                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                                                            var _c78 = _arg1.head.Fields[0];
+                                                                                                            var _i42 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            var _rd60 = _arg1.tail.head.Fields[0];
+                                                                                                            var _rm51 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            var _rn64 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            var _t84 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                                            var _z42 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                                var rstype = new opType("T_I", []);
+                                                                                                                return function (state) {
+                                                                                                                    return strWaR(_c78, _rd60, _rn64, _rm51, _z42, _i42, rstype, state);
+                                                                                                                };
+                                                                                                            }()])]])))(_t84);
+                                                                                                        } else if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                                                            var _c79 = _arg1.head.Fields[0];
+                                                                                                            var _rd61 = _arg1.tail.head.Fields[0];
+                                                                                                            var _rm52 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            var _rn65 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            var _rs23 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            var _t85 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                                            var _z43 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                                var rstype = new opType("T_R", []);
+                                                                                                                return function (state) {
+                                                                                                                    return strWaR(_c79, _rd61, _rn65, _rm52, _z43, _rs23, rstype, state);
+                                                                                                                };
+                                                                                                            }()])]])))(_t85);
+                                                                                                        } else {
+                                                                                                            return _target110(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                                        }
+                                                                                                    } else {
+                                                                                                        return _target110(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                                    }
+                                                                                                } else {
+                                                                                                    return _target110(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                                }
+                                                                                            } else {
+                                                                                                return _target110(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                            }
+                                                                                        } else {
+                                                                                            return _target110(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                        }
+                                                                                    } else {
+                                                                                        return _target110(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                    }
+                                                                                } else if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                                    var _c80 = _arg1.head.Fields[0];
+                                                                                    var _i43 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                    var _rd62 = _arg1.tail.head.Fields[0];
+                                                                                    var _rn66 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                    var _t86 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                                        return strWaI(_c80, _rd62, _rn66, _i43, state);
+                                                                                    }])]])))(_t86);
+                                                                                } else {
+                                                                                    return _target115(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                }
+                                                                            } else {
+                                                                                return _target115(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                            }
+                                                                        } else {
+                                                                            return _target115(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                        }
+                                                                    } else {
+                                                                        return _target115(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                    }
+                                                                } else if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_R_BRAC") {
+                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_EXCL") {
+                                                                                            var _c81 = _arg1.head.Fields[0];
+                                                                                            var _i44 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rd63 = _arg1.tail.head.Fields[0];
+                                                                                            var _rn67 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _t87 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var inc = true;
+                                                                                                return function (state) {
+                                                                                                    return strWbI(_c81, inc, _rd63, _rn67, _i44, state);
+                                                                                                };
+                                                                                            }()])]])))(_t87);
+                                                                                        } else {
+                                                                                            return _target117(_arg1.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                        }
+                                                                                    } else {
+                                                                                        return _target117(_arg1.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                    }
+                                                                                } else {
+                                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                                }
+                                                                            } else {
+                                                                                return _target156(_arg1.tail, _arg1.head);
+                                                                            }
+                                                                        } else if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_R_BRAC") {
+                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_EXCL") {
+                                                                                            var _c82 = _arg1.head.Fields[0];
+                                                                                            var _rd64 = _arg1.tail.head.Fields[0];
+                                                                                            var _rm53 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rn68 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _t88 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var inc = true;
+                                                                                                var rsinst = new shiftOp("T_LSL", []);
+                                                                                                var nORrn = 0;
+                                                                                                var rstype = new opType("T_I", []);
+                                                                                                return function (state) {
+                                                                                                    return strWbR(_c82, inc, _rd64, _rn68, _rm53, rsinst, nORrn, rstype, state);
+                                                                                                };
+                                                                                            }()])]])))(_t88);
+                                                                                        } else {
+                                                                                            return _target119(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                        }
+                                                                                    } else {
+                                                                                        return _target119(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                    }
+                                                                                } else if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
+                                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_R_BRAC") {
+                                                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_EXCL") {
+                                                                                                                    var _c83 = _arg1.head.Fields[0];
+                                                                                                                    var _i45 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    var _rd65 = _arg1.tail.head.Fields[0];
+                                                                                                                    var _rm54 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    var _rn69 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    var _t89 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                                                    var _z44 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                                        var inc = true;
+                                                                                                                        var rstype = new opType("T_I", []);
+                                                                                                                        return function (state) {
+                                                                                                                            return strWbR(_c83, inc, _rd65, _rn69, _rm54, _z44, _i45, rstype, state);
+                                                                                                                        };
+                                                                                                                    }()])]])))(_t89);
+                                                                                                                } else {
+                                                                                                                    return _target121(_arg1.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]);
+                                                                                                                }
+                                                                                                            } else {
+                                                                                                                return _target121(_arg1.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]);
+                                                                                                            }
+                                                                                                        } else {
+                                                                                                            return _target156(_arg1.tail, _arg1.head);
+                                                                                                        }
+                                                                                                    } else {
+                                                                                                        return _target156(_arg1.tail, _arg1.head);
+                                                                                                    }
+                                                                                                } else if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_R_BRAC") {
+                                                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_EXCL") {
+                                                                                                                    var _c84 = _arg1.head.Fields[0];
+                                                                                                                    var _rd66 = _arg1.tail.head.Fields[0];
+                                                                                                                    var _rm55 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    var _rn70 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    var _rs24 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    var _t90 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                                                    var _z45 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                                        var inc = true;
+                                                                                                                        var rstype = new opType("T_R", []);
+                                                                                                                        return function (state) {
+                                                                                                                            return strWbR(_c84, inc, _rd66, _rn70, _rm55, _z45, _rs24, rstype, state);
+                                                                                                                        };
+                                                                                                                    }()])]])))(_t90);
+                                                                                                                } else {
+                                                                                                                    return _target123(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]);
+                                                                                                                }
+                                                                                                            } else {
+                                                                                                                return _target123(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]);
+                                                                                                            }
+                                                                                                        } else {
+                                                                                                            return _target156(_arg1.tail, _arg1.head);
+                                                                                                        }
+                                                                                                    } else {
+                                                                                                        return _target156(_arg1.tail, _arg1.head);
+                                                                                                    }
+                                                                                                } else {
+                                                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                                                }
+                                                                                            } else {
+                                                                                                return _target156(_arg1.tail, _arg1.head);
+                                                                                            }
+                                                                                        } else {
+                                                                                            return _target156(_arg1.tail, _arg1.head);
+                                                                                        }
+                                                                                    } else {
+                                                                                        return _target156(_arg1.tail, _arg1.head);
+                                                                                    }
+                                                                                } else {
+                                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                                }
+                                                                            } else {
+                                                                                return _target156(_arg1.tail, _arg1.head);
+                                                                            }
+                                                                        } else {
+                                                                            return _target156(_arg1.tail, _arg1.head);
+                                                                        }
+                                                                    } else {
+                                                                        return _target156(_arg1.tail, _arg1.head);
+                                                                    }
+                                                                } else {
+                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                }
+                                                            } else {
+                                                                return _target156(_arg1.tail, _arg1.head);
+                                                            }
+                                                        } else {
+                                                            return _target156(_arg1.tail, _arg1.head);
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_STRB") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                            if (_arg1.tail.tail.tail.tail != null) {
+                                                if (_arg1.tail.tail.tail.head.Case === "T_L_BRAC") {
+                                                    if (_arg1.tail.tail.tail.tail.tail != null) {
+                                                        if (_arg1.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                            if (_arg1.tail.tail.tail.tail.tail.tail != null) {
+                                                                if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_R_BRAC") {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
+                                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                                                            var _c85 = _arg1.head.Fields[0];
+                                                                                                            var _i46 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            var _rd67 = _arg1.tail.head.Fields[0];
+                                                                                                            var _rm56 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            var _rn71 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            var _t91 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                                            var _z46 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                                var rstype = new opType("T_I", []);
+                                                                                                                return function (state) {
+                                                                                                                    return strBaR(_c85, _rd67, _rn71, _rm56, _z46, _i46, rstype, state);
+                                                                                                                };
+                                                                                                            }()])]])))(_t91);
+                                                                                                        } else if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                                                            var _c86 = _arg1.head.Fields[0];
+                                                                                                            var _rd68 = _arg1.tail.head.Fields[0];
+                                                                                                            var _rm57 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            var _rn72 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            var _rs25 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            var _t92 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                                            var _z47 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                                var rstype = new opType("T_R", []);
+                                                                                                                return function (state) {
+                                                                                                                    return strBaR(_c86, _rd68, _rn72, _rm57, _z47, _rs25, rstype, state);
+                                                                                                                };
+                                                                                                            }()])]])))(_t92);
+                                                                                                        } else {
+                                                                                                            return _target114(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                                        }
+                                                                                                    } else {
+                                                                                                        return _target114(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                                    }
+                                                                                                } else {
+                                                                                                    return _target114(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                                }
+                                                                                            } else {
+                                                                                                return _target114(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                            }
+                                                                                        } else {
+                                                                                            return _target114(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                        }
+                                                                                    } else {
+                                                                                        return _target114(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                    }
+                                                                                } else if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                                    var _c87 = _arg1.head.Fields[0];
+                                                                                    var _i47 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                    var _rd69 = _arg1.tail.head.Fields[0];
+                                                                                    var _rn73 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                    var _t93 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                                        return strBaI(_c87, _rd69, _rn73, _i47, state);
+                                                                                    }])]])))(_t93);
+                                                                                } else {
+                                                                                    return _target124(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                                }
+                                                                            } else {
+                                                                                return _target124(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                            }
+                                                                        } else {
+                                                                            return _target124(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                        }
+                                                                    } else {
+                                                                        return _target124(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail);
+                                                                    }
+                                                                } else if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_R_BRAC") {
+                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_EXCL") {
+                                                                                            var _c88 = _arg1.head.Fields[0];
+                                                                                            var _i48 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rd70 = _arg1.tail.head.Fields[0];
+                                                                                            var _rn74 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _t94 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var inc = true;
+                                                                                                return function (state) {
+                                                                                                    return strBbI(_c88, inc, _rd70, _rn74, _i48, state);
+                                                                                                };
+                                                                                            }()])]])))(_t94);
+                                                                                        } else {
+                                                                                            return _target126(_arg1.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                        }
+                                                                                    } else {
+                                                                                        return _target126(_arg1.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                    }
+                                                                                } else {
+                                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                                }
+                                                                            } else {
+                                                                                return _target156(_arg1.tail, _arg1.head);
+                                                                            }
+                                                                        } else if (_arg1.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_R_BRAC") {
+                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_EXCL") {
+                                                                                            var _c89 = _arg1.head.Fields[0];
+                                                                                            var _rd71 = _arg1.tail.head.Fields[0];
+                                                                                            var _rm58 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _rn75 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                            var _t95 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                var inc = true;
+                                                                                                var rsinst = new shiftOp("T_LSL", []);
+                                                                                                var nORrn = 0;
+                                                                                                var rstype = new opType("T_I", []);
+                                                                                                return function (state) {
+                                                                                                    return strBbR(_c89, inc, _rd71, _rn75, _rm58, rsinst, nORrn, rstype, state);
+                                                                                                };
+                                                                                            }()])]])))(_t95);
+                                                                                        } else {
+                                                                                            return _target128(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                        }
+                                                                                    } else {
+                                                                                        return _target128(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail);
+                                                                                    }
+                                                                                } else if (_arg1.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_COMMA") {
+                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_SHIFT") {
+                                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_INT") {
+                                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_R_BRAC") {
+                                                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_EXCL") {
+                                                                                                                    var _c90 = _arg1.head.Fields[0];
+                                                                                                                    var _i49 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    var _rd72 = _arg1.tail.head.Fields[0];
+                                                                                                                    var _rm59 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    var _rn76 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    var _t96 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                                                    var _z48 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                                        var inc = true;
+                                                                                                                        var rstype = new opType("T_I", []);
+                                                                                                                        return function (state) {
+                                                                                                                            return strBbR(_c90, inc, _rd72, _rn76, _rm59, _z48, _i49, rstype, state);
+                                                                                                                        };
+                                                                                                                    }()])]])))(_t96);
+                                                                                                                } else {
+                                                                                                                    return _target130(_arg1.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]);
+                                                                                                                }
+                                                                                                            } else {
+                                                                                                                return _target130(_arg1.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]);
+                                                                                                            }
+                                                                                                        } else {
+                                                                                                            return _target156(_arg1.tail, _arg1.head);
+                                                                                                        }
+                                                                                                    } else {
+                                                                                                        return _target156(_arg1.tail, _arg1.head);
+                                                                                                    }
+                                                                                                } else if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_REG") {
+                                                                                                    if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                        if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_R_BRAC") {
+                                                                                                            if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail != null) {
+                                                                                                                if (_arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Case === "T_EXCL") {
+                                                                                                                    var _c91 = _arg1.head.Fields[0];
+                                                                                                                    var _rd73 = _arg1.tail.head.Fields[0];
+                                                                                                                    var _rm60 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    var _rn77 = _arg1.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    var _rs26 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    var _t97 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
+                                                                                                                    var _z49 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
+                                                                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                                        var inc = true;
+                                                                                                                        var rstype = new opType("T_R", []);
+                                                                                                                        return function (state) {
+                                                                                                                            return strBbR(_c91, inc, _rd73, _rn77, _rm60, _z49, _rs26, rstype, state);
+                                                                                                                        };
+                                                                                                                    }()])]])))(_t97);
+                                                                                                                } else {
+                                                                                                                    return _target132(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]);
+                                                                                                                }
+                                                                                                            } else {
+                                                                                                                return _target132(_arg1.head.Fields[0], _arg1.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0], _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail, _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0]);
+                                                                                                            }
+                                                                                                        } else {
+                                                                                                            return _target156(_arg1.tail, _arg1.head);
+                                                                                                        }
+                                                                                                    } else {
+                                                                                                        return _target156(_arg1.tail, _arg1.head);
+                                                                                                    }
+                                                                                                } else {
+                                                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                                                }
+                                                                                            } else {
+                                                                                                return _target156(_arg1.tail, _arg1.head);
+                                                                                            }
+                                                                                        } else {
+                                                                                            return _target156(_arg1.tail, _arg1.head);
+                                                                                        }
+                                                                                    } else {
+                                                                                        return _target156(_arg1.tail, _arg1.head);
+                                                                                    }
+                                                                                } else {
+                                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                                }
+                                                                            } else {
+                                                                                return _target156(_arg1.tail, _arg1.head);
+                                                                            }
+                                                                        } else {
+                                                                            return _target156(_arg1.tail, _arg1.head);
+                                                                        }
+                                                                    } else {
+                                                                        return _target156(_arg1.tail, _arg1.head);
+                                                                    }
+                                                                } else {
+                                                                    return _target156(_arg1.tail, _arg1.head);
+                                                                }
+                                                            } else {
+                                                                return _target156(_arg1.tail, _arg1.head);
+                                                            }
+                                                        } else {
+                                                            return _target156(_arg1.tail, _arg1.head);
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_LDM") {
+                            if (_arg1.head.Fields[1].Case === "S_IB") {
+                                if (_arg1.tail.tail != null) {
+                                    if (_arg1.tail.head.Case === "T_REG") {
+                                        if (_arg1.tail.tail.tail != null) {
+                                            if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                                var _c92 = _arg1.head.Fields[0];
+                                                var _rn78 = _arg1.tail.head.Fields[0];
+                                                var _t98 = _arg1.tail.tail.tail;
+                                                {
+                                                    var _matchValue2 = regList(_t98);
+
+                                                    if (_matchValue2.Case === "Err") {
+                                                        return new _Error("Err", [l, _matchValue2.Fields[1]]);
+                                                    } else {
+                                                        var tokLst_1 = _matchValue2.Fields[0][1];
+                                                        var rl = _matchValue2.Fields[0][0];
+                                                        return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                            var write = false;
+                                                            return function (state) {
+                                                                return ldmIB(_c92, write, _rn78, rl, state);
+                                                            };
+                                                        }()])]])))(tokLst_1);
+                                                    }
+                                                }
+                                            } else if (_arg1.tail.tail.head.Case === "T_EXCL") {
+                                                if (_arg1.tail.tail.tail.tail != null) {
+                                                    if (_arg1.tail.tail.tail.head.Case === "T_COMMA") {
+                                                        var _c93 = _arg1.head.Fields[0];
+                                                        var _rn79 = _arg1.tail.head.Fields[0];
+                                                        var _t99 = _arg1.tail.tail.tail.tail;
+                                                        {
+                                                            var _matchValue3 = regList(_t99);
+
+                                                            if (_matchValue3.Case === "Err") {
+                                                                return new _Error("Err", [l, _matchValue3.Fields[1]]);
+                                                            } else {
+                                                                var _tokLst_ = _matchValue3.Fields[0][1];
+                                                                var _rl = _matchValue3.Fields[0][0];
+                                                                return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                    var write = true;
+                                                                    return function (state) {
+                                                                        return ldmIB(_c93, write, _rn79, _rl, state);
+                                                                    };
+                                                                }()])]])))(_tokLst_);
+                                                            }
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else if (_arg1.head.Fields[1].Case === "S_DA") {
+                                if (_arg1.tail.tail != null) {
+                                    if (_arg1.tail.head.Case === "T_REG") {
+                                        if (_arg1.tail.tail.tail != null) {
+                                            if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                                var _c94 = _arg1.head.Fields[0];
+                                                var _rn80 = _arg1.tail.head.Fields[0];
+                                                var _t100 = _arg1.tail.tail.tail;
+                                                {
+                                                    var _matchValue4 = regList(_t100);
+
+                                                    if (_matchValue4.Case === "Err") {
+                                                        return new _Error("Err", [l, _matchValue4.Fields[1]]);
+                                                    } else {
+                                                        var _tokLst_2 = _matchValue4.Fields[0][1];
+                                                        var _rl2 = _matchValue4.Fields[0][0];
+                                                        return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                            var write = false;
+                                                            return function (state) {
+                                                                return ldmDA(_c94, write, _rn80, _rl2, state);
+                                                            };
+                                                        }()])]])))(_tokLst_2);
+                                                    }
+                                                }
+                                            } else if (_arg1.tail.tail.head.Case === "T_EXCL") {
+                                                if (_arg1.tail.tail.tail.tail != null) {
+                                                    if (_arg1.tail.tail.tail.head.Case === "T_COMMA") {
+                                                        var _c95 = _arg1.head.Fields[0];
+                                                        var _rn81 = _arg1.tail.head.Fields[0];
+                                                        var _t101 = _arg1.tail.tail.tail.tail;
+                                                        {
+                                                            var _matchValue5 = regList(_t101);
+
+                                                            if (_matchValue5.Case === "Err") {
+                                                                return new _Error("Err", [l, _matchValue5.Fields[1]]);
+                                                            } else {
+                                                                var _tokLst_3 = _matchValue5.Fields[0][1];
+                                                                var _rl3 = _matchValue5.Fields[0][0];
+                                                                return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                    var write = true;
+                                                                    return function (state) {
+                                                                        return ldmDA(_c95, write, _rn81, _rl3, state);
+                                                                    };
+                                                                }()])]])))(_tokLst_3);
+                                                            }
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else if (_arg1.head.Fields[1].Case === "S_DB") {
+                                if (_arg1.tail.tail != null) {
+                                    if (_arg1.tail.head.Case === "T_REG") {
+                                        if (_arg1.tail.tail.tail != null) {
+                                            if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                                var _c96 = _arg1.head.Fields[0];
+                                                var _rn82 = _arg1.tail.head.Fields[0];
+                                                var _t102 = _arg1.tail.tail.tail;
+                                                {
+                                                    var _matchValue6 = regList(_t102);
+
+                                                    if (_matchValue6.Case === "Err") {
+                                                        return new _Error("Err", [l, _matchValue6.Fields[1]]);
+                                                    } else {
+                                                        var _tokLst_4 = _matchValue6.Fields[0][1];
+                                                        var _rl4 = _matchValue6.Fields[0][0];
+                                                        return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                            var write = false;
+                                                            return function (state) {
+                                                                return ldmDB(_c96, write, _rn82, _rl4, state);
+                                                            };
+                                                        }()])]])))(_tokLst_4);
+                                                    }
+                                                }
+                                            } else if (_arg1.tail.tail.head.Case === "T_EXCL") {
+                                                if (_arg1.tail.tail.tail.tail != null) {
+                                                    if (_arg1.tail.tail.tail.head.Case === "T_COMMA") {
+                                                        var _c97 = _arg1.head.Fields[0];
+                                                        var _rn83 = _arg1.tail.head.Fields[0];
+                                                        var _t103 = _arg1.tail.tail.tail.tail;
+                                                        {
+                                                            var _matchValue7 = regList(_t103);
+
+                                                            if (_matchValue7.Case === "Err") {
+                                                                return new _Error("Err", [l, _matchValue7.Fields[1]]);
+                                                            } else {
+                                                                var _tokLst_5 = _matchValue7.Fields[0][1];
+                                                                var _rl5 = _matchValue7.Fields[0][0];
+                                                                return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                    var write = true;
+                                                                    return function (state) {
+                                                                        return ldmDB(_c97, write, _rn83, _rl5, state);
+                                                                    };
+                                                                }()])]])))(_tokLst_5);
+                                                            }
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                            var _c98 = _arg1.head.Fields[0];
+                                            var _rn84 = _arg1.tail.head.Fields[0];
+                                            var _t104 = _arg1.tail.tail.tail;
+                                            {
+                                                var _matchValue8 = regList(_t104);
+
+                                                if (_matchValue8.Case === "Err") {
+                                                    return new _Error("Err", [l, _matchValue8.Fields[1]]);
+                                                } else {
+                                                    var _tokLst_6 = _matchValue8.Fields[0][1];
+                                                    var _rl6 = _matchValue8.Fields[0][0];
+                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                        var write = false;
+                                                        return function (state) {
+                                                            return ldmIA(_c98, write, _rn84, _rl6, state);
+                                                        };
+                                                    }()])]])))(_tokLst_6);
+                                                }
+                                            }
+                                        } else if (_arg1.tail.tail.head.Case === "T_EXCL") {
+                                            if (_arg1.tail.tail.tail.tail != null) {
+                                                if (_arg1.tail.tail.tail.head.Case === "T_COMMA") {
+                                                    var _c99 = _arg1.head.Fields[0];
+                                                    var _rn85 = _arg1.tail.head.Fields[0];
+                                                    var _t105 = _arg1.tail.tail.tail.tail;
+                                                    {
+                                                        var _matchValue9 = regList(_t105);
+
+                                                        if (_matchValue9.Case === "Err") {
+                                                            return new _Error("Err", [l, _matchValue9.Fields[1]]);
+                                                        } else {
+                                                            var _tokLst_7 = _matchValue9.Fields[0][1];
+                                                            var _rl7 = _matchValue9.Fields[0][0];
+                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                var write = true;
+                                                                return function (state) {
+                                                                    return ldmIA(_c99, write, _rn85, _rl7, state);
+                                                                };
+                                                            }()])]])))(_tokLst_7);
+                                                        }
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_STM") {
+                            if (_arg1.head.Fields[1].Case === "S_IB") {
+                                if (_arg1.tail.tail != null) {
+                                    if (_arg1.tail.head.Case === "T_REG") {
+                                        if (_arg1.tail.tail.tail != null) {
+                                            if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                                var _c100 = _arg1.head.Fields[0];
+                                                var _rn86 = _arg1.tail.head.Fields[0];
+                                                var _t106 = _arg1.tail.tail.tail;
+                                                {
+                                                    var _matchValue10 = regList(_t106);
+
+                                                    if (_matchValue10.Case === "Err") {
+                                                        return new _Error("Err", [l, _matchValue10.Fields[1]]);
+                                                    } else {
+                                                        var _tokLst_8 = _matchValue10.Fields[0][1];
+                                                        var _rl8 = _matchValue10.Fields[0][0];
+                                                        return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                            var write = false;
+                                                            return function (state) {
+                                                                return stmIB(_c100, write, _rn86, _rl8, state);
+                                                            };
+                                                        }()])]])))(_tokLst_8);
+                                                    }
+                                                }
+                                            } else if (_arg1.tail.tail.head.Case === "T_EXCL") {
+                                                if (_arg1.tail.tail.tail.tail != null) {
+                                                    if (_arg1.tail.tail.tail.head.Case === "T_COMMA") {
+                                                        var _c101 = _arg1.head.Fields[0];
+                                                        var _rn87 = _arg1.tail.head.Fields[0];
+                                                        var _t107 = _arg1.tail.tail.tail.tail;
+                                                        {
+                                                            var _matchValue11 = regList(_t107);
+
+                                                            if (_matchValue11.Case === "Err") {
+                                                                return new _Error("Err", [l, _matchValue11.Fields[1]]);
+                                                            } else {
+                                                                var _tokLst_9 = _matchValue11.Fields[0][1];
+                                                                var _rl9 = _matchValue11.Fields[0][0];
+                                                                return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                    var write = true;
+                                                                    return function (state) {
+                                                                        return stmIB(_c101, write, _rn87, _rl9, state);
+                                                                    };
+                                                                }()])]])))(_tokLst_9);
+                                                            }
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else if (_arg1.head.Fields[1].Case === "S_DA") {
+                                if (_arg1.tail.tail != null) {
+                                    if (_arg1.tail.head.Case === "T_REG") {
+                                        if (_arg1.tail.tail.tail != null) {
+                                            if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                                var _c102 = _arg1.head.Fields[0];
+                                                var _rn88 = _arg1.tail.head.Fields[0];
+                                                var _t108 = _arg1.tail.tail.tail;
+                                                {
+                                                    var _matchValue12 = regList(_t108);
+
+                                                    if (_matchValue12.Case === "Err") {
+                                                        return new _Error("Err", [l, _matchValue12.Fields[1]]);
+                                                    } else {
+                                                        var _tokLst_10 = _matchValue12.Fields[0][1];
+                                                        var _rl10 = _matchValue12.Fields[0][0];
+                                                        return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                            var write = false;
+                                                            return function (state) {
+                                                                return stmDA(_c102, write, _rn88, _rl10, state);
+                                                            };
+                                                        }()])]])))(_tokLst_10);
+                                                    }
+                                                }
+                                            } else if (_arg1.tail.tail.head.Case === "T_EXCL") {
+                                                if (_arg1.tail.tail.tail.tail != null) {
+                                                    if (_arg1.tail.tail.tail.head.Case === "T_COMMA") {
+                                                        var _c103 = _arg1.head.Fields[0];
+                                                        var _rn89 = _arg1.tail.head.Fields[0];
+                                                        var _t109 = _arg1.tail.tail.tail.tail;
+                                                        {
+                                                            var _matchValue13 = regList(_t109);
+
+                                                            if (_matchValue13.Case === "Err") {
+                                                                return new _Error("Err", [l, _matchValue13.Fields[1]]);
+                                                            } else {
+                                                                var _tokLst_11 = _matchValue13.Fields[0][1];
+                                                                var _rl11 = _matchValue13.Fields[0][0];
+                                                                return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                    var write = true;
+                                                                    return function (state) {
+                                                                        return stmDA(_c103, write, _rn89, _rl11, state);
+                                                                    };
+                                                                }()])]])))(_tokLst_11);
+                                                            }
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else if (_arg1.head.Fields[1].Case === "S_DB") {
+                                if (_arg1.tail.tail != null) {
+                                    if (_arg1.tail.head.Case === "T_REG") {
+                                        if (_arg1.tail.tail.tail != null) {
+                                            if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                                var _c104 = _arg1.head.Fields[0];
+                                                var _rn90 = _arg1.tail.head.Fields[0];
+                                                var _t110 = _arg1.tail.tail.tail;
+                                                {
+                                                    var _matchValue14 = regList(_t110);
+
+                                                    if (_matchValue14.Case === "Err") {
+                                                        return new _Error("Err", [l, _matchValue14.Fields[1]]);
+                                                    } else {
+                                                        var _tokLst_12 = _matchValue14.Fields[0][1];
+                                                        var _rl12 = _matchValue14.Fields[0][0];
+                                                        return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                            var write = false;
+                                                            return function (state) {
+                                                                return stmDB(_c104, write, _rn90, _rl12, state);
+                                                            };
+                                                        }()])]])))(_tokLst_12);
+                                                    }
+                                                }
+                                            } else if (_arg1.tail.tail.head.Case === "T_EXCL") {
+                                                if (_arg1.tail.tail.tail.tail != null) {
+                                                    if (_arg1.tail.tail.tail.head.Case === "T_COMMA") {
+                                                        var _c105 = _arg1.head.Fields[0];
+                                                        var _rn91 = _arg1.tail.head.Fields[0];
+                                                        var _t111 = _arg1.tail.tail.tail.tail;
+                                                        {
+                                                            var _matchValue15 = regList(_t111);
+
+                                                            if (_matchValue15.Case === "Err") {
+                                                                return new _Error("Err", [l, _matchValue15.Fields[1]]);
+                                                            } else {
+                                                                var _tokLst_13 = _matchValue15.Fields[0][1];
+                                                                var _rl13 = _matchValue15.Fields[0][0];
+                                                                return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                    var write = true;
+                                                                    return function (state) {
+                                                                        return stmDB(_c105, write, _rn91, _rl13, state);
+                                                                    };
+                                                                }()])]])))(_tokLst_13);
+                                                            }
+                                                        }
+                                                    } else {
+                                                        return _target156(_arg1.tail, _arg1.head);
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_REG") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_COMMA") {
+                                            var _c106 = _arg1.head.Fields[0];
+                                            var _rn92 = _arg1.tail.head.Fields[0];
+                                            var _t112 = _arg1.tail.tail.tail;
+                                            {
+                                                var _matchValue16 = regList(_t112);
+
+                                                if (_matchValue16.Case === "Err") {
+                                                    return new _Error("Err", [l, _matchValue16.Fields[1]]);
+                                                } else {
+                                                    var _tokLst_14 = _matchValue16.Fields[0][1];
+                                                    var _rl14 = _matchValue16.Fields[0][0];
+                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                        var write = false;
+                                                        return function (state) {
+                                                            return stmIA(_c106, write, _rn92, _rl14, state);
+                                                        };
+                                                    }()])]])))(_tokLst_14);
+                                                }
+                                            }
+                                        } else if (_arg1.tail.tail.head.Case === "T_EXCL") {
+                                            if (_arg1.tail.tail.tail.tail != null) {
+                                                if (_arg1.tail.tail.tail.head.Case === "T_COMMA") {
+                                                    var _c107 = _arg1.head.Fields[0];
+                                                    var _rn93 = _arg1.tail.head.Fields[0];
+                                                    var _t113 = _arg1.tail.tail.tail.tail;
+                                                    {
+                                                        var _matchValue17 = regList(_t113);
+
+                                                        if (_matchValue17.Case === "Err") {
+                                                            return new _Error("Err", [l, _matchValue17.Fields[1]]);
+                                                        } else {
+                                                            var _tokLst_15 = _matchValue17.Fields[0][1];
+                                                            var _rl15 = _matchValue17.Fields[0][0];
+                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                var write = true;
+                                                                return function (state) {
+                                                                    return stmIA(_c107, write, _rn93, _rl15, state);
+                                                                };
+                                                            }()])]])))(_tokLst_15);
+                                                        }
+                                                    }
+                                                } else {
+                                                    return _target156(_arg1.tail, _arg1.head);
+                                                }
+                                            } else {
+                                                return _target156(_arg1.tail, _arg1.head);
+                                            }
+                                        } else {
+                                            return _target156(_arg1.tail, _arg1.head);
+                                        }
+                                    } else {
+                                        return _target156(_arg1.tail, _arg1.head);
+                                    }
+                                } else {
+                                    return _target156(_arg1.tail, _arg1.head);
+                                }
+                            } else {
+                                return _target156(_arg1.tail, _arg1.head);
+                            }
+                        } else if (_arg1.head.Case === "T_LABEL") {
+                            if (_arg1.tail.tail != null) {
+                                if (_arg1.tail.head.Case === "T_EQU") {
+                                    if (_arg1.tail.tail.tail != null) {
+                                        if (_arg1.tail.tail.head.Case === "T_INT") {
+                                            var _i50 = _arg1.tail.tail.head.Fields[0];
+                                            var _s48 = _arg1.head.Fields[0];
+                                            var _t114 = _arg1.tail.tail.tail;
+                                            return parseRec(m)(l)(add(_s48, _i50, labels))(outLst)(_t114);
+                                        } else if (_arg1.tail.tail.head.Case === "T_LABEL") {
+                                            var s1 = _arg1.head.Fields[0];
+                                            var s2 = _arg1.tail.tail.head.Fields[0];
+                                            var _t115 = _arg1.tail.tail.tail;
+                                            {
+                                                var _matchValue18 = tryFind$1(s2, labels);
+
+                                                if (_matchValue18 == null) {
+                                                    return new _Error("Err", [l, fsFormat("Undefined label: %s.")(function (x) {
+                                                        return x;
+                                                    })(s2)]);
+                                                } else {
+                                                    return parseRec(m)(l)(add(s1, _matchValue18, labels))(outLst)(_t115);
+                                                }
+                                            }
+                                        } else {
+                                            return _target152(_arg1.head.Fields[0], _arg1.tail);
+                                        }
+                                    } else {
+                                        return _target152(_arg1.head.Fields[0], _arg1.tail);
+                                    }
+                                } else {
+                                    return _target152(_arg1.head.Fields[0], _arg1.tail);
+                                }
+                            } else {
+                                return _target152(_arg1.head.Fields[0], _arg1.tail);
+                            }
+                        } else if (_arg1.head.Case === "T_END") {
+                            var _c108 = _arg1.head.Fields[0];
+                            var _t116 = _arg1.tail;
+                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("EndRef", [endRef(l)(_c108)])]])))(_t116);
+                        } else if (_arg1.head.Case === "T_NEWLINE") {
+                            var _t117 = _arg1.tail;
+                            return parseRec(m)(l + 1)(labels)(outLst)(_t117);
+                        } else if (_arg1.head.Case === "T_ERROR") {
+                            var _s49 = _arg1.head.Fields[0];
+                            var _t118 = _arg1.tail;
+                            return new _Error("Err", [l, fsFormat("Invalid input string: %s.")(function (x) {
+                                return x;
+                            })(_s49)]);
+                        } else {
+                            return _target156(_arg1.tail, _arg1.head);
+                        }
+                    };
+                };
+            };
+        };
+    };
+
+    var matchValue = parseRec(0)(1)(create(null, new GenericComparer(function (x, y) {
         return x < y ? -1 : x > y ? 1 : 0;
     })))(new List$1())(tokLst);
 
     if (matchValue.Case === "Err") {
-        return new _Error("Err", [matchValue.Fields[0]]);
+        return new _Error("Err", [matchValue.Fields[0], matchValue.Fields[1]]);
     } else {
         return new _Error("Ok", [create(matchValue.Fields[0], new GenericComparer(function (x, y) {
             return x < y ? -1 : x > y ? 1 : 0;
         }))]);
     }
+}
+
+function checkAL(state) {
+    return true;
+}
+function checkEQ(state) {
+    return readZFlag(state);
+}
+function checkNE(state) {
+    return !readZFlag(state);
+}
+function checkCS(state) {
+    return readCFlag(state);
+}
+function checkCC(state) {
+    return !readCFlag(state);
+}
+function checkMI(state) {
+    return readNFlag(state);
+}
+function checkPL(state) {
+    return !readNFlag(state);
+}
+function checkVS(state) {
+    return readVFlag(state);
+}
+function checkVC(state) {
+    return !readVFlag(state);
+}
+function checkHI(state) {
+    if (readCFlag(state)) {
+        return !readZFlag(state);
+    } else {
+        return false;
+    }
+}
+
+function checkGE(state) {
+    return readNFlag(state) === readVFlag(state);
+}
+function checkLT(state) {
+    return readNFlag(state) !== readVFlag(state);
+}
+function checkGT(state) {
+    if (!readZFlag(state)) {
+        return readNFlag(state) === readVFlag(state);
+    } else {
+        return false;
+    }
+}
+function checkLE(state) {
+    if (readZFlag(state)) {
+        return readNFlag(state) !== readVFlag(state);
+    } else {
+        return false;
+    }
+}
+
+var _createClass$5 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _classCallCheck$5(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+
+var Token = function () {
+    function Token(caseName, fields) {
+        _classCallCheck$5(this, Token);
+
+        this.Case = caseName;
+        this.Fields = fields;
+    }
+
+    _createClass$5(Token, [{
+        key: _Symbol.reflection,
+        value: function () {
+            return {
+                type: "Parse.Tokeniser.Token",
+                interfaces: ["FSharpUnion"],
+                cases: {
+                    T_ADC: ["function", "boolean"],
+                    T_ADD: ["function", "boolean"],
+                    T_ADR: ["function"],
+                    T_AND: ["function", "boolean"],
+                    T_B: ["function"],
+                    T_BIC: ["function", "boolean"],
+                    T_BL: ["function"],
+                    T_BX: ["function"],
+                    T_CLZ: ["function"],
+                    T_CMN: ["function"],
+                    T_CMP: ["function"],
+                    T_COMMA: [],
+                    T_DASH: [],
+                    T_DCD: [],
+                    T_END: ["function"],
+                    T_EOR: ["function", "boolean"],
+                    T_EQU: [],
+                    T_EQUAL: [],
+                    T_ERROR: ["string"],
+                    T_EXCL: [],
+                    T_FILL: [],
+                    T_INT: ["number"],
+                    T_LABEL: ["string"],
+                    T_LDM: ["function", stackOrder],
+                    T_LDR: ["function"],
+                    T_LDRB: ["function"],
+                    T_LDRH: ["function"],
+                    T_L_BRAC: [],
+                    T_L_CBR: [],
+                    T_MLA: ["function", "boolean"],
+                    T_MOV: ["function", "boolean"],
+                    T_MRS: ["function"],
+                    T_MSR: ["function"],
+                    T_MUL: ["function", "boolean"],
+                    T_MVN: ["function", "boolean"],
+                    T_NEWLINE: [],
+                    T_NOP: ["function"],
+                    T_ORR: ["function", "boolean"],
+                    T_REG: ["number"],
+                    T_RSB: ["function", "boolean"],
+                    T_RSC: ["function", "boolean"],
+                    T_R_BRAC: [],
+                    T_R_CBR: [],
+                    T_SBC: ["function", "boolean"],
+                    T_SHIFT: [shiftOp, Tuple(["function", "boolean"])],
+                    T_SMLAL: ["function", "boolean"],
+                    T_SMULL: ["function", "boolean"],
+                    T_STM: ["function", stackOrder],
+                    T_STR: ["function"],
+                    T_STRB: ["function"],
+                    T_STRH: ["function"],
+                    T_SUB: ["function", "boolean"],
+                    T_SWI: ["function"],
+                    T_SWP: ["function"],
+                    T_TEQ: ["function"],
+                    T_TST: ["function"],
+                    T_UMLAL: ["function", "boolean"],
+                    T_UMULL: ["function", "boolean"]
+                }
+            };
+        }
+    }, {
+        key: "Equals",
+        value: function (yobj) {
+            var state = initState;
+
+            if (yobj instanceof Token) {
+                var y = yobj;
+                var matchValue = [this, y];
+
+                var _target52 = function _target52() {
+                    return false;
+                };
+
+                if (matchValue[0].Case === "T_REG") {
+                    if (matchValue[1].Case === "T_REG") {
+                        var ix = matchValue[0].Fields[0];
+                        var iy = matchValue[1].Fields[0];
+                        return ix === iy;
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_INT") {
+                    if (matchValue[1].Case === "T_INT") {
+                        var _ix = matchValue[0].Fields[0];
+                        var _iy = matchValue[1].Fields[0];
+                        return _ix === _iy;
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_LABEL") {
+                    if (matchValue[1].Case === "T_LABEL") {
+                        var sx = matchValue[0].Fields[0];
+                        var sy = matchValue[1].Fields[0];
+                        return sx === sy;
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_COMMA") {
+                    if (matchValue[1].Case === "T_COMMA") {
+                        return true;
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_L_BRAC") {
+                    if (matchValue[1].Case === "T_L_BRAC") {
+                        return true;
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_R_BRAC") {
+                    if (matchValue[1].Case === "T_R_BRAC") {
+                        return true;
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_EXCL") {
+                    if (matchValue[1].Case === "T_EXCL") {
+                        return true;
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_L_CBR") {
+                    if (matchValue[1].Case === "T_R_CBR") {
+                        return true;
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_DASH") {
+                    if (matchValue[1].Case === "T_DASH") {
+                        return true;
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_NEWLINE") {
+                    if (matchValue[1].Case === "T_NEWLINE") {
+                        return true;
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_ERROR") {
+                    if (matchValue[1].Case === "T_ERROR") {
+                        var tx = matchValue[0].Fields[0];
+                        var ty = matchValue[1].Fields[0];
+                        return tx === ty;
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_MOV") {
+                    if (matchValue[1].Case === "T_MOV") {
+                        var cx = matchValue[0].Fields[0];
+                        var cy = matchValue[1].Fields[0];
+                        var _sx = matchValue[0].Fields[1];
+                        var _sy = matchValue[1].Fields[1];
+
+                        if (cx(state) === cy(state)) {
+                            return _sx === _sy;
+                        } else {
+                            return false;
+                        }
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_MVN") {
+                    if (matchValue[1].Case === "T_MVN") {
+                        var _cx = matchValue[0].Fields[0];
+                        var _cy = matchValue[1].Fields[0];
+                        var _sx2 = matchValue[0].Fields[1];
+                        var _sy2 = matchValue[1].Fields[1];
+
+                        if (_cx(state) === _cy(state)) {
+                            return _sx2 === _sy2;
+                        } else {
+                            return false;
+                        }
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_MRS") {
+                    if (matchValue[1].Case === "T_MRS") {
+                        var _cx2 = matchValue[0].Fields[0];
+                        var _cy2 = matchValue[1].Fields[0];
+                        return _cx2(state) === _cy2(state);
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_MSR") {
+                    if (matchValue[1].Case === "T_MSR") {
+                        var _cx3 = matchValue[0].Fields[0];
+                        var _cy3 = matchValue[1].Fields[0];
+                        return _cx3(state) === _cy3(state);
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_ADD") {
+                    if (matchValue[1].Case === "T_ADD") {
+                        var _cx4 = matchValue[0].Fields[0];
+                        var _cy4 = matchValue[1].Fields[0];
+                        var _sx3 = matchValue[0].Fields[1];
+                        var _sy3 = matchValue[1].Fields[1];
+
+                        if (_cx4(state) === _cy4(state)) {
+                            return _sx3 === _sy3;
+                        } else {
+                            return false;
+                        }
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_ADC") {
+                    if (matchValue[1].Case === "T_ADC") {
+                        var _cx5 = matchValue[0].Fields[0];
+                        var _cy5 = matchValue[1].Fields[0];
+                        var _sx4 = matchValue[0].Fields[1];
+                        var _sy4 = matchValue[1].Fields[1];
+
+                        if (_cx5(state) === _cy5(state)) {
+                            return _sx4 === _sy4;
+                        } else {
+                            return false;
+                        }
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_SUB") {
+                    if (matchValue[1].Case === "T_SUB") {
+                        var _cx6 = matchValue[0].Fields[0];
+                        var _cy6 = matchValue[1].Fields[0];
+                        var _sx5 = matchValue[0].Fields[1];
+                        var _sy5 = matchValue[1].Fields[1];
+
+                        if (_cx6(state) === _cy6(state)) {
+                            return _sx5 === _sy5;
+                        } else {
+                            return false;
+                        }
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_SBC") {
+                    if (matchValue[1].Case === "T_SBC") {
+                        var _cx7 = matchValue[0].Fields[0];
+                        var _cy7 = matchValue[1].Fields[0];
+                        var _sx6 = matchValue[0].Fields[1];
+                        var _sy6 = matchValue[1].Fields[1];
+
+                        if (_cx7(state) === _cy7(state)) {
+                            return _sx6 === _sy6;
+                        } else {
+                            return false;
+                        }
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_RSB") {
+                    if (matchValue[1].Case === "T_RSB") {
+                        var _cx8 = matchValue[0].Fields[0];
+                        var _cy8 = matchValue[1].Fields[0];
+                        var _sx7 = matchValue[0].Fields[1];
+                        var _sy7 = matchValue[1].Fields[1];
+
+                        if (_cx8(state) === _cy8(state)) {
+                            return _sx7 === _sy7;
+                        } else {
+                            return false;
+                        }
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_RSC") {
+                    if (matchValue[1].Case === "T_RSC") {
+                        var _cx9 = matchValue[0].Fields[0];
+                        var _cy9 = matchValue[1].Fields[0];
+                        var _sx8 = matchValue[0].Fields[1];
+                        var _sy8 = matchValue[1].Fields[1];
+
+                        if (_cx9(state) === _cy9(state)) {
+                            return _sx8 === _sy8;
+                        } else {
+                            return false;
+                        }
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_MUL") {
+                    if (matchValue[1].Case === "T_MUL") {
+                        var _cx10 = matchValue[0].Fields[0];
+                        var _cy10 = matchValue[1].Fields[0];
+                        var _sx9 = matchValue[0].Fields[1];
+                        var _sy9 = matchValue[1].Fields[1];
+
+                        if (_cx10(state) === _cy10(state)) {
+                            return _sx9 === _sy9;
+                        } else {
+                            return false;
+                        }
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_MLA") {
+                    if (matchValue[1].Case === "T_MLA") {
+                        var _cx11 = matchValue[0].Fields[0];
+                        var _cy11 = matchValue[1].Fields[0];
+                        var _sx10 = matchValue[0].Fields[1];
+                        var _sy10 = matchValue[1].Fields[1];
+
+                        if (_cx11(state) === _cy11(state)) {
+                            return _sx10 === _sy10;
+                        } else {
+                            return false;
+                        }
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_AND") {
+                    if (matchValue[1].Case === "T_AND") {
+                        var _cx12 = matchValue[0].Fields[0];
+                        var _cy12 = matchValue[1].Fields[0];
+                        var _sx11 = matchValue[0].Fields[1];
+                        var _sy11 = matchValue[1].Fields[1];
+
+                        if (_cx12(state) === _cy12(state)) {
+                            return _sx11 === _sy11;
+                        } else {
+                            return false;
+                        }
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_ORR") {
+                    if (matchValue[1].Case === "T_ORR") {
+                        var _cx13 = matchValue[0].Fields[0];
+                        var _cy13 = matchValue[1].Fields[0];
+                        var _sx12 = matchValue[0].Fields[1];
+                        var _sy12 = matchValue[1].Fields[1];
+
+                        if (_cx13(state) === _cy13(state)) {
+                            return _sx12 === _sy12;
+                        } else {
+                            return false;
+                        }
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_EOR") {
+                    if (matchValue[1].Case === "T_EOR") {
+                        var _cx14 = matchValue[0].Fields[0];
+                        var _cy14 = matchValue[1].Fields[0];
+                        var _sx13 = matchValue[0].Fields[1];
+                        var _sy13 = matchValue[1].Fields[1];
+
+                        if (_cx14(state) === _cy14(state)) {
+                            return _sx13 === _sy13;
+                        } else {
+                            return false;
+                        }
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_BIC") {
+                    if (matchValue[1].Case === "T_BIC") {
+                        var _cx15 = matchValue[0].Fields[0];
+                        var _cy15 = matchValue[1].Fields[0];
+                        var _sx14 = matchValue[0].Fields[1];
+                        var _sy14 = matchValue[1].Fields[1];
+
+                        if (_cx15(state) === _cy15(state)) {
+                            return _sx14 === _sy14;
+                        } else {
+                            return false;
+                        }
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_CMP") {
+                    if (matchValue[1].Case === "T_CMP") {
+                        var _cx16 = matchValue[0].Fields[0];
+                        var _cy16 = matchValue[1].Fields[0];
+                        return _cx16(state) === _cy16(state);
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_CMN") {
+                    if (matchValue[1].Case === "T_CMN") {
+                        var _cx17 = matchValue[0].Fields[0];
+                        var _cy17 = matchValue[1].Fields[0];
+                        return _cx17(state) === _cy17(state);
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_TST") {
+                    if (matchValue[1].Case === "T_TST") {
+                        var _cx18 = matchValue[0].Fields[0];
+                        var _cy18 = matchValue[1].Fields[0];
+                        return _cx18(state) === _cy18(state);
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_TEQ") {
+                    if (matchValue[1].Case === "T_TEQ") {
+                        var _cx19 = matchValue[0].Fields[0];
+                        var _cy19 = matchValue[1].Fields[0];
+                        return _cx19(state) === _cy19(state);
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_B") {
+                    if (matchValue[1].Case === "T_B") {
+                        var _cx20 = matchValue[0].Fields[0];
+                        var _cy20 = matchValue[1].Fields[0];
+                        return _cx20(state) === _cy20(state);
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_BL") {
+                    if (matchValue[1].Case === "T_BL") {
+                        var _cx21 = matchValue[0].Fields[0];
+                        var _cy21 = matchValue[1].Fields[0];
+                        return _cx21(state) === _cy21(state);
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_BX") {
+                    if (matchValue[1].Case === "T_BX") {
+                        var _cx22 = matchValue[0].Fields[0];
+                        var _cy22 = matchValue[1].Fields[0];
+                        return _cx22(state) === _cy22(state);
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_LDR") {
+                    if (matchValue[1].Case === "T_LDR") {
+                        var _cx23 = matchValue[0].Fields[0];
+                        var _cy23 = matchValue[1].Fields[0];
+                        return _cx23(state) === _cy23(state);
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_LDRB") {
+                    if (matchValue[1].Case === "T_LDRB") {
+                        var _cx24 = matchValue[0].Fields[0];
+                        var _cy24 = matchValue[1].Fields[0];
+                        return _cx24(state) === _cy24(state);
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_LDRH") {
+                    if (matchValue[1].Case === "T_LDRH") {
+                        var _cx25 = matchValue[0].Fields[0];
+                        var _cy25 = matchValue[1].Fields[0];
+                        return _cx25(state) === _cy25(state);
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_LDM") {
+                    if (matchValue[1].Case === "T_LDM") {
+                        var _cx26 = matchValue[0].Fields[0];
+                        var _cy26 = matchValue[1].Fields[0];
+                        var _sx15 = matchValue[0].Fields[1];
+                        var _sy15 = matchValue[1].Fields[1];
+
+                        if (_cx26(state) === _cy26(state)) {
+                            return _sx15.Equals(_sy15);
+                        } else {
+                            return false;
+                        }
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_STR") {
+                    if (matchValue[1].Case === "T_STR") {
+                        var _cx27 = matchValue[0].Fields[0];
+                        var _cy27 = matchValue[1].Fields[0];
+                        return _cx27(state) === _cy27(state);
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_STRB") {
+                    if (matchValue[1].Case === "T_STRB") {
+                        var _cx28 = matchValue[0].Fields[0];
+                        var _cy28 = matchValue[1].Fields[0];
+                        return _cx28(state) === _cy28(state);
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_STRH") {
+                    if (matchValue[1].Case === "T_STRH") {
+                        var _cx29 = matchValue[0].Fields[0];
+                        var _cy29 = matchValue[1].Fields[0];
+                        return _cx29(state) === _cy29(state);
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_STM") {
+                    if (matchValue[1].Case === "T_STM") {
+                        var _cx30 = matchValue[0].Fields[0];
+                        var _cy30 = matchValue[1].Fields[0];
+                        var _sx16 = matchValue[0].Fields[1];
+                        var _sy16 = matchValue[1].Fields[1];
+
+                        if (_cx30(state) === _cy30(state)) {
+                            return _sx16.Equals(_sy16);
+                        } else {
+                            return false;
+                        }
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_ADR") {
+                    if (matchValue[1].Case === "T_ADR") {
+                        var _cx31 = matchValue[0].Fields[0];
+                        var _cy31 = matchValue[1].Fields[0];
+                        return _cx31(state) === _cy31(state);
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_SWP") {
+                    if (matchValue[1].Case === "T_SWP") {
+                        var _cx32 = matchValue[0].Fields[0];
+                        var _cy32 = matchValue[1].Fields[0];
+                        return _cx32(state) === _cy32(state);
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_SWI") {
+                    if (matchValue[1].Case === "T_SWI") {
+                        var _cx33 = matchValue[0].Fields[0];
+                        var _cy33 = matchValue[1].Fields[0];
+                        return _cx33(state) === _cy33(state);
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_NOP") {
+                    if (matchValue[1].Case === "T_NOP") {
+                        var _cx34 = matchValue[0].Fields[0];
+                        var _cy34 = matchValue[1].Fields[0];
+                        return _cx34(state) === _cy34(state);
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_CLZ") {
+                    if (matchValue[1].Case === "T_CLZ") {
+                        var _cx35 = matchValue[0].Fields[0];
+                        var _cy35 = matchValue[1].Fields[0];
+                        return _cx35(state) === _cy35(state);
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_DCD") {
+                    if (matchValue[1].Case === "T_DCD") {
+                        return true;
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_EQU") {
+                    if (matchValue[1].Case === "T_EQU") {
+                        return true;
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_FILL") {
+                    if (matchValue[1].Case === "T_FILL") {
+                        return true;
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_END") {
+                    if (matchValue[1].Case === "T_END") {
+                        var _cx36 = matchValue[0].Fields[0];
+                        var _cy36 = matchValue[1].Fields[0];
+                        return _cx36(state) === _cy36(state);
+                    } else {
+                        return _target52();
+                    }
+                } else if (matchValue[0].Case === "T_SHIFT") {
+                    if (matchValue[1].Case === "T_SHIFT") {
+                        var _cx37 = matchValue[0].Fields[1][0];
+                        var _cy37 = matchValue[1].Fields[1][0];
+                        var _sx17 = matchValue[0].Fields[1][1];
+                        var _sy17 = matchValue[1].Fields[1][1];
+                        var _tx = matchValue[0].Fields[0];
+                        var _ty = matchValue[1].Fields[0];
+
+                        if (_tx.Equals(_ty) ? _cx37(state) === _cy37(state) : false) {
+                            return _sx17 === _sy17;
+                        } else {
+                            return false;
+                        }
+                    } else {
+                        return _target52();
+                    }
+                } else {
+                    return _target52();
+                }
+            } else {
+                return false;
+            }
+        }
+    }, {
+        key: "GetHashCode",
+        value: function () {
+            return hash(1);
+        }
+    }]);
+
+    return Token;
+}();
+setType("Parse.Tokeniser.Token", Token);
+var cond = "(|EQ|NE|CS|HS|CC|LO|MI|PL|VS|VC|HI|LS|GE|LT|GT|LE|AL)";
+var setFlags = "(|S)";
+var stackSfx = "(IA|IB|DA|DB|FD|FA|ED|EA)";
+
+function _TOKEN_MATCH___(pattern, str) {
+    var m = match(str, pattern, 1);
+
+    if (m != null) {
+        return {};
+    }
+}
+
+function matchCond(_arg1) {
+    var activePatternResult254 = _TOKEN_MATCH___("EQ", _arg1);
+
+    if (activePatternResult254 != null) {
+        return function (state) {
+            return checkEQ(state);
+        };
+    } else {
+        var activePatternResult252 = _TOKEN_MATCH___("NE", _arg1);
+
+        if (activePatternResult252 != null) {
+            return function (state) {
+                return checkNE(state);
+            };
+        } else {
+            var activePatternResult250 = _TOKEN_MATCH___("CS", _arg1);
+
+            if (activePatternResult250 != null) {
+                return function (state) {
+                    return checkCS(state);
+                };
+            } else {
+                var activePatternResult248 = _TOKEN_MATCH___("HS", _arg1);
+
+                if (activePatternResult248 != null) {
+                    return function (state) {
+                        return checkCS(state);
+                    };
+                } else {
+                    var activePatternResult246 = _TOKEN_MATCH___("CC", _arg1);
+
+                    if (activePatternResult246 != null) {
+                        return function (state) {
+                            return checkCC(state);
+                        };
+                    } else {
+                        var activePatternResult244 = _TOKEN_MATCH___("LO", _arg1);
+
+                        if (activePatternResult244 != null) {
+                            return function (state) {
+                                return checkCC(state);
+                            };
+                        } else {
+                            var activePatternResult242 = _TOKEN_MATCH___("MI", _arg1);
+
+                            if (activePatternResult242 != null) {
+                                return function (state) {
+                                    return checkMI(state);
+                                };
+                            } else {
+                                var activePatternResult240 = _TOKEN_MATCH___("PL", _arg1);
+
+                                if (activePatternResult240 != null) {
+                                    return function (state) {
+                                        return checkPL(state);
+                                    };
+                                } else {
+                                    var activePatternResult238 = _TOKEN_MATCH___("VS", _arg1);
+
+                                    if (activePatternResult238 != null) {
+                                        return function (state) {
+                                            return checkVS(state);
+                                        };
+                                    } else {
+                                        var activePatternResult236 = _TOKEN_MATCH___("VC", _arg1);
+
+                                        if (activePatternResult236 != null) {
+                                            return function (state) {
+                                                return checkVC(state);
+                                            };
+                                        } else {
+                                            var activePatternResult234 = _TOKEN_MATCH___("HI", _arg1);
+
+                                            if (activePatternResult234 != null) {
+                                                return function (state) {
+                                                    return checkHI(state);
+                                                };
+                                            } else {
+                                                var activePatternResult232 = _TOKEN_MATCH___("GE", _arg1);
+
+                                                if (activePatternResult232 != null) {
+                                                    return function (state) {
+                                                        return checkGE(state);
+                                                    };
+                                                } else {
+                                                    var activePatternResult230 = _TOKEN_MATCH___("LT", _arg1);
+
+                                                    if (activePatternResult230 != null) {
+                                                        return function (state) {
+                                                            return checkLT(state);
+                                                        };
+                                                    } else {
+                                                        var activePatternResult228 = _TOKEN_MATCH___("GT", _arg1);
+
+                                                        if (activePatternResult228 != null) {
+                                                            return function (state) {
+                                                                return checkGT(state);
+                                                            };
+                                                        } else {
+                                                            var activePatternResult226 = _TOKEN_MATCH___("LE", _arg1);
+
+                                                            if (activePatternResult226 != null) {
+                                                                return function (state) {
+                                                                    return checkLE(state);
+                                                                };
+                                                            } else {
+                                                                var activePatternResult224 = _TOKEN_MATCH___("AL", _arg1);
+
+                                                                if (activePatternResult224 != null) {
+                                                                    return function (state) {
+                                                                        return checkAL(state);
+                                                                    };
+                                                                } else {
+                                                                    return function (state) {
+                                                                        return checkAL(state);
+                                                                    };
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+function matchS(_arg1) {
+    var activePatternResult257 = _TOKEN_MATCH___("S", _arg1);
+
+    if (activePatternResult257 != null) {
+        return true;
+    } else {
+        return false;
+    }
+}
+function matchLDM(_arg1) {
+    var activePatternResult274 = _TOKEN_MATCH___("IA", _arg1);
+
+    if (activePatternResult274 != null) {
+        return new stackOrder("S_IA", []);
+    } else {
+        var activePatternResult272 = _TOKEN_MATCH___("IB", _arg1);
+
+        if (activePatternResult272 != null) {
+            return new stackOrder("S_IB", []);
+        } else {
+            var activePatternResult270 = _TOKEN_MATCH___("DA", _arg1);
+
+            if (activePatternResult270 != null) {
+                return new stackOrder("S_DA", []);
+            } else {
+                var activePatternResult268 = _TOKEN_MATCH___("DB", _arg1);
+
+                if (activePatternResult268 != null) {
+                    return new stackOrder("S_DB", []);
+                } else {
+                    var activePatternResult266 = _TOKEN_MATCH___("FD", _arg1);
+
+                    if (activePatternResult266 != null) {
+                        return new stackOrder("S_IA", []);
+                    } else {
+                        var activePatternResult264 = _TOKEN_MATCH___("ED", _arg1);
+
+                        if (activePatternResult264 != null) {
+                            return new stackOrder("S_IB", []);
+                        } else {
+                            var activePatternResult262 = _TOKEN_MATCH___("FA", _arg1);
+
+                            if (activePatternResult262 != null) {
+                                return new stackOrder("S_DA", []);
+                            } else {
+                                var activePatternResult260 = _TOKEN_MATCH___("EA", _arg1);
+
+                                if (activePatternResult260 != null) {
+                                    return new stackOrder("S_DB", []);
+                                } else {
+                                    return new stackOrder("S_IA", []);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+function matchSTM(_arg1) {
+    var activePatternResult291 = _TOKEN_MATCH___("IA", _arg1);
+
+    if (activePatternResult291 != null) {
+        return new stackOrder("S_IA", []);
+    } else {
+        var activePatternResult289 = _TOKEN_MATCH___("IB", _arg1);
+
+        if (activePatternResult289 != null) {
+            return new stackOrder("S_IB", []);
+        } else {
+            var activePatternResult287 = _TOKEN_MATCH___("DA", _arg1);
+
+            if (activePatternResult287 != null) {
+                return new stackOrder("S_DA", []);
+            } else {
+                var activePatternResult285 = _TOKEN_MATCH___("DB", _arg1);
+
+                if (activePatternResult285 != null) {
+                    return new stackOrder("S_DB", []);
+                } else {
+                    var activePatternResult283 = _TOKEN_MATCH___("EA", _arg1);
+
+                    if (activePatternResult283 != null) {
+                        return new stackOrder("S_IA", []);
+                    } else {
+                        var activePatternResult281 = _TOKEN_MATCH___("FA", _arg1);
+
+                        if (activePatternResult281 != null) {
+                            return new stackOrder("S_IB", []);
+                        } else {
+                            var activePatternResult279 = _TOKEN_MATCH___("ED", _arg1);
+
+                            if (activePatternResult279 != null) {
+                                return new stackOrder("S_DA", []);
+                            } else {
+                                var activePatternResult277 = _TOKEN_MATCH___("FD", _arg1);
+
+                                if (activePatternResult277 != null) {
+                                    return new stackOrder("S_DB", []);
+                                } else {
+                                    return new stackOrder("S_IA", []);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+function _INSTR_MATCH___(pattern, str) {
+    var m = match(str, pattern + cond + "$", 1);
+
+    if (m != null) {
+        return matchCond(m[1]);
+    }
+}
+
+function _INSTR_S_MATCH___(pattern, str) {
+    var m = match(str, pattern + cond + setFlags + "$", 1);
+
+    if (m != null) {
+        return [matchCond(m[1]), matchS(m[2])];
+    }
+}
+
+function _LDM_MATCH___(str) {
+    var m = match(str, "^LDM" + stackSfx + cond + "$", 1);
+
+    if (m != null) {
+        return [matchCond(m[1]), matchLDM(m[2])];
+    }
+}
+
+function _STM_MATCH___(str) {
+    var m = match(str, "^STM" + stackSfx + cond + "$", 1);
+
+    if (m != null) {
+        return [matchCond(m[1]), matchSTM(m[2])];
+    }
+}
+
+function _REG_MATCH___(str) {
+    var m = match(str, "^R([0-9]|1[0-5])$", 1);
+
+    if (m != null) {
+        return Number.parseInt(m[1]);
+    }
+}
+
+function _LABEL_MATCH___(str) {
+    var m = match(str, "^([a-zA-Z_][a-zA-Z0-9_]*)$");
+
+    if (m != null) {
+        return m[1];
+    }
+}
+
+function _DEC_LIT_MATCH___(str) {
+    var m = match(str, "^#?([0-9]+)$");
+
+    if (m != null) {
+        return Number.parseInt(m[1]);
+    }
+}
+
+function _HEX_LIT_MATCH___(str) {
+    var m = match(str, "^#?(0x[0-9a-fA-F]+)$");
+
+    if (m != null) {
+        return Number.parseInt(m[1], 16);
+    }
+}
+
+function stringToToken(_arg1) {
+    var activePatternResult460 = _REG_MATCH___(_arg1);
+
+    if (activePatternResult460 != null) {
+        var i = activePatternResult460;
+        return new Token("T_REG", [i]);
+    } else {
+        var activePatternResult459 = _TOKEN_MATCH___("^a1$", _arg1);
+
+        if (activePatternResult459 != null) {
+            return new Token("T_REG", [0]);
+        } else {
+            var activePatternResult457 = _TOKEN_MATCH___("^a2$", _arg1);
+
+            if (activePatternResult457 != null) {
+                return new Token("T_REG", [1]);
+            } else {
+                var activePatternResult455 = _TOKEN_MATCH___("^a3$", _arg1);
+
+                if (activePatternResult455 != null) {
+                    return new Token("T_REG", [2]);
+                } else {
+                    var activePatternResult453 = _TOKEN_MATCH___("^a4$", _arg1);
+
+                    if (activePatternResult453 != null) {
+                        return new Token("T_REG", [3]);
+                    } else {
+                        var activePatternResult451 = _TOKEN_MATCH___("^v1$", _arg1);
+
+                        if (activePatternResult451 != null) {
+                            return new Token("T_REG", [4]);
+                        } else {
+                            var activePatternResult449 = _TOKEN_MATCH___("^v2$", _arg1);
+
+                            if (activePatternResult449 != null) {
+                                return new Token("T_REG", [5]);
+                            } else {
+                                var activePatternResult447 = _TOKEN_MATCH___("^v3$", _arg1);
+
+                                if (activePatternResult447 != null) {
+                                    return new Token("T_REG", [6]);
+                                } else {
+                                    var activePatternResult445 = _TOKEN_MATCH___("^v4$", _arg1);
+
+                                    if (activePatternResult445 != null) {
+                                        return new Token("T_REG", [7]);
+                                    } else {
+                                        var activePatternResult443 = _TOKEN_MATCH___("^v5$", _arg1);
+
+                                        if (activePatternResult443 != null) {
+                                            return new Token("T_REG", [8]);
+                                        } else {
+                                            var activePatternResult441 = _TOKEN_MATCH___("^v6$", _arg1);
+
+                                            if (activePatternResult441 != null) {
+                                                return new Token("T_REG", [9]);
+                                            } else {
+                                                var activePatternResult439 = _TOKEN_MATCH___("^v7$", _arg1);
+
+                                                if (activePatternResult439 != null) {
+                                                    return new Token("T_REG", [10]);
+                                                } else {
+                                                    var activePatternResult437 = _TOKEN_MATCH___("^v8$", _arg1);
+
+                                                    if (activePatternResult437 != null) {
+                                                        return new Token("T_REG", [11]);
+                                                    } else {
+                                                        var activePatternResult435 = _TOKEN_MATCH___("^sb$", _arg1);
+
+                                                        if (activePatternResult435 != null) {
+                                                            return new Token("T_REG", [9]);
+                                                        } else {
+                                                            var activePatternResult433 = _TOKEN_MATCH___("^sl$", _arg1);
+
+                                                            if (activePatternResult433 != null) {
+                                                                return new Token("T_REG", [10]);
+                                                            } else {
+                                                                var activePatternResult431 = _TOKEN_MATCH___("^fp$", _arg1);
+
+                                                                if (activePatternResult431 != null) {
+                                                                    return new Token("T_REG", [11]);
+                                                                } else {
+                                                                    var activePatternResult429 = _TOKEN_MATCH___("^ip$", _arg1);
+
+                                                                    if (activePatternResult429 != null) {
+                                                                        return new Token("T_REG", [12]);
+                                                                    } else {
+                                                                        var activePatternResult427 = _TOKEN_MATCH___("^sp$", _arg1);
+
+                                                                        if (activePatternResult427 != null) {
+                                                                            return new Token("T_REG", [13]);
+                                                                        } else {
+                                                                            var activePatternResult425 = _TOKEN_MATCH___("^lr$", _arg1);
+
+                                                                            if (activePatternResult425 != null) {
+                                                                                return new Token("T_REG", [14]);
+                                                                            } else {
+                                                                                var activePatternResult423 = _TOKEN_MATCH___("^pc$", _arg1);
+
+                                                                                if (activePatternResult423 != null) {
+                                                                                    return new Token("T_REG", [15]);
+                                                                                } else if (_arg1 === ",") {
+                                                                                    return new Token("T_COMMA", []);
+                                                                                } else if (_arg1 === "[") {
+                                                                                    return new Token("T_L_BRAC", []);
+                                                                                } else if (_arg1 === "]") {
+                                                                                    return new Token("T_R_BRAC", []);
+                                                                                } else if (_arg1 === "!") {
+                                                                                    return new Token("T_EXCL", []);
+                                                                                } else if (_arg1 === "=") {
+                                                                                    return new Token("T_EQUAL", []);
+                                                                                } else if (_arg1 === "{") {
+                                                                                    return new Token("T_L_CBR", []);
+                                                                                } else if (_arg1 === "}") {
+                                                                                    return new Token("T_R_CBR", []);
+                                                                                } else if (_arg1 === "-") {
+                                                                                    return new Token("T_DASH", []);
+                                                                                } else if (_arg1 === "\n") {
+                                                                                    return new Token("T_NEWLINE", []);
+                                                                                } else {
+                                                                                    var activePatternResult421 = _DEC_LIT_MATCH___(_arg1);
+
+                                                                                    if (activePatternResult421 != null) {
+                                                                                        var _i = activePatternResult421;
+                                                                                        return new Token("T_INT", [_i]);
+                                                                                    } else {
+                                                                                        var activePatternResult420 = _HEX_LIT_MATCH___(_arg1);
+
+                                                                                        if (activePatternResult420 != null) {
+                                                                                            var _i2 = activePatternResult420;
+                                                                                            return new Token("T_INT", [_i2]);
+                                                                                        } else {
+                                                                                            var activePatternResult419 = _INSTR_S_MATCH___("^MOV", _arg1);
+
+                                                                                            if (activePatternResult419 != null) {
+                                                                                                var cs = activePatternResult419;
+                                                                                                return function (tupledArg) {
+                                                                                                    return new Token("T_MOV", [tupledArg[0], tupledArg[1]]);
+                                                                                                }(cs);
+                                                                                            } else {
+                                                                                                var activePatternResult417 = _INSTR_S_MATCH___("^MVN", _arg1);
+
+                                                                                                if (activePatternResult417 != null) {
+                                                                                                    var _cs = activePatternResult417;
+                                                                                                    return function (tupledArg) {
+                                                                                                        return new Token("T_MVN", [tupledArg[0], tupledArg[1]]);
+                                                                                                    }(_cs);
+                                                                                                } else {
+                                                                                                    var activePatternResult415 = _INSTR_MATCH___("^MRS", _arg1);
+
+                                                                                                    if (activePatternResult415 != null) {
+                                                                                                        var c = activePatternResult415;
+                                                                                                        return new Token("T_MRS", [c]);
+                                                                                                    } else {
+                                                                                                        var activePatternResult413 = _INSTR_MATCH___("^MSR", _arg1);
+
+                                                                                                        if (activePatternResult413 != null) {
+                                                                                                            var _c = activePatternResult413;
+                                                                                                            return new Token("T_MSR", [_c]);
+                                                                                                        } else {
+                                                                                                            var activePatternResult411 = _INSTR_S_MATCH___("^ADD", _arg1);
+
+                                                                                                            if (activePatternResult411 != null) {
+                                                                                                                var _cs2 = activePatternResult411;
+                                                                                                                return function (tupledArg) {
+                                                                                                                    return new Token("T_ADD", [tupledArg[0], tupledArg[1]]);
+                                                                                                                }(_cs2);
+                                                                                                            } else {
+                                                                                                                var activePatternResult409 = _INSTR_S_MATCH___("^ADC", _arg1);
+
+                                                                                                                if (activePatternResult409 != null) {
+                                                                                                                    var _cs3 = activePatternResult409;
+                                                                                                                    return function (tupledArg) {
+                                                                                                                        return new Token("T_ADC", [tupledArg[0], tupledArg[1]]);
+                                                                                                                    }(_cs3);
+                                                                                                                } else {
+                                                                                                                    var activePatternResult407 = _INSTR_S_MATCH___("^SUB", _arg1);
+
+                                                                                                                    if (activePatternResult407 != null) {
+                                                                                                                        var _cs4 = activePatternResult407;
+                                                                                                                        return function (tupledArg) {
+                                                                                                                            return new Token("T_SUB", [tupledArg[0], tupledArg[1]]);
+                                                                                                                        }(_cs4);
+                                                                                                                    } else {
+                                                                                                                        var activePatternResult405 = _INSTR_S_MATCH___("^SBC", _arg1);
+
+                                                                                                                        if (activePatternResult405 != null) {
+                                                                                                                            var _cs5 = activePatternResult405;
+                                                                                                                            return function (tupledArg) {
+                                                                                                                                return new Token("T_SBC", [tupledArg[0], tupledArg[1]]);
+                                                                                                                            }(_cs5);
+                                                                                                                        } else {
+                                                                                                                            var activePatternResult403 = _INSTR_S_MATCH___("^RSB", _arg1);
+
+                                                                                                                            if (activePatternResult403 != null) {
+                                                                                                                                var _cs6 = activePatternResult403;
+                                                                                                                                return function (tupledArg) {
+                                                                                                                                    return new Token("T_RSB", [tupledArg[0], tupledArg[1]]);
+                                                                                                                                }(_cs6);
+                                                                                                                            } else {
+                                                                                                                                var activePatternResult401 = _INSTR_S_MATCH___("^RSC", _arg1);
+
+                                                                                                                                if (activePatternResult401 != null) {
+                                                                                                                                    var _cs7 = activePatternResult401;
+                                                                                                                                    return function (tupledArg) {
+                                                                                                                                        return new Token("T_RSC", [tupledArg[0], tupledArg[1]]);
+                                                                                                                                    }(_cs7);
+                                                                                                                                } else {
+                                                                                                                                    var activePatternResult399 = _INSTR_S_MATCH___("^MUL", _arg1);
+
+                                                                                                                                    if (activePatternResult399 != null) {
+                                                                                                                                        var _cs8 = activePatternResult399;
+                                                                                                                                        return function (tupledArg) {
+                                                                                                                                            return new Token("T_MUL", [tupledArg[0], tupledArg[1]]);
+                                                                                                                                        }(_cs8);
+                                                                                                                                    } else {
+                                                                                                                                        var activePatternResult397 = _INSTR_S_MATCH___("^MLA", _arg1);
+
+                                                                                                                                        if (activePatternResult397 != null) {
+                                                                                                                                            var _cs9 = activePatternResult397;
+                                                                                                                                            return function (tupledArg) {
+                                                                                                                                                return new Token("T_MLA", [tupledArg[0], tupledArg[1]]);
+                                                                                                                                            }(_cs9);
+                                                                                                                                        } else {
+                                                                                                                                            var activePatternResult395 = _INSTR_S_MATCH___("^UMULL", _arg1);
+
+                                                                                                                                            if (activePatternResult395 != null) {
+                                                                                                                                                var _cs10 = activePatternResult395;
+                                                                                                                                                return function (tupledArg) {
+                                                                                                                                                    return new Token("T_UMULL", [tupledArg[0], tupledArg[1]]);
+                                                                                                                                                }(_cs10);
+                                                                                                                                            } else {
+                                                                                                                                                var activePatternResult393 = _INSTR_S_MATCH___("^UMLAL", _arg1);
+
+                                                                                                                                                if (activePatternResult393 != null) {
+                                                                                                                                                    var _cs11 = activePatternResult393;
+                                                                                                                                                    return function (tupledArg) {
+                                                                                                                                                        return new Token("T_UMLAL", [tupledArg[0], tupledArg[1]]);
+                                                                                                                                                    }(_cs11);
+                                                                                                                                                } else {
+                                                                                                                                                    var activePatternResult391 = _INSTR_S_MATCH___("^SMULL", _arg1);
+
+                                                                                                                                                    if (activePatternResult391 != null) {
+                                                                                                                                                        var _cs12 = activePatternResult391;
+                                                                                                                                                        return function (tupledArg) {
+                                                                                                                                                            return new Token("T_SMULL", [tupledArg[0], tupledArg[1]]);
+                                                                                                                                                        }(_cs12);
+                                                                                                                                                    } else {
+                                                                                                                                                        var activePatternResult389 = _INSTR_S_MATCH___("^SMLAL", _arg1);
+
+                                                                                                                                                        if (activePatternResult389 != null) {
+                                                                                                                                                            var _cs13 = activePatternResult389;
+                                                                                                                                                            return function (tupledArg) {
+                                                                                                                                                                return new Token("T_SMLAL", [tupledArg[0], tupledArg[1]]);
+                                                                                                                                                            }(_cs13);
+                                                                                                                                                        } else {
+                                                                                                                                                            var activePatternResult387 = _INSTR_S_MATCH___("^AND", _arg1);
+
+                                                                                                                                                            if (activePatternResult387 != null) {
+                                                                                                                                                                var _cs14 = activePatternResult387;
+                                                                                                                                                                return function (tupledArg) {
+                                                                                                                                                                    return new Token("T_AND", [tupledArg[0], tupledArg[1]]);
+                                                                                                                                                                }(_cs14);
+                                                                                                                                                            } else {
+                                                                                                                                                                var activePatternResult385 = _INSTR_S_MATCH___("^ORR", _arg1);
+
+                                                                                                                                                                if (activePatternResult385 != null) {
+                                                                                                                                                                    var _cs15 = activePatternResult385;
+                                                                                                                                                                    return function (tupledArg) {
+                                                                                                                                                                        return new Token("T_ORR", [tupledArg[0], tupledArg[1]]);
+                                                                                                                                                                    }(_cs15);
+                                                                                                                                                                } else {
+                                                                                                                                                                    var activePatternResult383 = _INSTR_S_MATCH___("^EOR", _arg1);
+
+                                                                                                                                                                    if (activePatternResult383 != null) {
+                                                                                                                                                                        var _cs16 = activePatternResult383;
+                                                                                                                                                                        return function (tupledArg) {
+                                                                                                                                                                            return new Token("T_EOR", [tupledArg[0], tupledArg[1]]);
+                                                                                                                                                                        }(_cs16);
+                                                                                                                                                                    } else {
+                                                                                                                                                                        var activePatternResult381 = _INSTR_S_MATCH___("^BIC", _arg1);
+
+                                                                                                                                                                        if (activePatternResult381 != null) {
+                                                                                                                                                                            var _cs17 = activePatternResult381;
+                                                                                                                                                                            return function (tupledArg) {
+                                                                                                                                                                                return new Token("T_BIC", [tupledArg[0], tupledArg[1]]);
+                                                                                                                                                                            }(_cs17);
+                                                                                                                                                                        } else {
+                                                                                                                                                                            var activePatternResult379 = _INSTR_MATCH___("^CMP", _arg1);
+
+                                                                                                                                                                            if (activePatternResult379 != null) {
+                                                                                                                                                                                var _c2 = activePatternResult379;
+                                                                                                                                                                                return new Token("T_CMP", [_c2]);
+                                                                                                                                                                            } else {
+                                                                                                                                                                                var activePatternResult377 = _INSTR_MATCH___("^CMN", _arg1);
+
+                                                                                                                                                                                if (activePatternResult377 != null) {
+                                                                                                                                                                                    var _c3 = activePatternResult377;
+                                                                                                                                                                                    return new Token("T_CMN", [_c3]);
+                                                                                                                                                                                } else {
+                                                                                                                                                                                    var activePatternResult375 = _INSTR_MATCH___("^TST", _arg1);
+
+                                                                                                                                                                                    if (activePatternResult375 != null) {
+                                                                                                                                                                                        var _c4 = activePatternResult375;
+                                                                                                                                                                                        return new Token("T_TST", [_c4]);
+                                                                                                                                                                                    } else {
+                                                                                                                                                                                        var activePatternResult373 = _INSTR_MATCH___("^TEQ", _arg1);
+
+                                                                                                                                                                                        if (activePatternResult373 != null) {
+                                                                                                                                                                                            var _c5 = activePatternResult373;
+                                                                                                                                                                                            return new Token("T_TEQ", [_c5]);
+                                                                                                                                                                                        } else {
+                                                                                                                                                                                            var activePatternResult371 = _INSTR_MATCH___("^B", _arg1);
+
+                                                                                                                                                                                            if (activePatternResult371 != null) {
+                                                                                                                                                                                                var _c6 = activePatternResult371;
+                                                                                                                                                                                                return new Token("T_B", [_c6]);
+                                                                                                                                                                                            } else {
+                                                                                                                                                                                                var activePatternResult369 = _INSTR_MATCH___("^BL", _arg1);
+
+                                                                                                                                                                                                if (activePatternResult369 != null) {
+                                                                                                                                                                                                    var _c7 = activePatternResult369;
+                                                                                                                                                                                                    return new Token("T_BL", [_c7]);
+                                                                                                                                                                                                } else {
+                                                                                                                                                                                                    var activePatternResult367 = _INSTR_MATCH___("^BX", _arg1);
+
+                                                                                                                                                                                                    if (activePatternResult367 != null) {
+                                                                                                                                                                                                        var _c8 = activePatternResult367;
+                                                                                                                                                                                                        return new Token("T_BX", [_c8]);
+                                                                                                                                                                                                    } else {
+                                                                                                                                                                                                        var activePatternResult365 = _INSTR_MATCH___("^LDR", _arg1);
+
+                                                                                                                                                                                                        if (activePatternResult365 != null) {
+                                                                                                                                                                                                            var _c9 = activePatternResult365;
+                                                                                                                                                                                                            return new Token("T_LDR", [_c9]);
+                                                                                                                                                                                                        } else {
+                                                                                                                                                                                                            var activePatternResult363 = _INSTR_MATCH___("^LDRB", _arg1);
+
+                                                                                                                                                                                                            if (activePatternResult363 != null) {
+                                                                                                                                                                                                                var _c10 = activePatternResult363;
+                                                                                                                                                                                                                return new Token("T_LDRB", [_c10]);
+                                                                                                                                                                                                            } else {
+                                                                                                                                                                                                                var activePatternResult361 = _INSTR_MATCH___("^LDRH", _arg1);
+
+                                                                                                                                                                                                                if (activePatternResult361 != null) {
+                                                                                                                                                                                                                    var _c11 = activePatternResult361;
+                                                                                                                                                                                                                    return new Token("T_LDRH", [_c11]);
+                                                                                                                                                                                                                } else {
+                                                                                                                                                                                                                    var activePatternResult359 = _LDM_MATCH___(_arg1);
+
+                                                                                                                                                                                                                    if (activePatternResult359 != null) {
+                                                                                                                                                                                                                        var _cs18 = activePatternResult359;
+                                                                                                                                                                                                                        return function (tupledArg) {
+                                                                                                                                                                                                                            return new Token("T_LDM", [tupledArg[0], tupledArg[1]]);
+                                                                                                                                                                                                                        }(_cs18);
+                                                                                                                                                                                                                    } else {
+                                                                                                                                                                                                                        var activePatternResult358 = _INSTR_MATCH___("^STR", _arg1);
+
+                                                                                                                                                                                                                        if (activePatternResult358 != null) {
+                                                                                                                                                                                                                            var _c12 = activePatternResult358;
+                                                                                                                                                                                                                            return new Token("T_STR", [_c12]);
+                                                                                                                                                                                                                        } else {
+                                                                                                                                                                                                                            var activePatternResult356 = _INSTR_MATCH___("^STRB", _arg1);
+
+                                                                                                                                                                                                                            if (activePatternResult356 != null) {
+                                                                                                                                                                                                                                var _c13 = activePatternResult356;
+                                                                                                                                                                                                                                return new Token("T_STRB", [_c13]);
+                                                                                                                                                                                                                            } else {
+                                                                                                                                                                                                                                var activePatternResult354 = _INSTR_MATCH___("^STRH", _arg1);
+
+                                                                                                                                                                                                                                if (activePatternResult354 != null) {
+                                                                                                                                                                                                                                    var _c14 = activePatternResult354;
+                                                                                                                                                                                                                                    return new Token("T_STRH", [_c14]);
+                                                                                                                                                                                                                                } else {
+                                                                                                                                                                                                                                    var activePatternResult352 = _STM_MATCH___(_arg1);
+
+                                                                                                                                                                                                                                    if (activePatternResult352 != null) {
+                                                                                                                                                                                                                                        var _cs19 = activePatternResult352;
+                                                                                                                                                                                                                                        return function (tupledArg) {
+                                                                                                                                                                                                                                            return new Token("T_STM", [tupledArg[0], tupledArg[1]]);
+                                                                                                                                                                                                                                        }(_cs19);
+                                                                                                                                                                                                                                    } else {
+                                                                                                                                                                                                                                        var activePatternResult351 = _INSTR_MATCH___("^SWP", _arg1);
+
+                                                                                                                                                                                                                                        if (activePatternResult351 != null) {
+                                                                                                                                                                                                                                            var _c15 = activePatternResult351;
+                                                                                                                                                                                                                                            return new Token("T_SWP", [_c15]);
+                                                                                                                                                                                                                                        } else {
+                                                                                                                                                                                                                                            var activePatternResult349 = _INSTR_MATCH___("^SWI", _arg1);
+
+                                                                                                                                                                                                                                            if (activePatternResult349 != null) {
+                                                                                                                                                                                                                                                var _c16 = activePatternResult349;
+                                                                                                                                                                                                                                                return new Token("T_SWI", [_c16]);
+                                                                                                                                                                                                                                            } else {
+                                                                                                                                                                                                                                                var activePatternResult347 = _INSTR_MATCH___("^NOP", _arg1);
+
+                                                                                                                                                                                                                                                if (activePatternResult347 != null) {
+                                                                                                                                                                                                                                                    var _c17 = activePatternResult347;
+                                                                                                                                                                                                                                                    return new Token("T_NOP", [_c17]);
+                                                                                                                                                                                                                                                } else {
+                                                                                                                                                                                                                                                    var activePatternResult345 = _INSTR_MATCH___("^ADR", _arg1);
+
+                                                                                                                                                                                                                                                    if (activePatternResult345 != null) {
+                                                                                                                                                                                                                                                        var _c18 = activePatternResult345;
+                                                                                                                                                                                                                                                        return new Token("T_ADR", [_c18]);
+                                                                                                                                                                                                                                                    } else {
+                                                                                                                                                                                                                                                        var activePatternResult343 = _INSTR_MATCH___("^END", _arg1);
+
+                                                                                                                                                                                                                                                        if (activePatternResult343 != null) {
+                                                                                                                                                                                                                                                            var _c19 = activePatternResult343;
+                                                                                                                                                                                                                                                            return new Token("T_END", [_c19]);
+                                                                                                                                                                                                                                                        } else {
+                                                                                                                                                                                                                                                            var activePatternResult341 = _INSTR_MATCH___("^CLZ", _arg1);
+
+                                                                                                                                                                                                                                                            if (activePatternResult341 != null) {
+                                                                                                                                                                                                                                                                var _c20 = activePatternResult341;
+                                                                                                                                                                                                                                                                return new Token("T_CLZ", [_c20]);
+                                                                                                                                                                                                                                                            } else {
+                                                                                                                                                                                                                                                                var activePatternResult339 = _TOKEN_MATCH___("^DCD$", _arg1);
+
+                                                                                                                                                                                                                                                                if (activePatternResult339 != null) {
+                                                                                                                                                                                                                                                                    return new Token("T_DCD", []);
+                                                                                                                                                                                                                                                                } else {
+                                                                                                                                                                                                                                                                    var activePatternResult337 = _TOKEN_MATCH___("^EQU$", _arg1);
+
+                                                                                                                                                                                                                                                                    if (activePatternResult337 != null) {
+                                                                                                                                                                                                                                                                        return new Token("T_EQU", []);
+                                                                                                                                                                                                                                                                    } else {
+                                                                                                                                                                                                                                                                        var activePatternResult335 = _TOKEN_MATCH___("^FILL$", _arg1);
+
+                                                                                                                                                                                                                                                                        if (activePatternResult335 != null) {
+                                                                                                                                                                                                                                                                            return new Token("T_FILL", []);
+                                                                                                                                                                                                                                                                        } else {
+                                                                                                                                                                                                                                                                            var activePatternResult333 = _INSTR_S_MATCH___("^ASR", _arg1);
+
+                                                                                                                                                                                                                                                                            if (activePatternResult333 != null) {
+                                                                                                                                                                                                                                                                                var _cs20 = activePatternResult333;
+                                                                                                                                                                                                                                                                                return new Token("T_SHIFT", [new shiftOp("T_ASR", []), _cs20]);
+                                                                                                                                                                                                                                                                            } else {
+                                                                                                                                                                                                                                                                                var activePatternResult331 = _INSTR_S_MATCH___("^LSL", _arg1);
+
+                                                                                                                                                                                                                                                                                if (activePatternResult331 != null) {
+                                                                                                                                                                                                                                                                                    var _cs21 = activePatternResult331;
+                                                                                                                                                                                                                                                                                    return new Token("T_SHIFT", [new shiftOp("T_LSL", []), _cs21]);
+                                                                                                                                                                                                                                                                                } else {
+                                                                                                                                                                                                                                                                                    var activePatternResult329 = _INSTR_S_MATCH___("^LSR", _arg1);
+
+                                                                                                                                                                                                                                                                                    if (activePatternResult329 != null) {
+                                                                                                                                                                                                                                                                                        var _cs22 = activePatternResult329;
+                                                                                                                                                                                                                                                                                        return new Token("T_SHIFT", [new shiftOp("T_LSR", []), _cs22]);
+                                                                                                                                                                                                                                                                                    } else {
+                                                                                                                                                                                                                                                                                        var activePatternResult327 = _INSTR_S_MATCH___("^ROR", _arg1);
+
+                                                                                                                                                                                                                                                                                        if (activePatternResult327 != null) {
+                                                                                                                                                                                                                                                                                            var _cs23 = activePatternResult327;
+                                                                                                                                                                                                                                                                                            return new Token("T_SHIFT", [new shiftOp("T_ROR", []), _cs23]);
+                                                                                                                                                                                                                                                                                        } else {
+                                                                                                                                                                                                                                                                                            var activePatternResult325 = _INSTR_S_MATCH___("^RRX", _arg1);
+
+                                                                                                                                                                                                                                                                                            if (activePatternResult325 != null) {
+                                                                                                                                                                                                                                                                                                var _cs24 = activePatternResult325;
+                                                                                                                                                                                                                                                                                                return new Token("T_SHIFT", [new shiftOp("T_RRX", []), _cs24]);
+                                                                                                                                                                                                                                                                                            } else {
+                                                                                                                                                                                                                                                                                                var activePatternResult323 = _LABEL_MATCH___(_arg1);
+
+                                                                                                                                                                                                                                                                                                if (activePatternResult323 != null) {
+                                                                                                                                                                                                                                                                                                    var s = activePatternResult323;
+                                                                                                                                                                                                                                                                                                    return new Token("T_LABEL", [s]);
+                                                                                                                                                                                                                                                                                                } else {
+                                                                                                                                                                                                                                                                                                    return new Token("T_ERROR", [_arg1]);
+                                                                                                                                                                                                                                                                                                }
+                                                                                                                                                                                                                                                                                            }
+                                                                                                                                                                                                                                                                                        }
+                                                                                                                                                                                                                                                                                    }
+                                                                                                                                                                                                                                                                                }
+                                                                                                                                                                                                                                                                            }
+                                                                                                                                                                                                                                                                        }
+                                                                                                                                                                                                                                                                    }
+                                                                                                                                                                                                                                                                }
+                                                                                                                                                                                                                                                            }
+                                                                                                                                                                                                                                                        }
+                                                                                                                                                                                                                                                    }
+                                                                                                                                                                                                                                                }
+                                                                                                                                                                                                                                            }
+                                                                                                                                                                                                                                        }
+                                                                                                                                                                                                                                    }
+                                                                                                                                                                                                                                }
+                                                                                                                                                                                                                            }
+                                                                                                                                                                                                                        }
+                                                                                                                                                                                                                    }
+                                                                                                                                                                                                                }
+                                                                                                                                                                                                            }
+                                                                                                                                                                                                        }
+                                                                                                                                                                                                    }
+                                                                                                                                                                                                }
+                                                                                                                                                                                            }
+                                                                                                                                                                                        }
+                                                                                                                                                                                    }
+                                                                                                                                                                                }
+                                                                                                                                                                            }
+                                                                                                                                                                        }
+                                                                                                                                                                    }
+                                                                                                                                                                }
+                                                                                                                                                            }
+                                                                                                                                                        }
+                                                                                                                                                    }
+                                                                                                                                                }
+                                                                                                                                            }
+                                                                                                                                        }
+                                                                                                                                    }
+                                                                                                                                }
+                                                                                                                            }
+                                                                                                                        }
+                                                                                                                    }
+                                                                                                                }
+                                                                                                            }
+                                                                                                        }
+                                                                                                    }
+                                                                                                }
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+function tokenise(source) {
+    return function (list) {
+        return map$1(function (_arg1) {
+            return stringToToken(_arg1);
+        }, list);
+    }(filter$$1(function (s) {
+        return s !== "";
+    }, filter$$1(function (s) {
+        return s != null;
+    }, toList(split$1(source, "([,\\[\\]!\\n])|[\\ \\t\\r\\f]+|;.*")))));
 }
 
 function newState(oldState, inString) {
@@ -6891,12 +9804,20 @@ function newState(oldState, inString) {
         var code = saveCodeMirror$$1(cmEditor);
         var state = initStateVisual;
         var nState = newState(state, code);
-        var registerString = nState.Case === "Err" ? Html.toString(getRegisterTable(false)(initState)) : Html.toString(getRegisterTable(true)(nState.Fields[0]));
-        var errorString = nState.Case === "Err" ? fsFormat("%s")(function (x) {
+        var registerString = nState.Case === "Err" ? Html.toString(getRegisterTable(false)(initState)) : function () {
+            var s = nState.Fields[0][1];
+            var i = nState.Fields[0][0];
+            return Html.toString(getRegisterTable(true)(s));
+        }();
+        var errorString = nState.Case === "Err" ? fsFormat("ERROR ON LINE %i\t %s")(function (x) {
             return x;
-        })(nState.Fields[0]) : fsFormat("")(function (x) {
-            return x;
-        });
+        })(nState.Fields[0])(nState.Fields[1]) : function () {
+            var s = nState.Fields[0][1];
+            var i = nState.Fields[0][0];
+            return fsFormat("Compiled %i lines")(function (x) {
+                return x;
+            })(i);
+        }();
         fsFormat("%A")(function (x) {
             console.log(x);
         })(registerString);
