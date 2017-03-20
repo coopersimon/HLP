@@ -5,7 +5,7 @@ This contains the functions that represent the ARM v4 instruction set.
 ## Dependencies
 Exists in namespace **Interpret**.
 
-This module depends on **Common.State** and **Parse.Tokeniser**.
+This module depends on **Common.State** and **Common.Types**.
 
 
 ## General Interface

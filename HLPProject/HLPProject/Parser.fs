@@ -5,21 +5,11 @@ module Parser =
     
     open Tokeniser
     open Interpret.ARMv4
-    open Common.State
     open Common.Error
     open Common.Types
 
-    /// Wrapper for instructions, including unresolved references - all with line numbers.
-    type Instruction = 
-        | LabelRef of (Map<string,int> -> Error<Instruction>)
-        | EndRef of (int -> Instruction)
-        //| MemRef of ()
-        | Instr of int*(Common.State.StateHandle -> Common.State.StateHandle)
-        | Terminate of int
-
-
+    /// Replaces placeholder branch and end references with correct instructions.
     let private resolveRefs labels endMem instrLst =
-        /// Replaces placeholder branch and end references with correct instructions.
         let rec resolveRec labels endMem outLst = function
             | (m, LabelRef(f))::t -> match f labels with
                                        | Ok(h) -> resolveRec labels endMem (outLst@[(m, h)]) t
@@ -75,7 +65,7 @@ module Parser =
         let endRef l c endMem =
             Instr(l, endI c (endMem-4))
 
-        /// Construct a list of instructions.
+        /// Construct a list of instructions. m: memory location, l: line number.
         let rec parseRec m l labels outLst = function
             // ARITHMETIC
 
