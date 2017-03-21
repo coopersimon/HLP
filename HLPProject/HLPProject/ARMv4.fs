@@ -14,7 +14,7 @@ module ARMv4 =
         match inst with 
         |T_LSL -> if (n>=0)&&(n<=31) then (readReg r state)<<<n
                                      else failwith "Invalid n."
-        |T_LSR -> if (n>=1)&&(n<=32) then (if n=32 then 0 else int(uint32(readReg r state))>>>n)
+        |T_LSR -> if (n>=1)&&(n<=32) then (if n=32 then 0 else int((uint32(readReg r state))>>>n))
                                      else failwith "Invalid n."
         |T_ASR -> if (n>=1)&&(n<=32) then (if n=32 then (if (readReg r state)>0 then 0 else -1) else (readReg r state)>>>n)
                                      else failwith "Invalid n."
@@ -29,7 +29,7 @@ module ARMv4 =
         let m = n%33
         match inst with 
         |T_LSL -> if n>=32 then 0 else (readReg r state)<<<n
-        |T_LSR -> if n>=32 then 0 else int(uint32(readReg r state))>>>n
+        |T_LSR -> if n>=32 then 0 else int((uint32(readReg r state))>>>n)
         |T_ASR -> if n>=32 then (if (readReg r state)>0 then 0 else -1) else (readReg r state)>>>n
         |T_ROR -> int(((uint32(readReg r state))>>>m) + ((uint32(readReg r state))<<<(32-m)))
         |T_RRX -> match (readCFlag state) with
