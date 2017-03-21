@@ -151,7 +151,7 @@ module Program=
          | 2 -> randomReg() rnd + ", LSR #" + string(rnd.Next(1,32))
          | 3 -> randomReg() rnd + ", ASR #" + string(rnd.Next(1,32))
          | 4 -> randomReg() rnd + ", ROR #" + string(rnd.Next(1,31))
-         | 5 -> randomReg() rnd + ", RRX"
+         //| 5 -> randomReg() rnd + ", RRX"
          | _ -> ""
 
     let operand2() (rnd : System.Random) = 
@@ -166,6 +166,15 @@ module Program=
         | _ -> ""
 
     let allInstr rnd = [
+
+        //MOV, MOVS
+        ("MOV " + (randomReg() rnd) + ", " + (operand2() rnd))
+        ("MOVS " + (randomReg() rnd) + ", " + (operand2() rnd))
+
+        //MVN, MVNS
+        ("MVN " + (randomReg() rnd) + ", " + (operand2() rnd))
+        ("MVNS " + (randomReg() rnd) + ", " + (operand2() rnd))
+
 
         //ADD, ADDS
         ("ADD " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (operand2() rnd))
@@ -188,10 +197,40 @@ module Program=
         ("RSBS " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (operand2() rnd))
 
         //RSC, RSCS
-        ("RSC " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (operand2() rnd))
+        //("RSC " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (operand2() rnd))
         ("RSCS " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (operand2() rnd))
 
         //CMP, CMN
+        ("CMP " + (randomReg() rnd) + ", " + (operand2() rnd))
+        ("CMN " + (randomReg() rnd) + ", " + (operand2() rnd))
+
+        //TST, TEQ
+        ("TST " + (randomReg() rnd) + ", " + (operand2() rnd))
+        ("TEQ " + (randomReg() rnd) + ", " + (operand2() rnd))
+
+        //Bitwise OPS
+        ("AND " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (operand2() rnd))
+        ("EOR " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (operand2() rnd))
+        ("ORR " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (operand2() rnd))
+        //("ORN " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (operand2() rnd))
+        ("BIC " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (operand2() rnd))
+        ("ANDS " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (operand2() rnd))
+        ("EORS " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (operand2() rnd))
+        ("ORRS " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (operand2() rnd))
+        //("ORNS " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (operand2() rnd))
+        ("BICS " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (operand2() rnd))
+
+        //Shifts
+        ("ASR " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (randomReg() rnd))
+        ("LSL " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (randomReg() rnd))
+        ("LSR " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (randomReg() rnd))
+        ("ROR " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (randomReg() rnd))
+        ("RRX " + (randomReg() rnd) + ", " + (randomReg() rnd))
+        ("ASRS " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (randomReg() rnd))
+        ("LSLS " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (randomReg() rnd))
+        ("LSRS " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (randomReg() rnd))
+        ("RORS " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (randomReg() rnd))
+        ("RRXS " + (randomReg() rnd) + ", " + (randomReg() rnd))
 
         ]
 
@@ -207,16 +246,27 @@ module Program=
         
         let rnd = System.Random()  
             
-        let inInstr = (randInstr allInstr rnd "" 10) // generate a load of random instructions
+        let inInstr = (randInstr allInstr rnd "" 20) // generate a load of random instructions
         printf "%A" inInstr
 
         InitCache defaultParas.WorkFileDir // read the currently cached info from disk to speed things up
         let visualTests = 
             testList "Visual tests" [
                 
-                VisualUnitTest "Random Instruction Generator test" inInstr
+               // VisualUnitTest "Random Instruction Generator test" inInstr
                     
-//                VisualUnitTest "ADDS test" "ADDS R0, R0, #1"
+                VisualUnitTest "ADDS test" "EORS R0, R5, #4000
+ADCS R7, R4, #1308622848
+ORRS R4, R2, #76800
+LSR R5, R1, R3
+CMP R1, R11, ASR R4
+SUBS R6, R8, R7, ROR R0
+ADC R4, R3, R8, LSR R1
+RSCS R0, R8, R6, ASR R0
+EOR R4, R11, #3254779904
+RRX R5, R5
+LSL R2, R4, R4
+SBC R8, R9, R6, LSL R11"
 //                VisualUnitTest "SUB test" "SUB R0, R0, #1"
 //                VisualUnitTest "SUBS test" "SUBS R0, R0, #0"
 //                VisualUnitTest "SBCS test" "SUBS R0, R0, #0"
