@@ -265,7 +265,7 @@ module Tokeniser =
 
     
     /// Match input string to token.
-    let stringToToken = function
+    let private stringToToken = function
         // registers & aliases
         | REG_MATCH i -> T_REG i
         | TOKEN_MATCH @"^a1$" -> T_REG 0
