@@ -258,6 +258,10 @@ module Tokeniser =
     let (|DEC_LIT_MATCH|_|) str =
         let m = Regex.Match(str, @"^#?([0-9]+)$")
         if m.Success then Some(int(uint32 m.Groups.[1].Value)) else None
+        
+    let (|DEC_S_LIT_MATCH|_|) str =
+        let m = Regex.Match(str, @"^#?(-[0-9]+)$")
+        if m.Success then Some(int m.Groups.[1].Value) else None
 
     let (|HEX_LIT_MATCH|_|) str =
         let m = Regex.Match(str, @"^#?(0x[0-9a-fA-F]+)$")
@@ -298,6 +302,7 @@ module Tokeniser =
         | "-" -> T_DASH
         | "\n" -> T_NEWLINE
         | DEC_LIT_MATCH i -> T_INT i
+        | DEC_S_LIT_MATCH i -> T_INT i
         | HEX_LIT_MATCH i -> T_INT i
         // instructions
         | INSTR_S_MATCH @"^MOV" cs -> T_MOV cs

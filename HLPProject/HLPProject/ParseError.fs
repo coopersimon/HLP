@@ -9,7 +9,7 @@ module ParseError =
     /// Return first 5 elements of list.
     let errorList lst =
         let rec addToStr lst n =
-            match n < 5 with
+            match n < 10 with
             | true -> match lst with
                       | h::t -> (sprintf "%A" h) + "; " + (addToStr t (n+1))
                       | [] -> ""
