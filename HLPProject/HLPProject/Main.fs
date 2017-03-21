@@ -12,7 +12,8 @@ let main args =
                     MAIN
                             BL      MULT_A
                             BL      MULT_B
-                            MOV     R9, R2, RRX
+                            LDR     R6, [R13], #-4
+                            LDR     R7, [R13], #-8
                             ADR     R10, RETURN
                             B       FINAL
                     RETURN  END
@@ -23,16 +24,18 @@ let main args =
                             ADD     R4, R4, R2
                             SUBS    R3, R3, #1
                             BPL     LOOP
+                            STR     R4, [R13, #4]
                             MOV     PC, LR
 
                     MULT_B
                             MUL     R5, R1, R2 ; instruction mult
+                            STR     R5, [R13, #8]
                             MOV     PC, LR
                     
                     FINAL
-                            CMP     R4, R5
+                            CMP     R6, R7
                             MOVEQ   R0, #1
-                            MOVNE   R0, R4
+                            MOVNE   R0, R6
                             BX      R10"
     let oState = initState
     let nState = newState oState inString
