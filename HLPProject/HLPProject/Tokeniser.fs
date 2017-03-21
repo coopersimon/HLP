@@ -257,7 +257,7 @@ module Tokeniser =
 
     let (|DEC_LIT_MATCH|_|) str =
         let m = Regex.Match(str, @"^#?([0-9]+)$")
-        if m.Success then Some(uint32 m.Groups.[1].Value) else None
+        if m.Success then Some(int(uint32 m.Groups.[1].Value)) else None
 
     let (|HEX_LIT_MATCH|_|) str =
         let m = Regex.Match(str, @"^#?(0x[0-9a-fA-F]+)$")
