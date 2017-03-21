@@ -526,7 +526,7 @@ module ARMv4 =
     //Loads least significant byte from label to rd.
     let ldrBL c rd label state = 
         if c state
-        then writeReg rd int(readMemByte label state) state  
+        then writeReg rd (int(readMemByte label state)) state  
         else state
         
     //More LDRs (details see ARMv4.md)
@@ -569,10 +569,10 @@ module ARMv4 =
         if c state
         then match inc with 
              | true -> state
-                       |> writeReg rd int(readMemByte ((readReg rn state)+i) state)  
+                       |> writeReg rd (int(readMemByte ((readReg rn state)+i) state))  
                        |> writeReg rn ((readReg rn state)+i)
              | false -> state
-                        |> writeReg rd int(readMemByte ((readReg rn state)+i) state)
+                        |> writeReg rd (int(readMemByte ((readReg rn state)+i) state))
         else state
     
     let ldrBbR c inc rd rn rm rsinst nORrn rstype state = 
@@ -587,7 +587,7 @@ module ARMv4 =
     let ldrBaI c rd rn i state = 
         if c state
         then state
-             |> writeReg rd int(readMemByte (readReg rn state) state)  
+             |> writeReg rd (int(readMemByte (readReg rn state) state))  
              |> writeReg rn ((readReg rn state)+i)
         else state
     
