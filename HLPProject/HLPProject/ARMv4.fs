@@ -1,4 +1,4 @@
-// This module contains functions to run the ARMv4 instruction set.
+﻿// This module contains functions to run the ARMv4 instruction set.
  // Mark down document: https://github.com/coopersimon/HLP/blob/dev_16_03/Documentation/Interfaces/ARMv4.md
  // Not all instructions supported by the following functions are support by VISUAL. 
  // VISUAL supports : https://web.archive.org/web/20160831113526/http://salmanarif.bitbucket.org/visual/supported_instructions.html
@@ -8,8 +8,20 @@ module ARMv4 =
     open Common.State
     open Common.Types
     open Parse.Tokeniser
-
+(*
+    //Version with limited n range (with errors removed)
     let shiftI inst r n state =
+        match inst with 
+        |T_LSL -> (readReg r state)<<<n
+        |T_LSR -> (if n=32 then 0 else int((uint32(readReg r state))>>>n))
+        |T_ASR -> (if n=32 then (if (readReg r state)>0 then 0 else -1) else (readReg r state)>>>n)
+        |T_ROR -> int(((uint32(readReg r state))>>>n) + ((uint32(readReg r state))<<<(32-n)))
+        |T_RRX -> match (readCFlag state) with
+                    |true -> (readReg r state)>>>1 + 1<<<31
+                    |false -> (readReg r state)>>>1               
+*)       
+    //Version without limited n (should work for range n=[0,255])
+    let shiftI inst r n state = 
         let m = n%32
         match inst with 
         |T_LSL -> if n>=32 then 0 else (readReg r state)<<<n
@@ -22,19 +34,32 @@ module ARMv4 =
 
 
     let shiftR inst r rn state =
-        shiftI inst r (readReg rn state) state 
+        let m = (readReg rn state)&&&255 //least significant byte
+        shiftI inst r m state 
 
-    //needs to be editted for larger that 32
-    let shiftSetCI s inst r n state =
-        match inst with
-        |T_LSL -> if s then (writeCFlag (((readReg r state)>>>(32-n))%2<>0) state) else state //>32?
-        |T_LSR -> if s then (writeCFlag (((readReg r state)>>>(n-1))%2<>0) state) else state //>32?
-        |T_ASR -> if s then (writeCFlag (((readReg r state)>>>(n-1))%2<>0) state) else state //>32?
-        |T_ROR -> if s then (writeCFlag (((readReg r state)>>>((n%32)-1))%2<>0) state) else state //0?
-        |T_RRX -> if s then (writeCFlag ((readReg r state)%2<>0) state) else state
+    let shiftSetCI s inst r n state = //should work for range n=[0,255]
+        if n=0
+        then state //don't write carry if no shift or rotate done
+        else if s
+             then match inst with
+                  |T_LSL -> if n<=32 
+                            then writeCFlag (((readReg r state)>>>(32-n))%2<>0) state 
+                            else writeCFlag false 
+                  |T_LSR -> if n<=32 
+                            then writeCFlag (((readReg r state)>>>(n-1))%2<>0) state 
+                            else writeCFlag false  
+                  |T_ASR -> if n<=32 
+                            then writeCFlag (((readReg r state)>>>(n-1))%2<>0) state 
+                            else if n>0 
+                                 then writeCFlag false
+                                 else writeCFlag true
+                  |T_ROR -> writeCFlag (((readReg r state)>>>((n%32)-1))%2<>0) state
+                  |T_RRX -> writeCFlag ((readReg r state)%2<>0) state
+             else state //don't write carry if no S specified
 
     let shiftSetCR s inst r rn state = 
-        shiftSetCI s inst r (readReg rn state) state
+        let m = (readReg rn state)&&&255 //least significant byte
+        shiftSetCI s inst r m state
 
 //functions to set flags
     //set N and Z flags for all cases
