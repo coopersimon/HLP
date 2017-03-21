@@ -9,7 +9,7 @@ module ARMv4 =
     open Common.Types
     open Parse.Tokeniser
 
-(*  //Version with limited n range.
+    //Version with limited n range.
     let shiftI inst r n state =
         match inst with 
         |T_LSL -> if (n>=0)&&(n<=31) then (readReg r state)<<<n
@@ -23,10 +23,10 @@ module ARMv4 =
         |T_RRX -> match (readCFlag state) with
                     |true -> (readReg r state)>>>1 + 1<<<31
                     |false -> (readReg r state)>>>1
-*)                 
+(*                 
    //Version without limited n
    let shiftI inst r n state =
-        let m = n%33
+        let m = n%32
         match inst with 
         |T_LSL -> if n>=32 then 0 else (readReg r state)<<<n
         |T_LSR -> if n>=32 then 0 else int((uint32(readReg r state))>>>n)
@@ -35,7 +35,7 @@ module ARMv4 =
         |T_RRX -> match (readCFlag state) with
                     |true -> (readReg r state)>>>1 + 1<<<31
                     |false -> (readReg r state)>>>1
-
+*)
 
     let shiftR inst r rn state =
         shiftI inst r (readReg rn state) state 
