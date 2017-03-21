@@ -41,10 +41,15 @@ module Program=
     let testRegs st = (getRegs (readState st))
     let testFlags st = (getFlags (readState st)) 
 
+//    let runTest instr = 
+//        match instr |> Tokeniser.tokenise |> Parser.parser |> wrapErr (Interpreter.interpret state) with
+//        | Ok(_, newState) -> ((testRegs newState), (testFlags newState))
+//        | Err(L, msg) -> failwithf "%A%s" L msg   
+
     let runTest instr = 
         match instr |> Tokeniser.tokenise |> Parser.parser |> wrapErr (Interpreter.interpret state) with
-        | Ok(newState) -> ((testRegs newState), (testFlags newState))
-        | Err(msg) -> failwithf "%s" msg   
+        | Ok(_, newState) -> ((testRegs newState), (testFlags newState))
+        | Err(L, msg) -> failwithf "%A%s" L msg   
 
     /// postlude which sets R1 bits to status bit values
     let NZCVToR12 =
@@ -129,25 +134,97 @@ module Program=
                 with
                 | _ -> failwithf "Can't find output %A in outs %A" out outs
             Expecto.Expect.sequenceEqual (outExpected |> List.map getOut) outExpected "Reg and Mem outputs don't match"
+            
+    let randomReg() (rnd : System.Random) = 
+        "R" + string(rnd.Next(12))
+
+    let randomImm() (rnd : System.Random) = 
+        let rotateRight x r = (x>>>r) ||| (x<<<(32-r))
+        let getShift = (rnd.Next(15) <<< 1)
+        let retval = uint32(rotateRight (rnd.Next(255)) getShift)      
+        "#" + retval.ToString()
+
+    let regConstShift() (rnd : System.Random) = 
+         match rnd.Next(9) with
+         | 0 | 6 | 7 | 8 | 9 -> randomReg() rnd 
+         | 1 -> randomReg() rnd + ", LSL #" + string(rnd.Next(31))
+         | 2 -> randomReg() rnd + ", LSR #" + string(rnd.Next(1,32))
+         | 3 -> randomReg() rnd + ", ASR #" + string(rnd.Next(1,32))
+         | 4 -> randomReg() rnd + ", ROR #" + string(rnd.Next(1,31))
+         | 5 -> randomReg() rnd + ", RRX"
+         | _ -> ""
+
+    let operand2() (rnd : System.Random) = 
+        match rnd.Next(10) with
+        | 0 | 7 | 8 | 9 | 10 -> randomImm() rnd
+        | 1 -> regConstShift() rnd
+        | 2 -> randomReg() rnd + ", LSL " + randomReg() rnd
+        | 3 -> randomReg() rnd + ", LSR " + randomReg() rnd
+        | 4 -> randomReg() rnd + ", LSR " + randomReg() rnd
+        | 5 -> randomReg() rnd + ", ASR " + randomReg() rnd
+        | 6 -> randomReg() rnd + ", ROR " + randomReg() rnd
+        | _ -> ""
+
+    let allInstr rnd = [
+
+        //ADD, ADDS
+        ("ADD " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (operand2() rnd))
+        ("ADDS " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (operand2() rnd))
+
+        //ADC, ADCS
+        ("ADC " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (operand2() rnd))
+        ("ADCS " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (operand2() rnd))
+
+        //SUB, SUBS
+        ("SUB " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (operand2() rnd))
+        ("SUBS " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (operand2() rnd))
+
+        //SBC, SBCS
+        ("SBC " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (operand2() rnd))
+        ("SBCS " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (operand2() rnd))
+
+        //RSB, RSBS
+        ("RSB " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (operand2() rnd))
+        ("RSBS " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (operand2() rnd))
+
+        //RSC, RSCS
+        ("RSC " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (operand2() rnd))
+        ("RSCS " + (randomReg() rnd) + ", " + (randomReg() rnd) + ", " + (operand2() rnd))
+
+        //CMP, CMN
+
+        ]
+
+
+    let rec randInstr (instrList : System.Random -> string list )(rnd : System.Random) instrStr n = 
+            match n = 0 with 
+            | false ->  let instrListInst = (instrList rnd)
+                        randInstr instrList rnd (instrStr + instrListInst.[rnd.Next(instrListInst.Length)] + "\n") (n-1)
+            | true -> instrStr 
 
     [<EntryPoint>]
     let main argv = 
+        
+        let rnd = System.Random()  
+            
+        let inInstr = (randInstr allInstr rnd "" 10) // generate a load of random instructions
+        printf "%A" inInstr
 
         InitCache defaultParas.WorkFileDir // read the currently cached info from disk to speed things up
-        let tests = 
+        let visualTests = 
             testList "Visual tests" [
-                VisualUnitTest "Shitty multiplier test" "MOV  R0, #5
-                                           MOV  R1, #3
-                                           MOV  R2, R0
-                                           LOOP
-                                           ADD  R3, R3, R1
-                                           SUBS R2, R2, #1
-                                           BNE  LOOP" 
-                VisualUnitTest "ADD test" "ADD R0, R0, #1" 
-                VisualUnitTest "SUB test" "SUB R0, R0, #1"
-                VisualUnitTest "SUBS test" "SUBS R0, R0, #0"
-                //VisualUnitTest "This ADDS test should fail" "ADDS R0, R0, #4" "0000" [R 0, 4; R 1, 1] // R1 should be 0 but is specified here as 1
+                
+                VisualUnitTest "Random Instruction Generator test" inInstr
+                    
+//                VisualUnitTest "ADDS test" "ADDS R0, R0, #1"
+//                VisualUnitTest "SUB test" "SUB R0, R0, #1"
+//                VisualUnitTest "SUBS test" "SUBS R0, R0, #0"
+//                VisualUnitTest "SBCS test" "SUBS R0, R0, #0"
+//                VisualUnitTest "RSB test" "RSB R0, R0, #0"
+//                VisualUnitTest "RSC test" "RSB R0, R0, #0"
             ]
-        let rc = runTests seqConfig tests
+        
+
+        let rc = runTests seqConfig visualTests
         System.Console.ReadKey() |> ignore                
         rc // return an integer exit code - 0 if all tests pass

@@ -1,10 +1,14 @@
-MOV  R0, #5
-                                           MOV  R1, #3
-                                           MOV  R2, R0
-                                           LOOP
-                                           ADD  R3, R3, R1
-                                           SUBS R2, R2, #1
-                                           BNE  LOOP
+RSCS R4, R2, R10, LSR 2
+SUB R6, R7, #3637248
+ADD R5, R5, R1, LSR 1
+SBC R2, R10, #1712
+SUBS R3, R10, #268435459
+RSCS R6, R0, 5
+RSBS R6, R5, R2, LSL 6
+SUBS R0, R9, #72704
+RSBS R11, R1, #3221225506
+SUBS R7, R5, R6, ROR 9
+
           MOV R1, #0
           ADDMI R1, R1, #8
           ADDEQ R1, R1, #4
