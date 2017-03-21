@@ -4,19 +4,6 @@
 	(factory());
 }(this, (function () { 'use strict';
 
-function saveCodeMirror(myEditor) {
-	myEditor.save();
-	myEditor.addLineClass(3, 'background', 'line-error');
-	return document.getElementById("editor").value;
-}
-
-function initializeCodeMirror() {
-	var editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
-		lineNumbers: true
-	});
-	return editor;
-}
-
 var fableGlobal = function () {
     var globalObj = typeof window !== "undefined" ? window
         : (typeof global !== "undefined" ? global
@@ -215,14 +202,15 @@ function compareUnions(x, y) {
     }
 }
 
+// This module is split from List.ts to prevent cyclic dependencies
 function ofArray(args, base) {
-    var acc = base || new List$1();
+    var acc = base || new List();
     for (var i = args.length - 1; i >= 0; i--) {
-        acc = new List$1(args[i], acc);
+        acc = new List(args[i], acc);
     }
     return acc;
 }
-var List$1 = (function () {
+var List = (function () {
     function List(head, tail) {
         this.head = head;
         this.tail = tail;
@@ -331,17 +319,27 @@ var List$1 = (function () {
     return List;
 }());
 
+var GenericComparer = (function () {
+    function GenericComparer(f) {
+        this.Compare = f || compare;
+    }
+    GenericComparer.prototype[_Symbol.reflection] = function () {
+        return { interfaces: ["System.IComparer"] };
+    };
+    return GenericComparer;
+}());
+
 function toList(xs) {
-    return foldBack(function (x, acc) {
-        return new List$1(x, acc);
-    }, xs, new List$1());
+    return foldBack$1(function (x, acc) {
+        return new List(x, acc);
+    }, xs, new List());
 }
 
 
 
 
 
-function concat$1(xs) {
+function concat(xs) {
     return delay(function () {
         var iter = xs[Symbol.iterator]();
         var output = null;
@@ -375,7 +373,7 @@ function concat$1(xs) {
 
 
 function compareWith(f, xs, ys) {
-    var nonZero = tryFind(function (i) { return i != 0; }, map2(function (x, y) { return f(x, y); }, xs, ys));
+    var nonZero = tryFind$1(function (i) { return i != 0; }, map2(function (x, y) { return f(x, y); }, xs, ys));
     return nonZero != null ? nonZero : count(xs) - count(ys);
 }
 function delay(f) {
@@ -394,7 +392,7 @@ function delay(f) {
 
 
 
-function fold(f, acc, xs) {
+function fold$1(f, acc, xs) {
     if (Array.isArray(xs) || ArrayBuffer.isView(xs)) {
         return xs.reduce(f, acc);
     }
@@ -409,7 +407,7 @@ function fold(f, acc, xs) {
         return acc;
     }
 }
-function foldBack(f, xs, acc) {
+function foldBack$1(f, xs, acc) {
     var arr = Array.isArray(xs) || ArrayBuffer.isView(xs) ? xs : Array.from(xs);
     for (var i = arr.length - 1; i >= 0; i--) {
         acc = f(arr[i], acc, i);
@@ -422,7 +420,7 @@ function foldBack(f, xs, acc) {
 
 
 
-function initialize$1(n, f) {
+function initialize(n, f) {
     return delay(function () {
         return unfold(function (i) { return i < n ? [f(i), i + 1] : null; }, 0);
     });
@@ -441,15 +439,15 @@ function initialize$1(n, f) {
 function count(xs) {
     return Array.isArray(xs) || ArrayBuffer.isView(xs)
         ? xs.length
-        : fold(function (acc, x) { return acc + 1; }, 0, xs);
+        : fold$1(function (acc, x) { return acc + 1; }, 0, xs);
 }
-function map$2(f, xs) {
+function map$1(f, xs) {
     return delay(function () { return unfold(function (iter) {
         var cur = iter.next();
         return !cur.done ? [f(cur.value), iter] : null;
     }, xs[Symbol.iterator]()); });
 }
-function mapIndexed$1(f, xs) {
+function mapIndexed(f, xs) {
     return delay(function () {
         var i = 0;
         return unfold(function (iter) {
@@ -490,8 +488,8 @@ function range(first, last) {
 
 
 
-function replicate$1(n, x) {
-    return initialize$1(n, function () { return x; });
+function replicate(n, x) {
+    return initialize(n, function () { return x; });
 }
 
 
@@ -506,7 +504,7 @@ function replicate$1(n, x) {
 
 
 
-function tryFind(f, xs, defaultValue) {
+function tryFind$1(f, xs, defaultValue) {
     for (var i = 0, iter = xs[Symbol.iterator]();; i++) {
         var cur = iter.next();
         if (cur.done)
@@ -542,15 +540,10 @@ function unfold(f, acc) {
     var _a;
 }
 
-var GenericComparer = (function () {
-    function GenericComparer(f) {
-        this.Compare = f || compare;
-    }
-    GenericComparer.prototype[_Symbol.reflection] = function () {
-        return { interfaces: ["System.IComparer"] };
-    };
-    return GenericComparer;
-}());
+// ----------------------------------------------
+// These functions belong to Seq.ts but are
+// implemented here to prevent cyclic dependencies
+
 
 var MapTree = (function () {
     function MapTree(caseName, fields) {
@@ -707,6 +700,44 @@ function tree_mem(comparer, k, m) {
         }
     })() : false;
 }
+// function tree_foldFromTo(comparer: IComparer<any>, lo: any, hi: any, f: (k:any, v:any, acc: any) => any, m: MapTree, x: any): any {
+//   if (m.Case === "MapOne") {
+//     var cLoKey = comparer.Compare(lo, m.Fields[0]);
+//     var cKeyHi = comparer.Compare(m.Fields[0], hi);
+//     var x_1 = (cLoKey <= 0 ? cKeyHi <= 0 : false) ? f(m.Fields[0], m.Fields[1], x) : x;
+//     return x_1;
+//   }
+//   else if (m.Case === "MapNode") {
+//     var cLoKey = comparer.Compare(lo, m.Fields[0]);
+//     var cKeyHi = comparer.Compare(m.Fields[0], hi);
+//     var x_1 = cLoKey < 0 ? tree_foldFromTo(comparer, lo, hi, f, m.Fields[2], x) : x;
+//     var x_2 = (cLoKey <= 0 ? cKeyHi <= 0 : false) ? f(m.Fields[0], m.Fields[1], x_1) : x_1;
+//     var x_3 = cKeyHi < 0 ? tree_foldFromTo(comparer, lo, hi, f, m.Fields[3], x_2) : x_2;
+//     return x_3;
+//   }
+//   return x;
+// }
+// function tree_foldSection(comparer: IComparer<any>, lo: any, hi: any, f: (k:any, v:any, acc: any) => any, m: MapTree, x: any) {
+//   return comparer.Compare(lo, hi) === 1 ? x : tree_foldFromTo(comparer, lo, hi, f, m, x);
+// }
+// function tree_loop(m: MapTree, acc: any): List<[any,any]> {
+//   return m.Case === "MapOne"
+//     ? new List([m.Fields[0], m.Fields[1]], acc)
+//     : m.Case === "MapNode"
+//       ? tree_loop(m.Fields[2], new List([m.Fields[0], m.Fields[1]], tree_loop(m.Fields[3], acc)))
+//       : acc;
+// }
+// function tree_toList(m: MapTree) {
+//   return tree_loop(m, new List());
+// }
+// function tree_toArray(m: MapTree) {
+//   return Array.from(tree_toList(m));
+// }
+// function tree_ofList(comparer: IComparer<any>, l: List<[any,any]>) {
+//   return Seq.fold((acc: MapTree, tupledArg: [any, any]) => {
+//     return tree_add(comparer, tupledArg[0], tupledArg[1], acc);
+//   }, tree_empty(), l);
+// }
 function tree_mkFromEnumerator(comparer, acc, e) {
     var cur = e.next();
     while (!cur.done) {
@@ -746,11 +777,11 @@ function tree_collapseLHS(stack) {
         }
     }
     else {
-        return new List$1();
+        return new List();
     }
 }
 function tree_mkIterator(s) {
-    return { stack: tree_collapseLHS(new List$1(s, new List$1())), started: false };
+    return { stack: tree_collapseLHS(new List(s, new List())), started: false };
 }
 function tree_moveNext(i) {
     function current(i) {
@@ -815,10 +846,10 @@ var FMap = (function () {
         return this[Symbol.iterator]();
     };
     FMap.prototype.keys = function () {
-        return map$2(function (kv) { return kv[0]; }, this);
+        return map$1(function (kv) { return kv[0]; }, this);
     };
     FMap.prototype.values = function () {
-        return map$2(function (kv) { return kv[1]; }, this);
+        return map$1(function (kv) { return kv[1]; }, this);
     };
     FMap.prototype.get = function (k) {
         return tree_find(this.comparer, k, this.tree);
@@ -871,41 +902,170 @@ function add(k, v, map$$1) {
 
 
 
-function tryFind$1(k, map$$1) {
+function tryFind$$1(k, map$$1) {
     return tree_tryFind(map$$1.comparer, k, map$$1.tree);
 }
 
-function append$$1(xs, ys) {
-    return fold(function (acc, x) { return new List$1(x, acc); }, ys, reverse$$1(xs));
+function append$1(xs, ys) {
+    return fold$1(function (acc, x) { return new List(x, acc); }, ys, reverse$1(xs));
 }
 
 
 // TODO: should be xs: Iterable<List<T>>
 
-function filter$$1(f, xs) {
-    return reverse$$1(fold(function (acc, x) { return f(x) ? new List$1(x, acc) : acc; }, new List$1(), xs));
+function filter$2(f, xs) {
+    return reverse$1(fold$1(function (acc, x) { return f(x) ? new List(x, acc) : acc; }, new List(), xs));
 }
 
 
-function map$1(f, xs) {
-    return reverse$$1(fold(function (acc, x) { return new List$1(f(x), acc); }, new List$1(), xs));
+function map$2(f, xs) {
+    return reverse$1(fold$1(function (acc, x) { return new List(f(x), acc); }, new List(), xs));
 }
 
-function partition$$1(f, xs) {
-    return fold(function (acc, x) {
-        var lacc = acc[0], racc = acc[1];
-        return f(x) ? [new List$1(x, lacc), racc] : [lacc, new List$1(x, racc)];
-    }, [new List$1(), new List$1()], reverse$$1(xs));
-}
 
-function reverse$$1(xs) {
-    return fold(function (acc, x) { return new List$1(x, acc); }, new List$1(), xs);
+
+function reverse$1(xs) {
+    return fold$1(function (acc, x) { return new List(x, acc); }, new List(), xs);
 }
 
 
 /* ToDo: instance unzip() */
 
 /* ToDo: instance unzip3() */
+
+var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+var StateHandle = function () {
+    function StateHandle(caseName, fields) {
+        _classCallCheck(this, StateHandle);
+
+        this.Case = caseName;
+        this.Fields = fields;
+    }
+
+    _createClass(StateHandle, [{
+        key: _Symbol.reflection,
+        value: function () {
+            return {
+                type: "Common.State.StateHandle",
+                interfaces: ["FSharpUnion", "System.IEquatable", "System.IComparable"],
+                cases: {
+                    S: [FArray("number"), "boolean", "boolean", "boolean", "boolean", makeGeneric(FMap, {
+                        Key: "number",
+                        Value: "number"
+                    })]
+                }
+            };
+        }
+    }, {
+        key: "Equals",
+        value: function (other) {
+            return equalsUnions(this, other);
+        }
+    }, {
+        key: "CompareTo",
+        value: function (other) {
+            return compareUnions(this, other);
+        }
+    }]);
+
+    return StateHandle;
+}();
+setType("Common.State.StateHandle", StateHandle);
+var initState = function () {
+    var regs = Int32Array.from(replicate(16, 0));
+    return new StateHandle("S", [regs, false, false, false, false, create(null, new GenericComparer(function (x, y) {
+        return x < y ? -1 : x > y ? 1 : 0;
+    }))]);
+}();
+var initStateVisual = function () {
+    var regs0to12 = Int32Array.from(replicate(13, 0));
+    var regs13to15 = new Int32Array([-16777216, 0, 0]);
+    var regs = Int32Array.from(concat(ofArray([regs0to12, regs13to15])));
+    return new StateHandle("S", [regs, false, false, false, false, create(null, new GenericComparer(function (x, y) {
+        return x < y ? -1 : x > y ? 1 : 0;
+    }))]);
+}();
+function readReg(r, _arg1) {
+    return _arg1.Fields[0][r];
+}
+function writeReg(r, v, _arg1) {
+    var newRegs = Int32Array.from(mapIndexed(function (i, x) {
+        if (r === i) {
+            return v;
+        } else {
+            return x;
+        }
+    }, _arg1.Fields[0]));
+    return new StateHandle("S", [newRegs, _arg1.Fields[1], _arg1.Fields[2], _arg1.Fields[3], _arg1.Fields[4], _arg1.Fields[5]]);
+}
+function readPC(_arg1) {
+    return _arg1.Fields[0][15];
+}
+function writePC(v, _arg1) {
+    var newRegs = Int32Array.from(mapIndexed(function (i, x) {
+        if (i === 15) {
+            return v;
+        } else {
+            return x;
+        }
+    }, _arg1.Fields[0]));
+    return new StateHandle("S", [newRegs, _arg1.Fields[1], _arg1.Fields[2], _arg1.Fields[3], _arg1.Fields[4], _arg1.Fields[5]]);
+}
+function incPC(_arg1) {
+    var newRegs = Int32Array.from(mapIndexed(function (i, x) {
+        if (i === 15) {
+            return x + 4;
+        } else {
+            return x;
+        }
+    }, _arg1.Fields[0]));
+    return new StateHandle("S", [newRegs, _arg1.Fields[1], _arg1.Fields[2], _arg1.Fields[3], _arg1.Fields[4], _arg1.Fields[5]]);
+}
+function readNFlag(_arg1) {
+    return _arg1.Fields[1];
+}
+function readZFlag(_arg1) {
+    return _arg1.Fields[2];
+}
+function readCFlag(_arg1) {
+    return _arg1.Fields[3];
+}
+function readVFlag(_arg1) {
+    return _arg1.Fields[4];
+}
+function writeNFlag(n, _arg1) {
+    return new StateHandle("S", [_arg1.Fields[0], n, _arg1.Fields[2], _arg1.Fields[3], _arg1.Fields[4], _arg1.Fields[5]]);
+}
+function writeZFlag(z, _arg1) {
+    return new StateHandle("S", [_arg1.Fields[0], _arg1.Fields[1], z, _arg1.Fields[3], _arg1.Fields[4], _arg1.Fields[5]]);
+}
+function writeCFlag(c, _arg1) {
+    return new StateHandle("S", [_arg1.Fields[0], _arg1.Fields[1], _arg1.Fields[2], c, _arg1.Fields[4], _arg1.Fields[5]]);
+}
+function writeVFlag(v, _arg1) {
+    return new StateHandle("S", [_arg1.Fields[0], _arg1.Fields[1], _arg1.Fields[2], _arg1.Fields[3], v, _arg1.Fields[5]]);
+}
+function readMem(addr, _arg1) {
+    var matchValue = tryFind$$1(addr, _arg1.Fields[5]);
+
+    if (matchValue == null) {
+        return 0;
+    } else {
+        return matchValue;
+    }
+}
+function writeMem(addr, v, _arg1) {
+    var newMem = add(addr, v, _arg1.Fields[5]);
+    return new StateHandle("S", [_arg1.Fields[0], _arg1.Fields[1], _arg1.Fields[2], _arg1.Fields[3], _arg1.Fields[4], newMem]);
+}
+
+function readFromConsole() {
+	var readline = require('readline');
+	return readline();
+}
 
 function create$1(pattern, options) {
     var flags = "g";
@@ -1664,6 +1824,7 @@ var Long = (function () {
     };
     return Long;
 }());
+// A cache of the Long representations of small integer values.
 var INT_CACHE = {};
 // A cache of the Long representations of small unsigned integer values.
 var UINT_CACHE = {};
@@ -2022,21 +2183,11 @@ function fsFormat(str) {
 }
 
 
-function initialize$2(n, f) {
-    if (n < 0)
-        throw new Error("String length must be non-negative");
-    var xs = new Array(n);
-    for (var i = 0; i < n; i++)
-        xs[i] = f(i);
-    return xs.join("");
-}
 
 
 
-function join(delimiter, xs) {
-    xs = typeof xs == "string" ? getRestParams(arguments, 1) : xs;
-    return (Array.isArray(xs) ? xs : Array.from(xs)).join(delimiter);
-}
+
+
 
 function padLeft(str, len, ch, isRight) {
     ch = ch || " ";
@@ -2047,340 +2198,19 @@ function padLeft(str, len, ch, isRight) {
     return str;
 }
 
-
-
-function replicate$2(n, x) {
-    return initialize$2(n, function () { return x; });
-}
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-var Html = function () {
-   function Html(caseName, fields) {
-      _classCallCheck(this, Html);
-
-      this.Case = caseName;
-      this.Fields = fields;
-   }
-
-   _createClass(Html, [{
-      key: _Symbol.reflection,
-      value: function () {
-         return {
-            type: "FsHtml.Html",
-            interfaces: ["FSharpUnion", "System.IEquatable", "System.IComparable"],
-            cases: {
-               Attr: ["string", "string"],
-               Elem: ["string", makeGeneric(List$1, {
-                  T: Html
-               })],
-               Text: ["string"]
-            }
-         };
-      }
-   }, {
-      key: "Equals",
-      value: function (other) {
-         return equalsUnions(this, other);
-      }
-   }, {
-      key: "CompareTo",
-      value: function (other) {
-         return compareUnions(this, other);
-      }
-   }, {
-      key: "ToString",
-      value: function () {
-         return Html.toString(this);
-      }
-   }], [{
-      key: "toString",
-      value: function (elem) {
-         var toString$$1 = function toString$$1(indent) {
-            return function (elem_1) {
-               var spaces = replicate$2(indent, " ");
-
-               var _target2 = function _target2(content, tag) {
-                  var isAttr = function isAttr(_arg1) {
-                     if (_arg1.Case === "Attr") {
-                        return true;
-                     } else {
-                        return false;
-                     }
-                  };
-
-                  var patternInput = function (list) {
-                     return partition$$1(isAttr, list);
-                  }(content);
-
-                  var attrs = patternInput[0].Equals(new List$1()) ? "" : " " + join(" ", toList(delay(function () {
-                     return map$2(function (attr) {
-                        return toString$$1(0)(attr);
-                     }, patternInput[0]);
-                  })));
-
-                  if (patternInput[1].tail == null) {
-                     return spaces + "<" + tag + attrs + "/>\r\n";
-                  } else {
-                     return spaces + "<" + tag + attrs + ">\r\n" + join("", toList(delay(function () {
-                        return map$2(function (e) {
-                           return toString$$1(indent + 1)(e);
-                        }, patternInput[1]);
-                     }))) + spaces + "</" + tag + ">\r\n";
-                  }
-               };
-
-               if (elem_1.Case === "Elem") {
-                  if (elem_1.Fields[1].tail != null) {
-                     if (elem_1.Fields[1].head.Case === "Text") {
-                        if (elem_1.Fields[1].tail.tail == null) {
-                           var s = elem_1.Fields[1].head.Fields[0];
-                           var tag = elem_1.Fields[0];
-                           return spaces + "<" + tag + ">" + s + "</" + tag + ">\r\n";
-                        } else {
-                           return _target2(elem_1.Fields[1], elem_1.Fields[0]);
-                        }
-                     } else {
-                        return _target2(elem_1.Fields[1], elem_1.Fields[0]);
-                     }
-                  } else {
-                     return _target2(elem_1.Fields[1], elem_1.Fields[0]);
-                  }
-               } else if (elem_1.Case === "Text") {
-                  var text = elem_1.Fields[0];
-                  return spaces + text + "\r\n";
-               } else {
-                  var name = elem_1.Fields[0];
-                  var value = elem_1.Fields[1];
-                  return name + "=\"" + value + "\"";
-               }
-            };
-         };
-
-         return toString$$1(0)(elem);
-      }
-   }]);
-
-   return Html;
-}();
-setType("FsHtml.Html", Html);
-function elem(tag, content) {
-   return new Html("Elem", [tag, content]);
-}
-
-
-
-
-
-var div = function () {
-   var tag = "div";
-   return function (content) {
-      return elem(tag, content);
-   };
-}();
-var br = function () {
-   var tag = "br";
-   return function (content) {
-      return elem(tag, content);
-   };
-}();
-
-
-var table = function () {
-   var tag = "table";
-   return function (content) {
-      return elem(tag, content);
-   };
-}();
-var thead = function () {
-   var tag = "thead";
-   return function (content) {
-      return elem(tag, content);
-   };
-}();
-var tbody = function () {
-   var tag = "tbody";
-   return function (content) {
-      return elem(tag, content);
-   };
-}();
-
-
-
-
-
-
-var tr = function () {
-   var tag = "tr";
-   return function (content) {
-      return elem(tag, content);
-   };
-}();
-
-var th = function () {
-   var tag = "th";
-   return function (content) {
-      return elem(tag, content);
-   };
-}();
-
-
-
-
-
-
-
-function op_Splice(s) {
-   return ofArray([new Html("Text", [toString(s)])]);
-}
-function op_PercentEquals(name, value) {
-   return new Html("Attr", [name, value]);
-}
-
 var _createClass$1 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 function _classCallCheck$1(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
-var StateHandle = function () {
-    function StateHandle(caseName, fields) {
-        _classCallCheck$1(this, StateHandle);
-
-        this.Case = caseName;
-        this.Fields = fields;
-    }
-
-    _createClass$1(StateHandle, [{
-        key: _Symbol.reflection,
-        value: function () {
-            return {
-                type: "Common.State.StateHandle",
-                interfaces: ["FSharpUnion", "System.IEquatable", "System.IComparable"],
-                cases: {
-                    S: [FArray("number"), "boolean", "boolean", "boolean", "boolean", makeGeneric(FMap, {
-                        Key: "number",
-                        Value: "number"
-                    })]
-                }
-            };
-        }
-    }, {
-        key: "Equals",
-        value: function (other) {
-            return equalsUnions(this, other);
-        }
-    }, {
-        key: "CompareTo",
-        value: function (other) {
-            return compareUnions(this, other);
-        }
-    }]);
-
-    return StateHandle;
-}();
-setType("Common.State.StateHandle", StateHandle);
-var initState = function () {
-    var regs = Int32Array.from(replicate$1(16, 0));
-    return new StateHandle("S", [regs, false, false, false, false, create(null, new GenericComparer(function (x, y) {
-        return x < y ? -1 : x > y ? 1 : 0;
-    }))]);
-}();
-var initStateVisual = function () {
-    var regs0to12 = Int32Array.from(replicate$1(13, 0));
-    var regs13to15 = new Int32Array([-16777216, 0, 0]);
-    var regs = Int32Array.from(concat$1(ofArray([regs0to12, regs13to15])));
-    return new StateHandle("S", [regs, false, false, false, false, create(null, new GenericComparer(function (x, y) {
-        return x < y ? -1 : x > y ? 1 : 0;
-    }))]);
-}();
-function readReg(r, _arg1) {
-    return _arg1.Fields[0][r];
-}
-function writeReg(r, v, _arg1) {
-    var newRegs = Int32Array.from(mapIndexed$1(function (i, x) {
-        if (r === i) {
-            return v;
-        } else {
-            return x;
-        }
-    }, _arg1.Fields[0]));
-    return new StateHandle("S", [newRegs, _arg1.Fields[1], _arg1.Fields[2], _arg1.Fields[3], _arg1.Fields[4], _arg1.Fields[5]]);
-}
-function readPC(_arg1) {
-    return _arg1.Fields[0][15];
-}
-function writePC(v, _arg1) {
-    var newRegs = Int32Array.from(mapIndexed$1(function (i, x) {
-        if (i === 15) {
-            return v;
-        } else {
-            return x;
-        }
-    }, _arg1.Fields[0]));
-    return new StateHandle("S", [newRegs, _arg1.Fields[1], _arg1.Fields[2], _arg1.Fields[3], _arg1.Fields[4], _arg1.Fields[5]]);
-}
-function incPC(_arg1) {
-    var newRegs = Int32Array.from(mapIndexed$1(function (i, x) {
-        if (i === 15) {
-            return x + 4;
-        } else {
-            return x;
-        }
-    }, _arg1.Fields[0]));
-    return new StateHandle("S", [newRegs, _arg1.Fields[1], _arg1.Fields[2], _arg1.Fields[3], _arg1.Fields[4], _arg1.Fields[5]]);
-}
-function readNFlag(_arg1) {
-    return _arg1.Fields[1];
-}
-function readZFlag(_arg1) {
-    return _arg1.Fields[2];
-}
-function readCFlag(_arg1) {
-    return _arg1.Fields[3];
-}
-function readVFlag(_arg1) {
-    return _arg1.Fields[4];
-}
-function writeNFlag(n, _arg1) {
-    return new StateHandle("S", [_arg1.Fields[0], n, _arg1.Fields[2], _arg1.Fields[3], _arg1.Fields[4], _arg1.Fields[5]]);
-}
-function writeZFlag(z, _arg1) {
-    return new StateHandle("S", [_arg1.Fields[0], _arg1.Fields[1], z, _arg1.Fields[3], _arg1.Fields[4], _arg1.Fields[5]]);
-}
-function writeCFlag(c, _arg1) {
-    return new StateHandle("S", [_arg1.Fields[0], _arg1.Fields[1], _arg1.Fields[2], c, _arg1.Fields[4], _arg1.Fields[5]]);
-}
-function writeVFlag(v, _arg1) {
-    return new StateHandle("S", [_arg1.Fields[0], _arg1.Fields[1], _arg1.Fields[2], _arg1.Fields[3], v, _arg1.Fields[5]]);
-}
-function readMem(addr, _arg1) {
-    var matchValue = tryFind$1(addr, _arg1.Fields[5]);
-
-    if (matchValue == null) {
-        return 0;
-    } else {
-        return matchValue;
-    }
-}
-function writeMem(addr, v, _arg1) {
-    var newMem = add(addr, v, _arg1.Fields[5]);
-    return new StateHandle("S", [_arg1.Fields[0], _arg1.Fields[1], _arg1.Fields[2], _arg1.Fields[3], _arg1.Fields[4], newMem]);
-}
-
-var _createClass$2 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-function _classCallCheck$2(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
 var _Error = function () {
     function _Error(caseName, fields) {
-        _classCallCheck$2(this, _Error);
+        _classCallCheck$1(this, _Error);
 
         this.Case = caseName;
         this.Fields = fields;
     }
 
-    _createClass$2(_Error, [{
+    _createClass$1(_Error, [{
         key: _Symbol.reflection,
         value: function () {
             return {
@@ -2438,7 +2268,7 @@ function errorList(lst) {
 }
 
 function interpret(state, instr) {
-    var matchValue = tryFind$1(readPC(state), instr);
+    var matchValue = tryFind$$1(readPC(state), instr);
 
     if (matchValue == null) {
         return new _Error("Err", [0, fsFormat("Instruction does not exist at address %A.")(function (x) {
@@ -2458,19 +2288,19 @@ function interpret(state, instr) {
     }
 }
 
-var _createClass$4 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+var _createClass$2 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-function _classCallCheck$4(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+function _classCallCheck$2(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 var shiftOp = function () {
     function shiftOp(caseName, fields) {
-        _classCallCheck$4(this, shiftOp);
+        _classCallCheck$2(this, shiftOp);
 
         this.Case = caseName;
         this.Fields = fields;
     }
 
-    _createClass$4(shiftOp, [{
+    _createClass$2(shiftOp, [{
         key: _Symbol.reflection,
         value: function () {
             return {
@@ -2502,13 +2332,13 @@ var shiftOp = function () {
 setType("Common.Types.shiftOp", shiftOp);
 var stackOrder = function () {
     function stackOrder(caseName, fields) {
-        _classCallCheck$4(this, stackOrder);
+        _classCallCheck$2(this, stackOrder);
 
         this.Case = caseName;
         this.Fields = fields;
     }
 
-    _createClass$4(stackOrder, [{
+    _createClass$2(stackOrder, [{
         key: _Symbol.reflection,
         value: function () {
             return {
@@ -2539,13 +2369,13 @@ var stackOrder = function () {
 setType("Common.Types.stackOrder", stackOrder);
 var opType = function () {
     function opType(caseName, fields) {
-        _classCallCheck$4(this, opType);
+        _classCallCheck$2(this, opType);
 
         this.Case = caseName;
         this.Fields = fields;
     }
 
-    _createClass$4(opType, [{
+    _createClass$2(opType, [{
         key: _Symbol.reflection,
         value: function () {
             return {
@@ -2572,6 +2402,33 @@ var opType = function () {
     return opType;
 }();
 setType("Common.Types.opType", opType);
+var Instruction = function () {
+    function Instruction(caseName, fields) {
+        _classCallCheck$2(this, Instruction);
+
+        this.Case = caseName;
+        this.Fields = fields;
+    }
+
+    _createClass$2(Instruction, [{
+        key: _Symbol.reflection,
+        value: function () {
+            return {
+                type: "Common.Types.Instruction",
+                interfaces: ["FSharpUnion"],
+                cases: {
+                    EndRef: ["function"],
+                    Instr: ["number", "function"],
+                    LabelRef: ["function"],
+                    Terminate: ["number"]
+                }
+            };
+        }
+    }]);
+
+    return Instruction;
+}();
+setType("Common.Types.Instruction", Instruction);
 
 function shiftI(inst, r, n, state) {
     if (inst.Case === "T_LSR") {
@@ -3768,38 +3625,6 @@ function endI(c, finalInstAddr, state) {
     }
 }
 
-var _createClass$3 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
-function _classCallCheck$3(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-var Instruction = function () {
-    function Instruction(caseName, fields) {
-        _classCallCheck$3(this, Instruction);
-
-        this.Case = caseName;
-        this.Fields = fields;
-    }
-
-    _createClass$3(Instruction, [{
-        key: _Symbol.reflection,
-        value: function () {
-            return {
-                type: "Parse.Parser.Instruction",
-                interfaces: ["FSharpUnion"],
-                cases: {
-                    EndRef: ["function"],
-                    Instr: ["number", "function"],
-                    LabelRef: ["function"],
-                    Terminate: ["number"]
-                }
-            };
-        }
-    }]);
-
-    return Instruction;
-}();
-setType("Parse.Parser.Instruction", Instruction);
-
 function resolveRefs(labels, endMem, instrLst) {
     var resolveRec = function resolveRec(labels_1) {
         return function (endMem_1) {
@@ -3817,25 +3642,25 @@ function resolveRefs(labels, endMem, instrLst) {
                             if (matchValue.Case === "Err") {
                                 return new _Error("Err", [matchValue.Fields[0], matchValue.Fields[1]]);
                             } else {
-                                return resolveRec(labels_1)(endMem_1)(append$$1(outLst, ofArray([[m, matchValue.Fields[0]]])))(t);
+                                return resolveRec(labels_1)(endMem_1)(append$1(outLst, ofArray([[m, matchValue.Fields[0]]])))(t);
                             }
                         }
                     } else if (_arg1.head[1].Case === "EndRef") {
                         var _f = _arg1.head[1].Fields[0];
                         var _m = _arg1.head[0];
                         var _t = _arg1.tail;
-                        return resolveRec(labels_1)(endMem_1)(append$$1(outLst, ofArray([[_m, _f(endMem_1)]])))(_t);
+                        return resolveRec(labels_1)(endMem_1)(append$1(outLst, ofArray([[_m, _f(endMem_1)]])))(_t);
                     } else {
                         var h = _arg1.head;
                         var _t2 = _arg1.tail;
-                        return resolveRec(labels_1)(endMem_1)(append$$1(outLst, ofArray([h])))(_t2);
+                        return resolveRec(labels_1)(endMem_1)(append$1(outLst, ofArray([h])))(_t2);
                     }
                 };
             };
         };
     };
 
-    return resolveRec(labels)(endMem)(new List$1())(instrLst);
+    return resolveRec(labels)(endMem)(new List())(instrLst);
 }
 
 function regList(tokLst) {
@@ -3845,11 +3670,11 @@ function regList(tokLst) {
                 var matchValue = r1 < r2;
 
                 if (matchValue) {
-                    return regRange(r1 + 1)(r2)(append$$1(outLst, ofArray([r1])));
+                    return regRange(r1 + 1)(r2)(append$1(outLst, ofArray([r1])));
                 } else if (r1 === r2) {
-                    return new _Error("Ok", [append$$1(outLst, ofArray([r1]))]);
+                    return new _Error("Ok", [append$1(outLst, ofArray([r1]))]);
                 } else if (matchValue) {
-                    throw new Error("/Users/raviwoods/Google_Drive/ICComp/Uni_Year_3/HLP/HLP/FABLE/FABLEProject/src/fs/Parser.fs", 37, 18);
+                    throw new Error("/Users/raviwoods/Google_Drive/ICComp/Uni_Year_3/HLP/HLP/FABLE/FABLEProject/src/fs/Parser.fs", 27, 18);
                 } else {
                     return new _Error("Err", [0, "Register range invalid."]);
                 }
@@ -3874,7 +3699,7 @@ function regList(tokLst) {
                     if (_arg1.tail.head.Case === "T_COMMA") {
                         var r = _arg1.head.Fields[0];
                         var t = _arg1.tail.tail;
-                        return regRec(append$$1(outLst, ofArray([r])))(t);
+                        return regRec(append$1(outLst, ofArray([r])))(t);
                     } else if (_arg1.tail.head.Case === "T_DASH") {
                         if (_arg1.tail.tail.tail != null) {
                             if (_arg1.tail.tail.head.Case === "T_REG") {
@@ -3884,12 +3709,12 @@ function regList(tokLst) {
                                         var r2 = _arg1.tail.tail.head.Fields[0];
                                         var _t3 = _arg1.tail.tail.tail.tail;
                                         {
-                                            var matchValue = regRange(r1)(r2)(new List$1());
+                                            var matchValue = regRange(r1)(r2)(new List());
 
                                             if (matchValue.Case === "Err") {
                                                 return new _Error("Err", [0, matchValue.Fields[1]]);
                                             } else {
-                                                return regRec(append$$1(outLst, matchValue.Fields[0]))(_t3);
+                                                return regRec(append$1(outLst, matchValue.Fields[0]))(_t3);
                                             }
                                         }
                                     } else if (_arg1.tail.tail.tail.head.Case === "T_R_CBR") {
@@ -3897,12 +3722,12 @@ function regList(tokLst) {
                                         var _r2 = _arg1.tail.tail.head.Fields[0];
                                         var _t4 = _arg1.tail.tail.tail.tail;
                                         {
-                                            var _matchValue = regRange(_r)(_r2)(new List$1());
+                                            var _matchValue = regRange(_r)(_r2)(new List());
 
                                             if (_matchValue.Case === "Err") {
                                                 return new _Error("Err", [0, _matchValue.Fields[1]]);
                                             } else {
-                                                return new _Error("Ok", [[append$$1(outLst, _matchValue.Fields[0]), _t4]]);
+                                                return new _Error("Ok", [[append$1(outLst, _matchValue.Fields[0]), _t4]]);
                                             }
                                         }
                                     } else {
@@ -3920,7 +3745,7 @@ function regList(tokLst) {
                     } else if (_arg1.tail.head.Case === "T_R_CBR") {
                         var _r3 = _arg1.head.Fields[0];
                         var _t5 = _arg1.tail.tail;
-                        return new _Error("Ok", [[append$$1(outLst, ofArray([_r3])), _t5]]);
+                        return new _Error("Ok", [[append$1(outLst, ofArray([_r3])), _t5]]);
                     } else {
                         return _target5(_arg1.tail, _arg1.head);
                     }
@@ -3939,7 +3764,7 @@ function regList(tokLst) {
         };
     };
 
-    return regRec(new List$1())(tokLst);
+    return regRec(new List())(tokLst);
 }
 
 function parser(tokLst) {
@@ -3948,7 +3773,7 @@ function parser(tokLst) {
             return function (s) {
                 return function (bInst) {
                     return function (labels) {
-                        var matchValue = tryFind$1(s, labels);
+                        var matchValue = tryFind$$1(s, labels);
 
                         if (matchValue == null) {
                             return new _Error("Err", [l, fsFormat("Label undefined: %s.")(function (x) {
@@ -3969,7 +3794,7 @@ function parser(tokLst) {
                 return function (s) {
                     return function (inst) {
                         return function (labels) {
-                            var matchValue = tryFind$1(s, labels);
+                            var matchValue = tryFind$$1(s, labels);
 
                             if (matchValue == null) {
                                 return new _Error("Err", [l, fsFormat("Label undefined: %s.")(function (x) {
@@ -4004,7 +3829,7 @@ function parser(tokLst) {
                 return function (outLst) {
                     return function (_arg1) {
                         var _target3 = function _target3(c, rd, rm, s, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var rsinst = new shiftOp("T_LSL", []);
                                 var nORrn = 0;
                                 var rstype = new opType("T_I", []);
@@ -4015,7 +3840,7 @@ function parser(tokLst) {
                         };
 
                         var _target7 = function _target7(c, rd, rm, s, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var rsinst = new shiftOp("T_LSL", []);
                                 var nORrn = 0;
                                 var rstype = new opType("T_I", []);
@@ -4026,7 +3851,7 @@ function parser(tokLst) {
                         };
 
                         var _target11 = function _target11(c, rd, rm, rn, s, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var rsinst = new shiftOp("T_LSL", []);
                                 var nORrn = 0;
                                 var rstype = new opType("T_I", []);
@@ -4037,7 +3862,7 @@ function parser(tokLst) {
                         };
 
                         var _target15 = function _target15(c, rd, rm, rn, s, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var rsinst = new shiftOp("T_LSL", []);
                                 var nORrn = 0;
                                 var rstype = new opType("T_I", []);
@@ -4048,7 +3873,7 @@ function parser(tokLst) {
                         };
 
                         var _target19 = function _target19(c, rd, rm, rn, s, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var rsinst = new shiftOp("T_LSL", []);
                                 var nORrn = 0;
                                 var rstype = new opType("T_I", []);
@@ -4059,7 +3884,7 @@ function parser(tokLst) {
                         };
 
                         var _target23 = function _target23(c, rd, rm, rn, s, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var rsinst = new shiftOp("T_LSL", []);
                                 var nORrn = 0;
                                 var rstype = new opType("T_I", []);
@@ -4070,7 +3895,7 @@ function parser(tokLst) {
                         };
 
                         var _target27 = function _target27(c, rd, rm, rn, s, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var rsinst = new shiftOp("T_LSL", []);
                                 var nORrn = 0;
                                 var rstype = new opType("T_I", []);
@@ -4081,7 +3906,7 @@ function parser(tokLst) {
                         };
 
                         var _target31 = function _target31(c, rd, rm, rn, s, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var rsinst = new shiftOp("T_LSL", []);
                                 var nORrn = 0;
                                 var rstype = new opType("T_I", []);
@@ -4092,7 +3917,7 @@ function parser(tokLst) {
                         };
 
                         var _target37 = function _target37(c, rd, rm, rn, s, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var rsinst = new shiftOp("T_LSL", []);
                                 var nORrn = 0;
                                 var rstype = new opType("T_I", []);
@@ -4103,7 +3928,7 @@ function parser(tokLst) {
                         };
 
                         var _target41 = function _target41(c, rd, rm, rn, s, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var rsinst = new shiftOp("T_LSL", []);
                                 var nORrn = 0;
                                 var rstype = new opType("T_I", []);
@@ -4114,7 +3939,7 @@ function parser(tokLst) {
                         };
 
                         var _target45 = function _target45(c, rd, rm, rn, s, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var rsinst = new shiftOp("T_LSL", []);
                                 var nORrn = 0;
                                 var rstype = new opType("T_I", []);
@@ -4125,7 +3950,7 @@ function parser(tokLst) {
                         };
 
                         var _target49 = function _target49(c, rd, rm, rn, s, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var rsinst = new shiftOp("T_LSL", []);
                                 var nORrn = 0;
                                 var rstype = new opType("T_I", []);
@@ -4136,7 +3961,7 @@ function parser(tokLst) {
                         };
 
                         var _target53 = function _target53(c, rm, rn, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var rsinst = new shiftOp("T_LSL", []);
                                 var nORrn = 0;
                                 var rstype = new opType("T_I", []);
@@ -4147,7 +3972,7 @@ function parser(tokLst) {
                         };
 
                         var _target57 = function _target57(c, rm, rn, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var rsinst = new shiftOp("T_LSL", []);
                                 var nORrn = 0;
                                 var rstype = new opType("T_I", []);
@@ -4158,7 +3983,7 @@ function parser(tokLst) {
                         };
 
                         var _target61 = function _target61(c, rm, rn, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var rsinst = new shiftOp("T_LSL", []);
                                 var nORrn = 0;
                                 var rstype = new opType("T_I", []);
@@ -4169,7 +3994,7 @@ function parser(tokLst) {
                         };
 
                         var _target65 = function _target65(c, rm, rn, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var rsinst = new shiftOp("T_LSL", []);
                                 var nORrn = 0;
                                 var rstype = new opType("T_I", []);
@@ -4180,7 +4005,7 @@ function parser(tokLst) {
                         };
 
                         var _target69 = function _target69(c, rm, rn, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var rsinst = new shiftOp("T_LSL", []);
                                 var nORrn = 0;
                                 var rstype = new opType("T_I", []);
@@ -4191,7 +4016,7 @@ function parser(tokLst) {
                         };
 
                         var _target82 = function _target82(c, rd, rm, rn, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var rsinst = new shiftOp("T_LSL", []);
                                 var nORrn = 0;
                                 var rstype = new opType("T_I", []);
@@ -4202,7 +4027,7 @@ function parser(tokLst) {
                         };
 
                         var _target86 = function _target86(c, rd, rm, rn, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var rsinst = new shiftOp("T_LSL", []);
                                 var nORrn = 0;
                                 var rstype = new opType("T_I", []);
@@ -4213,7 +4038,7 @@ function parser(tokLst) {
                         };
 
                         var _target88 = function _target88(c, rd, rn, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var inc = false;
                                 var i = 0;
                                 return function (state) {
@@ -4223,7 +4048,7 @@ function parser(tokLst) {
                         };
 
                         var _target90 = function _target90(c, i, rd, rn, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var inc = false;
                                 return function (state) {
                                     return ldrWbI(c, inc, rd, rn, i, state);
@@ -4232,7 +4057,7 @@ function parser(tokLst) {
                         };
 
                         var _target92 = function _target92(c, rd, rm, rn, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var inc = false;
                                 var rsinst = new shiftOp("T_LSL", []);
                                 var nORrn = 0;
@@ -4244,7 +4069,7 @@ function parser(tokLst) {
                         };
 
                         var _target94 = function _target94(c, i, rd, rm, rn, t, z) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var inc = false;
                                 var rstype = new opType("T_I", []);
                                 return function (state) {
@@ -4254,7 +4079,7 @@ function parser(tokLst) {
                         };
 
                         var _target96 = function _target96(c, rd, rm, rn, rs, t, z) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var inc = false;
                                 var rstype = new opType("T_R", []);
                                 return function (state) {
@@ -4264,7 +4089,7 @@ function parser(tokLst) {
                         };
 
                         var _target98 = function _target98(c, rd, rn, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var inc = false;
                                 var i = 0;
                                 return function (state) {
@@ -4274,7 +4099,7 @@ function parser(tokLst) {
                         };
 
                         var _target100 = function _target100(c, i, rd, rn, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var inc = false;
                                 return function (state) {
                                     return ldrBbI(c, inc, rd, rn, i, state);
@@ -4283,7 +4108,7 @@ function parser(tokLst) {
                         };
 
                         var _target102 = function _target102(c, rd, rm, rn, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var inc = false;
                                 var rsinst = new shiftOp("T_LSL", []);
                                 var nORrn = 0;
@@ -4295,7 +4120,7 @@ function parser(tokLst) {
                         };
 
                         var _target104 = function _target104(c, i, rd, rm, rn, t, z) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var inc = false;
                                 var rstype = new opType("T_I", []);
                                 return function (state) {
@@ -4305,7 +4130,7 @@ function parser(tokLst) {
                         };
 
                         var _target106 = function _target106(c, rd, rm, rn, rs, t, z) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var inc = false;
                                 var rstype = new opType("T_R", []);
                                 return function (state) {
@@ -4315,7 +4140,7 @@ function parser(tokLst) {
                         };
 
                         var _target110 = function _target110(c, rd, rm, rn, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var rsinst = new shiftOp("T_LSL", []);
                                 var nORrn = 0;
                                 var rstype = new opType("T_I", []);
@@ -4326,7 +4151,7 @@ function parser(tokLst) {
                         };
 
                         var _target114 = function _target114(c, rd, rm, rn, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var rsinst = new shiftOp("T_LSL", []);
                                 var nORrn = 0;
                                 var rstype = new opType("T_I", []);
@@ -4337,7 +4162,7 @@ function parser(tokLst) {
                         };
 
                         var _target115 = function _target115(c, rd, rn, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var inc = false;
                                 var i = 0;
                                 return function (state) {
@@ -4347,7 +4172,7 @@ function parser(tokLst) {
                         };
 
                         var _target117 = function _target117(c, i, rd, rn, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var inc = false;
                                 return function (state) {
                                     return strWbI(c, inc, rd, rn, i, state);
@@ -4356,7 +4181,7 @@ function parser(tokLst) {
                         };
 
                         var _target119 = function _target119(c, rd, rm, rn, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var inc = false;
                                 var rsinst = new shiftOp("T_LSL", []);
                                 var nORrn = 0;
@@ -4368,7 +4193,7 @@ function parser(tokLst) {
                         };
 
                         var _target121 = function _target121(c, i, rd, rm, rn, t, z) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var inc = false;
                                 var rstype = new opType("T_I", []);
                                 return function (state) {
@@ -4378,7 +4203,7 @@ function parser(tokLst) {
                         };
 
                         var _target123 = function _target123(c, rd, rm, rn, rs, t, z) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var inc = false;
                                 var rstype = new opType("T_R", []);
                                 return function (state) {
@@ -4388,7 +4213,7 @@ function parser(tokLst) {
                         };
 
                         var _target124 = function _target124(c, rd, rn, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var inc = false;
                                 var i = 0;
                                 return function (state) {
@@ -4398,7 +4223,7 @@ function parser(tokLst) {
                         };
 
                         var _target126 = function _target126(c, i, rd, rn, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var inc = false;
                                 return function (state) {
                                     return strBbI(c, inc, rd, rn, i, state);
@@ -4407,7 +4232,7 @@ function parser(tokLst) {
                         };
 
                         var _target128 = function _target128(c, rd, rm, rn, t) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var inc = false;
                                 var rsinst = new shiftOp("T_LSL", []);
                                 var nORrn = 0;
@@ -4419,7 +4244,7 @@ function parser(tokLst) {
                         };
 
                         var _target130 = function _target130(c, i, rd, rm, rn, t, z) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var inc = false;
                                 var rstype = new opType("T_I", []);
                                 return function (state) {
@@ -4429,7 +4254,7 @@ function parser(tokLst) {
                         };
 
                         var _target132 = function _target132(c, rd, rm, rn, rs, t, z) {
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                 var inc = false;
                                 var rstype = new opType("T_R", []);
                                 return function (state) {
@@ -4449,7 +4274,7 @@ function parser(tokLst) {
                         };
 
                         if (_arg1.tail == null) {
-                            return resolveRefs(labels, m, append$$1(outLst, ofArray([[m, new Instruction("Terminate", [l])]])));
+                            return resolveRefs(labels, m, append$1(outLst, ofArray([[m, new Instruction("Terminate", [l])]])));
                         } else if (_arg1.head.Case === "T_MOV") {
                             if (_arg1.tail.tail != null) {
                                 if (_arg1.tail.head.Case === "T_REG") {
@@ -4462,7 +4287,7 @@ function parser(tokLst) {
                                                     var rd = _arg1.tail.head.Fields[0];
                                                     var s = _arg1.head.Fields[1];
                                                     var t = _arg1.tail.tail.tail.tail;
-                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                         return movI(c, s, rd, i, state);
                                                     }])]])))(t);
                                                 } else if (_arg1.tail.tail.tail.head.Case === "T_REG") {
@@ -4479,7 +4304,7 @@ function parser(tokLst) {
                                                                             var _s = _arg1.head.Fields[1];
                                                                             var _t7 = _arg1.tail.tail.tail.tail.tail.tail.tail;
                                                                             var z = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                 var rstype = new opType("T_I", []);
                                                                                 return function (state) {
                                                                                     return movR(_c, _s, _rd, rm, z, _i, rstype, state);
@@ -4493,7 +4318,7 @@ function parser(tokLst) {
                                                                             var _s2 = _arg1.head.Fields[1];
                                                                             var _t8 = _arg1.tail.tail.tail.tail.tail.tail.tail;
                                                                             var _z = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                 var rstype = new opType("T_R", []);
                                                                                 return function (state) {
                                                                                     return movR(_c2, _s2, _rd2, _rm, _z, rs, rstype, state);
@@ -4547,7 +4372,7 @@ function parser(tokLst) {
                                                     var _rd3 = _arg1.tail.head.Fields[0];
                                                     var _s3 = _arg1.head.Fields[1];
                                                     var _t9 = _arg1.tail.tail.tail.tail;
-                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                         return mvnI(_c3, _s3, _rd3, _i2, state);
                                                     }])]])))(_t9);
                                                 } else if (_arg1.tail.tail.tail.head.Case === "T_REG") {
@@ -4564,7 +4389,7 @@ function parser(tokLst) {
                                                                             var _s4 = _arg1.head.Fields[1];
                                                                             var _t10 = _arg1.tail.tail.tail.tail.tail.tail.tail;
                                                                             var _z2 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                 var rstype = new opType("T_I", []);
                                                                                 return function (state) {
                                                                                     return mvnR(_c4, _s4, _rd4, _rm2, _z2, _i3, rstype, state);
@@ -4578,7 +4403,7 @@ function parser(tokLst) {
                                                                             var _s5 = _arg1.head.Fields[1];
                                                                             var _t11 = _arg1.tail.tail.tail.tail.tail.tail.tail;
                                                                             var _z3 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                 var rstype = new opType("T_R", []);
                                                                                 return function (state) {
                                                                                     return mvnR(_c5, _s5, _rd5, _rm3, _z3, _rs, rstype, state);
@@ -4637,7 +4462,7 @@ function parser(tokLst) {
                                                                     var rn = _arg1.tail.tail.tail.head.Fields[0];
                                                                     var _s6 = _arg1.head.Fields[1];
                                                                     var _t12 = _arg1.tail.tail.tail.tail.tail.tail;
-                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                                         return addI(_c6, _s6, _rd6, rn, _i4, state);
                                                                     }])]])))(_t12);
                                                                 } else if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_REG") {
@@ -4655,7 +4480,7 @@ function parser(tokLst) {
                                                                                             var _s7 = _arg1.head.Fields[1];
                                                                                             var _t13 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                             var _z4 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var rstype = new opType("T_I", []);
                                                                                                 return function (state) {
                                                                                                     return addR(_c7, _s7, _rd7, _rn, _rm4, _z4, _i5, rstype, state);
@@ -4670,7 +4495,7 @@ function parser(tokLst) {
                                                                                             var _s8 = _arg1.head.Fields[1];
                                                                                             var _t14 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                             var _z5 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var rstype = new opType("T_R", []);
                                                                                                 return function (state) {
                                                                                                     return addR(_c8, _s8, _rd8, _rn2, _rm5, _z5, _rs2, rstype, state);
@@ -4741,7 +4566,7 @@ function parser(tokLst) {
                                                                     var _rn3 = _arg1.tail.tail.tail.head.Fields[0];
                                                                     var _s9 = _arg1.head.Fields[1];
                                                                     var _t15 = _arg1.tail.tail.tail.tail.tail.tail;
-                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                                         return adcI(_c9, _s9, _rd9, _rn3, _i6, state);
                                                                     }])]])))(_t15);
                                                                 } else if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_REG") {
@@ -4759,7 +4584,7 @@ function parser(tokLst) {
                                                                                             var _s10 = _arg1.head.Fields[1];
                                                                                             var _t16 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                             var _z6 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var rstype = new opType("T_I", []);
                                                                                                 return function (state) {
                                                                                                     return adcR(_c10, _s10, _rd10, _rn4, _rm6, _z6, _i7, rstype, state);
@@ -4774,7 +4599,7 @@ function parser(tokLst) {
                                                                                             var _s11 = _arg1.head.Fields[1];
                                                                                             var _t17 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                             var _z7 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var rstype = new opType("T_R", []);
                                                                                                 return function (state) {
                                                                                                     return adcR(_c11, _s11, _rd11, _rn5, _rm7, _z7, _rs3, rstype, state);
@@ -4845,7 +4670,7 @@ function parser(tokLst) {
                                                                     var _rn6 = _arg1.tail.tail.tail.head.Fields[0];
                                                                     var _s12 = _arg1.head.Fields[1];
                                                                     var _t18 = _arg1.tail.tail.tail.tail.tail.tail;
-                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                                         return subI(_c12, _s12, _rd12, _rn6, _i8, state);
                                                                     }])]])))(_t18);
                                                                 } else if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_REG") {
@@ -4863,7 +4688,7 @@ function parser(tokLst) {
                                                                                             var _s13 = _arg1.head.Fields[1];
                                                                                             var _t19 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                             var _z8 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var rstype = new opType("T_I", []);
                                                                                                 return function (state) {
                                                                                                     return subR(_c13, _s13, _rd13, _rn7, _rm8, _z8, _i9, rstype, state);
@@ -4878,7 +4703,7 @@ function parser(tokLst) {
                                                                                             var _s14 = _arg1.head.Fields[1];
                                                                                             var _t20 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                             var _z9 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var rstype = new opType("T_R", []);
                                                                                                 return function (state) {
                                                                                                     return subR(_c14, _s14, _rd14, _rn8, _rm9, _z9, _rs4, rstype, state);
@@ -4949,7 +4774,7 @@ function parser(tokLst) {
                                                                     var _rn9 = _arg1.tail.tail.tail.head.Fields[0];
                                                                     var _s15 = _arg1.head.Fields[1];
                                                                     var _t21 = _arg1.tail.tail.tail.tail.tail.tail;
-                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                                         return sbcI(_c15, _s15, _rd15, _rn9, _i10, state);
                                                                     }])]])))(_t21);
                                                                 } else if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_REG") {
@@ -4967,7 +4792,7 @@ function parser(tokLst) {
                                                                                             var _s16 = _arg1.head.Fields[1];
                                                                                             var _t22 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                             var _z10 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var rstype = new opType("T_I", []);
                                                                                                 return function (state) {
                                                                                                     return sbcR(_c16, _s16, _rd16, _rn10, _rm10, _z10, _i11, rstype, state);
@@ -4982,7 +4807,7 @@ function parser(tokLst) {
                                                                                             var _s17 = _arg1.head.Fields[1];
                                                                                             var _t23 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                             var _z11 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var rstype = new opType("T_R", []);
                                                                                                 return function (state) {
                                                                                                     return sbcR(_c17, _s17, _rd17, _rn11, _rm11, _z11, _rs5, rstype, state);
@@ -5053,7 +4878,7 @@ function parser(tokLst) {
                                                                     var _rn12 = _arg1.tail.tail.tail.head.Fields[0];
                                                                     var _s18 = _arg1.head.Fields[1];
                                                                     var _t24 = _arg1.tail.tail.tail.tail.tail.tail;
-                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                                         return rsbI(_c18, _s18, _rd18, _rn12, _i12, state);
                                                                     }])]])))(_t24);
                                                                 } else if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_REG") {
@@ -5071,7 +4896,7 @@ function parser(tokLst) {
                                                                                             var _s19 = _arg1.head.Fields[1];
                                                                                             var _t25 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                             var _z12 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var rstype = new opType("T_I", []);
                                                                                                 return function (state) {
                                                                                                     return rsbR(_c19, _s19, _rd19, _rn13, _rm12, _z12, _i13, rstype, state);
@@ -5086,7 +4911,7 @@ function parser(tokLst) {
                                                                                             var _s20 = _arg1.head.Fields[1];
                                                                                             var _t26 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                             var _z13 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var rstype = new opType("T_R", []);
                                                                                                 return function (state) {
                                                                                                     return rsbR(_c20, _s20, _rd20, _rn14, _rm13, _z13, _rs6, rstype, state);
@@ -5157,7 +4982,7 @@ function parser(tokLst) {
                                                                     var _rn15 = _arg1.tail.tail.tail.head.Fields[0];
                                                                     var _s21 = _arg1.head.Fields[1];
                                                                     var _t27 = _arg1.tail.tail.tail.tail.tail.tail;
-                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                                         return rscI(_c21, _s21, _rd21, _rn15, _i14, state);
                                                                     }])]])))(_t27);
                                                                 } else if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_REG") {
@@ -5175,7 +5000,7 @@ function parser(tokLst) {
                                                                                             var _s22 = _arg1.head.Fields[1];
                                                                                             var _t28 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                             var _z14 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var rstype = new opType("T_I", []);
                                                                                                 return function (state) {
                                                                                                     return rscR(_c22, _s22, _rd22, _rn16, _rm14, _z14, _i15, rstype, state);
@@ -5190,7 +5015,7 @@ function parser(tokLst) {
                                                                                             var _s23 = _arg1.head.Fields[1];
                                                                                             var _t29 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                             var _z15 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var rstype = new opType("T_R", []);
                                                                                                 return function (state) {
                                                                                                     return rscR(_c23, _s23, _rd23, _rn17, _rm15, _z15, _rs7, rstype, state);
@@ -5261,7 +5086,7 @@ function parser(tokLst) {
                                                                     var _rs8 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
                                                                     var _s24 = _arg1.head.Fields[1];
                                                                     var _t30 = _arg1.tail.tail.tail.tail.tail.tail;
-                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                                         return mulR(_c24, _s24, _rd24, _rm16, _rs8, state);
                                                                     }])]])))(_t30);
                                                                 } else {
@@ -5316,7 +5141,7 @@ function parser(tokLst) {
                                                                                     var _rs9 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
                                                                                     var _s25 = _arg1.head.Fields[1];
                                                                                     var _t31 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                                                         return mlaR(_c25, _s25, _rd25, _rm17, _rs9, _rn18, state);
                                                                                     }])]])))(_t31);
                                                                                 } else {
@@ -5378,7 +5203,7 @@ function parser(tokLst) {
                                                                     var _rn19 = _arg1.tail.tail.tail.head.Fields[0];
                                                                     var _s26 = _arg1.head.Fields[1];
                                                                     var _t32 = _arg1.tail.tail.tail.tail.tail.tail;
-                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                                         return andI(_c26, _s26, _rd26, _rn19, _i16, state);
                                                                     }])]])))(_t32);
                                                                 } else if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_REG") {
@@ -5396,7 +5221,7 @@ function parser(tokLst) {
                                                                                             var _s27 = _arg1.head.Fields[1];
                                                                                             var _t33 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                             var _z16 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var rstype = new opType("T_I", []);
                                                                                                 return function (state) {
                                                                                                     return andR(_c27, _s27, _rd27, _rn20, _rm18, _z16, _i17, rstype, state);
@@ -5411,7 +5236,7 @@ function parser(tokLst) {
                                                                                             var _s28 = _arg1.head.Fields[1];
                                                                                             var _t34 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                             var _z17 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var rstype = new opType("T_R", []);
                                                                                                 return function (state) {
                                                                                                     return andR(_c28, _s28, _rd28, _rn21, _rm19, _z17, _rs10, rstype, state);
@@ -5482,7 +5307,7 @@ function parser(tokLst) {
                                                                     var _rn22 = _arg1.tail.tail.tail.head.Fields[0];
                                                                     var _s29 = _arg1.head.Fields[1];
                                                                     var _t35 = _arg1.tail.tail.tail.tail.tail.tail;
-                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                                         return orrI(_c29, _s29, _rd29, _rn22, _i18, state);
                                                                     }])]])))(_t35);
                                                                 } else if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_REG") {
@@ -5500,7 +5325,7 @@ function parser(tokLst) {
                                                                                             var _s30 = _arg1.head.Fields[1];
                                                                                             var _t36 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                             var _z18 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var rstype = new opType("T_I", []);
                                                                                                 return function (state) {
                                                                                                     return orrR(_c30, _s30, _rd30, _rn23, _rm20, _z18, _i19, rstype, state);
@@ -5515,7 +5340,7 @@ function parser(tokLst) {
                                                                                             var _s31 = _arg1.head.Fields[1];
                                                                                             var _t37 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                             var _z19 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var rstype = new opType("T_R", []);
                                                                                                 return function (state) {
                                                                                                     return orrR(_c31, _s31, _rd31, _rn24, _rm21, _z19, _rs11, rstype, state);
@@ -5586,7 +5411,7 @@ function parser(tokLst) {
                                                                     var _rn25 = _arg1.tail.tail.tail.head.Fields[0];
                                                                     var _s32 = _arg1.head.Fields[1];
                                                                     var _t38 = _arg1.tail.tail.tail.tail.tail.tail;
-                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                                         return eorI(_c32, _s32, _rd32, _rn25, _i20, state);
                                                                     }])]])))(_t38);
                                                                 } else if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_REG") {
@@ -5604,7 +5429,7 @@ function parser(tokLst) {
                                                                                             var _s33 = _arg1.head.Fields[1];
                                                                                             var _t39 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                             var _z20 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var rstype = new opType("T_I", []);
                                                                                                 return function (state) {
                                                                                                     return eorR(_c33, _s33, _rd33, _rn26, _rm22, _z20, _i21, rstype, state);
@@ -5619,7 +5444,7 @@ function parser(tokLst) {
                                                                                             var _s34 = _arg1.head.Fields[1];
                                                                                             var _t40 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                             var _z21 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var rstype = new opType("T_R", []);
                                                                                                 return function (state) {
                                                                                                     return eorR(_c34, _s34, _rd34, _rn27, _rm23, _z21, _rs12, rstype, state);
@@ -5690,7 +5515,7 @@ function parser(tokLst) {
                                                                     var _rn28 = _arg1.tail.tail.tail.head.Fields[0];
                                                                     var _s35 = _arg1.head.Fields[1];
                                                                     var _t41 = _arg1.tail.tail.tail.tail.tail.tail;
-                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                                         return bicI(_c35, _s35, _rd35, _rn28, _i22, state);
                                                                     }])]])))(_t41);
                                                                 } else if (_arg1.tail.tail.tail.tail.tail.head.Case === "T_REG") {
@@ -5708,7 +5533,7 @@ function parser(tokLst) {
                                                                                             var _s36 = _arg1.head.Fields[1];
                                                                                             var _t42 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                             var _z22 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var rstype = new opType("T_I", []);
                                                                                                 return function (state) {
                                                                                                     return bicR(_c36, _s36, _rd36, _rn29, _rm24, _z22, _i23, rstype, state);
@@ -5723,7 +5548,7 @@ function parser(tokLst) {
                                                                                             var _s37 = _arg1.head.Fields[1];
                                                                                             var _t43 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                             var _z23 = _arg1.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var rstype = new opType("T_R", []);
                                                                                                 return function (state) {
                                                                                                     return bicR(_c37, _s37, _rd37, _rn30, _rm25, _z23, _rs13, rstype, state);
@@ -5788,7 +5613,7 @@ function parser(tokLst) {
                                                     var _i24 = _arg1.tail.tail.tail.head.Fields[0];
                                                     var _rn31 = _arg1.tail.head.Fields[0];
                                                     var _t44 = _arg1.tail.tail.tail.tail;
-                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                         return cmpI(_c38, _rn31, _i24, state);
                                                     }])]])))(_t44);
                                                 } else if (_arg1.tail.tail.tail.head.Case === "T_REG") {
@@ -5804,7 +5629,7 @@ function parser(tokLst) {
                                                                             var _rn32 = _arg1.tail.head.Fields[0];
                                                                             var _t45 = _arg1.tail.tail.tail.tail.tail.tail.tail;
                                                                             var _z24 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                 var rstype = new opType("T_I", []);
                                                                                 return function (state) {
                                                                                     return cmpR(_c39, _rn32, _rm26, _z24, _i25, rstype, state);
@@ -5817,7 +5642,7 @@ function parser(tokLst) {
                                                                             var _rs14 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
                                                                             var _t46 = _arg1.tail.tail.tail.tail.tail.tail.tail;
                                                                             var _z25 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                 var rstype = new opType("T_R", []);
                                                                                 return function (state) {
                                                                                     return cmpR(_c40, _rn33, _rm27, _z25, _rs14, rstype, state);
@@ -5870,7 +5695,7 @@ function parser(tokLst) {
                                                     var _i26 = _arg1.tail.tail.tail.head.Fields[0];
                                                     var _rn34 = _arg1.tail.head.Fields[0];
                                                     var _t47 = _arg1.tail.tail.tail.tail;
-                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                         return cmnI(_c41, _rn34, _i26, state);
                                                     }])]])))(_t47);
                                                 } else if (_arg1.tail.tail.tail.head.Case === "T_REG") {
@@ -5886,7 +5711,7 @@ function parser(tokLst) {
                                                                             var _rn35 = _arg1.tail.head.Fields[0];
                                                                             var _t48 = _arg1.tail.tail.tail.tail.tail.tail.tail;
                                                                             var _z26 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                 var rstype = new opType("T_I", []);
                                                                                 return function (state) {
                                                                                     return cmnR(_c42, _rn35, _rm28, _z26, _i27, rstype, state);
@@ -5899,7 +5724,7 @@ function parser(tokLst) {
                                                                             var _rs15 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
                                                                             var _t49 = _arg1.tail.tail.tail.tail.tail.tail.tail;
                                                                             var _z27 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                 var rstype = new opType("T_R", []);
                                                                                 return function (state) {
                                                                                     return cmnR(_c43, _rn36, _rm29, _z27, _rs15, rstype, state);
@@ -5952,7 +5777,7 @@ function parser(tokLst) {
                                                     var _i28 = _arg1.tail.tail.tail.head.Fields[0];
                                                     var _rn37 = _arg1.tail.head.Fields[0];
                                                     var _t50 = _arg1.tail.tail.tail.tail;
-                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                         return tstI(_c44, _rn37, _i28, state);
                                                     }])]])))(_t50);
                                                 } else if (_arg1.tail.tail.tail.head.Case === "T_REG") {
@@ -5968,7 +5793,7 @@ function parser(tokLst) {
                                                                             var _rn38 = _arg1.tail.head.Fields[0];
                                                                             var _t51 = _arg1.tail.tail.tail.tail.tail.tail.tail;
                                                                             var _z28 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                 var rstype = new opType("T_I", []);
                                                                                 return function (state) {
                                                                                     return tstR(_c45, _rn38, _rm30, _z28, _i29, rstype, state);
@@ -5981,7 +5806,7 @@ function parser(tokLst) {
                                                                             var _rs16 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
                                                                             var _t52 = _arg1.tail.tail.tail.tail.tail.tail.tail;
                                                                             var _z29 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                 var rstype = new opType("T_R", []);
                                                                                 return function (state) {
                                                                                     return tstR(_c46, _rn39, _rm31, _z29, _rs16, rstype, state);
@@ -6034,7 +5859,7 @@ function parser(tokLst) {
                                                     var _i30 = _arg1.tail.tail.tail.head.Fields[0];
                                                     var _rn40 = _arg1.tail.head.Fields[0];
                                                     var _t53 = _arg1.tail.tail.tail.tail;
-                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                         return teqI(_c47, _rn40, _i30, state);
                                                     }])]])))(_t53);
                                                 } else if (_arg1.tail.tail.tail.head.Case === "T_REG") {
@@ -6050,7 +5875,7 @@ function parser(tokLst) {
                                                                             var _rn41 = _arg1.tail.head.Fields[0];
                                                                             var _t54 = _arg1.tail.tail.tail.tail.tail.tail.tail;
                                                                             var _z30 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                 var rstype = new opType("T_I", []);
                                                                                 return function (state) {
                                                                                     return teqR(_c48, _rn41, _rm32, _z30, _i31, rstype, state);
@@ -6063,7 +5888,7 @@ function parser(tokLst) {
                                                                             var _rs17 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
                                                                             var _t55 = _arg1.tail.tail.tail.tail.tail.tail.tail;
                                                                             var _z31 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                 var rstype = new opType("T_R", []);
                                                                                 return function (state) {
                                                                                     return teqR(_c49, _rn42, _rm33, _z31, _rs17, rstype, state);
@@ -6116,7 +5941,7 @@ function parser(tokLst) {
                                                     var _i32 = _arg1.tail.tail.tail.head.Fields[0];
                                                     var _rn43 = _arg1.tail.head.Fields[0];
                                                     var _t56 = _arg1.tail.tail.tail.tail;
-                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                         return tstI(_c50, _rn43, _i32, state);
                                                     }])]])))(_t56);
                                                 } else if (_arg1.tail.tail.tail.head.Case === "T_REG") {
@@ -6132,7 +5957,7 @@ function parser(tokLst) {
                                                                             var _rn44 = _arg1.tail.head.Fields[0];
                                                                             var _t57 = _arg1.tail.tail.tail.tail.tail.tail.tail;
                                                                             var _z32 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                 var rstype = new opType("T_I", []);
                                                                                 return function (state) {
                                                                                     return tstR(_c51, _rn44, _rm34, _z32, _i33, rstype, state);
@@ -6145,7 +5970,7 @@ function parser(tokLst) {
                                                                             var _rs18 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
                                                                             var _t58 = _arg1.tail.tail.tail.tail.tail.tail.tail;
                                                                             var _z33 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                 var rstype = new opType("T_R", []);
                                                                                 return function (state) {
                                                                                     return tstR(_c52, _rn45, _rm35, _z33, _rs18, rstype, state);
@@ -6205,7 +6030,7 @@ function parser(tokLst) {
                                                                         var _rn46 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
                                                                         var _s38 = _arg1.head.Fields[1][1];
                                                                         var _t59 = _arg1.tail.tail.tail.tail.tail.tail;
-                                                                        return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                        return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                                             return lsrR(_c53, _s38, _rd38, _rm36, _rn46, state);
                                                                         }])]])))(_t59);
                                                                     } else {
@@ -6255,7 +6080,7 @@ function parser(tokLst) {
                                                                         var _rn47 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
                                                                         var _s39 = _arg1.head.Fields[1][1];
                                                                         var _t60 = _arg1.tail.tail.tail.tail.tail.tail;
-                                                                        return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                        return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                                             return asrR(_c54, _s39, _rd39, _rm37, _rn47, state);
                                                                         }])]])))(_t60);
                                                                     } else {
@@ -6305,7 +6130,7 @@ function parser(tokLst) {
                                                                         var _rn48 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
                                                                         var _s40 = _arg1.head.Fields[1][1];
                                                                         var _t61 = _arg1.tail.tail.tail.tail.tail.tail;
-                                                                        return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                        return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                                             return rorR(_c55, _s40, _rd40, _rm38, _rn48, state);
                                                                         }])]])))(_t61);
                                                                     } else {
@@ -6350,7 +6175,7 @@ function parser(tokLst) {
                                                         var _rm39 = _arg1.tail.tail.tail.head.Fields[0];
                                                         var _s41 = _arg1.head.Fields[1][1];
                                                         var _t62 = _arg1.tail.tail.tail.tail;
-                                                        return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                        return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                             return rrxR(_c56, _s41, _rd41, _rm39, state);
                                                         }])]])))(_t62);
                                                     } else {
@@ -6387,7 +6212,7 @@ function parser(tokLst) {
                                                                     var _rn49 = _arg1.tail.tail.tail.tail.tail.head.Fields[0];
                                                                     var _s42 = _arg1.head.Fields[1][1];
                                                                     var _t63 = _arg1.tail.tail.tail.tail.tail.tail;
-                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                                         return lslR(_c57, _s42, _rd42, _rm40, _rn49, state);
                                                                     }])]])))(_t63);
                                                                 } else {
@@ -6426,7 +6251,7 @@ function parser(tokLst) {
                                     var _c58 = _arg1.head.Fields[0];
                                     var _s43 = _arg1.tail.head.Fields[0];
                                     var _t64 = _arg1.tail.tail;
-                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("LabelRef", [branchRef(l)(_c58)(_s43)(function (c_1) {
+                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("LabelRef", [branchRef(l)(_c58)(_s43)(function (c_1) {
                                         return function (label) {
                                             return function (state) {
                                                 return b(c_1, label, state);
@@ -6445,7 +6270,7 @@ function parser(tokLst) {
                                     var _c59 = _arg1.head.Fields[0];
                                     var _s44 = _arg1.tail.head.Fields[0];
                                     var _t65 = _arg1.tail.tail;
-                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("LabelRef", [branchRef(l)(_c59)(_s44)(function (c_1) {
+                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("LabelRef", [branchRef(l)(_c59)(_s44)(function (c_1) {
                                         return function (label) {
                                             return function (state) {
                                                 return bl(c_1, label, state);
@@ -6464,7 +6289,7 @@ function parser(tokLst) {
                                     var _c60 = _arg1.head.Fields[0];
                                     var r = _arg1.tail.head.Fields[0];
                                     var _t66 = _arg1.tail.tail;
-                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                         return bx(_c60, r, state);
                                     }])]])))(_t66);
                                 } else {
@@ -6484,7 +6309,7 @@ function parser(tokLst) {
                                                     var _rd43 = _arg1.tail.head.Fields[0];
                                                     var _s45 = _arg1.tail.tail.tail.head.Fields[0];
                                                     var _t67 = _arg1.tail.tail.tail.tail;
-                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("LabelRef", [lsaRef(l)(_c61)(_rd43)(_s45)(function (c_1) {
+                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("LabelRef", [lsaRef(l)(_c61)(_rd43)(_s45)(function (c_1) {
                                                         return function (rd_1) {
                                                             return function (label) {
                                                                 return function (state) {
@@ -6539,7 +6364,7 @@ function parser(tokLst) {
                                                                                                             var _rn50 = _arg1.tail.tail.tail.tail.head.Fields[0];
                                                                                                             var _t68 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                                             var _z34 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                                 var rstype = new opType("T_I", []);
                                                                                                                 return function (state) {
                                                                                                                     return ldrWaR(_c62, _rd44, _rn50, _rm41, _z34, _i34, rstype, state);
@@ -6553,7 +6378,7 @@ function parser(tokLst) {
                                                                                                             var _rs19 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
                                                                                                             var _t69 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                                             var _z35 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                                 var rstype = new opType("T_R", []);
                                                                                                                 return function (state) {
                                                                                                                     return ldrWaR(_c63, _rd45, _rn51, _rm42, _z35, _rs19, rstype, state);
@@ -6583,7 +6408,7 @@ function parser(tokLst) {
                                                                                     var _rd46 = _arg1.tail.head.Fields[0];
                                                                                     var _rn52 = _arg1.tail.tail.tail.tail.head.Fields[0];
                                                                                     var _t70 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                                                         return ldrWaI(_c64, _rd46, _rn52, _i35, state);
                                                                                     }])]])))(_t70);
                                                                                 } else {
@@ -6610,7 +6435,7 @@ function parser(tokLst) {
                                                                                             var _rd47 = _arg1.tail.head.Fields[0];
                                                                                             var _rn53 = _arg1.tail.tail.tail.tail.head.Fields[0];
                                                                                             var _t71 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var inc = true;
                                                                                                 return function (state) {
                                                                                                     return ldrWbI(_c65, inc, _rd47, _rn53, _i36, state);
@@ -6638,7 +6463,7 @@ function parser(tokLst) {
                                                                                             var _rm43 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
                                                                                             var _rn54 = _arg1.tail.tail.tail.tail.head.Fields[0];
                                                                                             var _t72 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var inc = true;
                                                                                                 var rsinst = new shiftOp("T_LSL", []);
                                                                                                 var nORrn = 0;
@@ -6669,7 +6494,7 @@ function parser(tokLst) {
                                                                                                                     var _rn55 = _arg1.tail.tail.tail.tail.head.Fields[0];
                                                                                                                     var _t73 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                                                     var _z36 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                                         var inc = true;
                                                                                                                         var rstype = new opType("T_I", []);
                                                                                                                         return function (state) {
@@ -6700,7 +6525,7 @@ function parser(tokLst) {
                                                                                                                     var _rs20 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
                                                                                                                     var _t74 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                                                     var _z37 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                                         var inc = true;
                                                                                                                         var rstype = new opType("T_R", []);
                                                                                                                         return function (state) {
@@ -6762,7 +6587,7 @@ function parser(tokLst) {
                                                             var _rd51 = _arg1.tail.head.Fields[0];
                                                             var _s46 = _arg1.tail.tail.tail.tail.head.Fields[0];
                                                             var _t75 = _arg1.tail.tail.tail.tail.tail;
-                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("LabelRef", [lsaRef(l)(_c69)(_rd51)(_s46)(function (c_1) {
+                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("LabelRef", [lsaRef(l)(_c69)(_rd51)(_s46)(function (c_1) {
                                                                 return function (rd_1) {
                                                                     return function (label) {
                                                                         return function (state) {
@@ -6823,7 +6648,7 @@ function parser(tokLst) {
                                                                                                             var _rn57 = _arg1.tail.tail.tail.tail.head.Fields[0];
                                                                                                             var _t76 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                                             var _z38 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                                 var rstype = new opType("T_I", []);
                                                                                                                 return function (state) {
                                                                                                                     return ldrBaR(_c70, _rd52, _rn57, _rm46, _z38, _i38, rstype, state);
@@ -6837,7 +6662,7 @@ function parser(tokLst) {
                                                                                                             var _rs21 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
                                                                                                             var _t77 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                                             var _z39 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                                 var rstype = new opType("T_R", []);
                                                                                                                 return function (state) {
                                                                                                                     return ldrBaR(_c71, _rd53, _rn58, _rm47, _z39, _rs21, rstype, state);
@@ -6867,7 +6692,7 @@ function parser(tokLst) {
                                                                                     var _rd54 = _arg1.tail.head.Fields[0];
                                                                                     var _rn59 = _arg1.tail.tail.tail.tail.head.Fields[0];
                                                                                     var _t78 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                                                         return ldrBaI(_c72, _rd54, _rn59, _i39, state);
                                                                                     }])]])))(_t78);
                                                                                 } else {
@@ -6894,7 +6719,7 @@ function parser(tokLst) {
                                                                                             var _rd55 = _arg1.tail.head.Fields[0];
                                                                                             var _rn60 = _arg1.tail.tail.tail.tail.head.Fields[0];
                                                                                             var _t79 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var inc = true;
                                                                                                 return function (state) {
                                                                                                     return ldrBbI(_c73, inc, _rd55, _rn60, _i40, state);
@@ -6922,7 +6747,7 @@ function parser(tokLst) {
                                                                                             var _rm48 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
                                                                                             var _rn61 = _arg1.tail.tail.tail.tail.head.Fields[0];
                                                                                             var _t80 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var inc = true;
                                                                                                 var rsinst = new shiftOp("T_LSL", []);
                                                                                                 var nORrn = 0;
@@ -6953,7 +6778,7 @@ function parser(tokLst) {
                                                                                                                     var _rn62 = _arg1.tail.tail.tail.tail.head.Fields[0];
                                                                                                                     var _t81 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                                                     var _z40 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                                         var inc = true;
                                                                                                                         var rstype = new opType("T_I", []);
                                                                                                                         return function (state) {
@@ -6984,7 +6809,7 @@ function parser(tokLst) {
                                                                                                                     var _rs22 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
                                                                                                                     var _t82 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                                                     var _z41 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                                         var inc = true;
                                                                                                                         var rstype = new opType("T_R", []);
                                                                                                                         return function (state) {
@@ -7046,7 +6871,7 @@ function parser(tokLst) {
                                                             var _rd59 = _arg1.tail.head.Fields[0];
                                                             var _s47 = _arg1.tail.tail.tail.tail.head.Fields[0];
                                                             var _t83 = _arg1.tail.tail.tail.tail.tail;
-                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("LabelRef", [lsaRef(l)(_c77)(_rd59)(_s47)(function (c_1) {
+                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("LabelRef", [lsaRef(l)(_c77)(_rd59)(_s47)(function (c_1) {
                                                                 return function (rd_1) {
                                                                     return function (label) {
                                                                         return function (state) {
@@ -7107,7 +6932,7 @@ function parser(tokLst) {
                                                                                                             var _rn64 = _arg1.tail.tail.tail.tail.head.Fields[0];
                                                                                                             var _t84 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                                             var _z42 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                                 var rstype = new opType("T_I", []);
                                                                                                                 return function (state) {
                                                                                                                     return strWaR(_c78, _rd60, _rn64, _rm51, _z42, _i42, rstype, state);
@@ -7121,7 +6946,7 @@ function parser(tokLst) {
                                                                                                             var _rs23 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
                                                                                                             var _t85 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                                             var _z43 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                                 var rstype = new opType("T_R", []);
                                                                                                                 return function (state) {
                                                                                                                     return strWaR(_c79, _rd61, _rn65, _rm52, _z43, _rs23, rstype, state);
@@ -7151,7 +6976,7 @@ function parser(tokLst) {
                                                                                     var _rd62 = _arg1.tail.head.Fields[0];
                                                                                     var _rn66 = _arg1.tail.tail.tail.tail.head.Fields[0];
                                                                                     var _t86 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                                                         return strWaI(_c80, _rd62, _rn66, _i43, state);
                                                                                     }])]])))(_t86);
                                                                                 } else {
@@ -7178,7 +7003,7 @@ function parser(tokLst) {
                                                                                             var _rd63 = _arg1.tail.head.Fields[0];
                                                                                             var _rn67 = _arg1.tail.tail.tail.tail.head.Fields[0];
                                                                                             var _t87 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var inc = true;
                                                                                                 return function (state) {
                                                                                                     return strWbI(_c81, inc, _rd63, _rn67, _i44, state);
@@ -7206,7 +7031,7 @@ function parser(tokLst) {
                                                                                             var _rm53 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
                                                                                             var _rn68 = _arg1.tail.tail.tail.tail.head.Fields[0];
                                                                                             var _t88 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var inc = true;
                                                                                                 var rsinst = new shiftOp("T_LSL", []);
                                                                                                 var nORrn = 0;
@@ -7237,7 +7062,7 @@ function parser(tokLst) {
                                                                                                                     var _rn69 = _arg1.tail.tail.tail.tail.head.Fields[0];
                                                                                                                     var _t89 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                                                     var _z44 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                                         var inc = true;
                                                                                                                         var rstype = new opType("T_I", []);
                                                                                                                         return function (state) {
@@ -7268,7 +7093,7 @@ function parser(tokLst) {
                                                                                                                     var _rs24 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
                                                                                                                     var _t90 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                                                     var _z45 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                                         var inc = true;
                                                                                                                         var rstype = new opType("T_R", []);
                                                                                                                         return function (state) {
@@ -7369,7 +7194,7 @@ function parser(tokLst) {
                                                                                                             var _rn71 = _arg1.tail.tail.tail.tail.head.Fields[0];
                                                                                                             var _t91 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                                             var _z46 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                                 var rstype = new opType("T_I", []);
                                                                                                                 return function (state) {
                                                                                                                     return strBaR(_c85, _rd67, _rn71, _rm56, _z46, _i46, rstype, state);
@@ -7383,7 +7208,7 @@ function parser(tokLst) {
                                                                                                             var _rs25 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
                                                                                                             var _t92 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                                             var _z47 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                                 var rstype = new opType("T_R", []);
                                                                                                                 return function (state) {
                                                                                                                     return strBaR(_c86, _rd68, _rn72, _rm57, _z47, _rs25, rstype, state);
@@ -7413,7 +7238,7 @@ function parser(tokLst) {
                                                                                     var _rd69 = _arg1.tail.head.Fields[0];
                                                                                     var _rn73 = _arg1.tail.tail.tail.tail.head.Fields[0];
                                                                                     var _t93 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
+                                                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function (state) {
                                                                                         return strBaI(_c87, _rd69, _rn73, _i47, state);
                                                                                     }])]])))(_t93);
                                                                                 } else {
@@ -7440,7 +7265,7 @@ function parser(tokLst) {
                                                                                             var _rd70 = _arg1.tail.head.Fields[0];
                                                                                             var _rn74 = _arg1.tail.tail.tail.tail.head.Fields[0];
                                                                                             var _t94 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var inc = true;
                                                                                                 return function (state) {
                                                                                                     return strBbI(_c88, inc, _rd70, _rn74, _i48, state);
@@ -7468,7 +7293,7 @@ function parser(tokLst) {
                                                                                             var _rm58 = _arg1.tail.tail.tail.tail.tail.tail.head.Fields[0];
                                                                                             var _rn75 = _arg1.tail.tail.tail.tail.head.Fields[0];
                                                                                             var _t95 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail;
-                                                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                 var inc = true;
                                                                                                 var rsinst = new shiftOp("T_LSL", []);
                                                                                                 var nORrn = 0;
@@ -7499,7 +7324,7 @@ function parser(tokLst) {
                                                                                                                     var _rn76 = _arg1.tail.tail.tail.tail.head.Fields[0];
                                                                                                                     var _t96 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                                                     var _z48 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                                         var inc = true;
                                                                                                                         var rstype = new opType("T_I", []);
                                                                                                                         return function (state) {
@@ -7530,7 +7355,7 @@ function parser(tokLst) {
                                                                                                                     var _rs26 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
                                                                                                                     var _t97 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail;
                                                                                                                     var _z49 = _arg1.tail.tail.tail.tail.tail.tail.tail.tail.head.Fields[0];
-                                                                                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                                                                         var inc = true;
                                                                                                                         var rstype = new opType("T_R", []);
                                                                                                                         return function (state) {
@@ -7620,7 +7445,7 @@ function parser(tokLst) {
                                                     } else {
                                                         var tokLst_1 = _matchValue2.Fields[0][1];
                                                         var rl = _matchValue2.Fields[0][0];
-                                                        return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                        return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                             var write = false;
                                                             return function (state) {
                                                                 return ldmIB(_c92, write, _rn78, rl, state);
@@ -7642,7 +7467,7 @@ function parser(tokLst) {
                                                             } else {
                                                                 var _tokLst_ = _matchValue3.Fields[0][1];
                                                                 var _rl = _matchValue3.Fields[0][0];
-                                                                return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                     var write = true;
                                                                     return function (state) {
                                                                         return ldmIB(_c93, write, _rn79, _rl, state);
@@ -7684,7 +7509,7 @@ function parser(tokLst) {
                                                     } else {
                                                         var _tokLst_2 = _matchValue4.Fields[0][1];
                                                         var _rl2 = _matchValue4.Fields[0][0];
-                                                        return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                        return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                             var write = false;
                                                             return function (state) {
                                                                 return ldmDA(_c94, write, _rn80, _rl2, state);
@@ -7706,7 +7531,7 @@ function parser(tokLst) {
                                                             } else {
                                                                 var _tokLst_3 = _matchValue5.Fields[0][1];
                                                                 var _rl3 = _matchValue5.Fields[0][0];
-                                                                return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                     var write = true;
                                                                     return function (state) {
                                                                         return ldmDA(_c95, write, _rn81, _rl3, state);
@@ -7748,7 +7573,7 @@ function parser(tokLst) {
                                                     } else {
                                                         var _tokLst_4 = _matchValue6.Fields[0][1];
                                                         var _rl4 = _matchValue6.Fields[0][0];
-                                                        return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                        return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                             var write = false;
                                                             return function (state) {
                                                                 return ldmDB(_c96, write, _rn82, _rl4, state);
@@ -7770,7 +7595,7 @@ function parser(tokLst) {
                                                             } else {
                                                                 var _tokLst_5 = _matchValue7.Fields[0][1];
                                                                 var _rl5 = _matchValue7.Fields[0][0];
-                                                                return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                     var write = true;
                                                                     return function (state) {
                                                                         return ldmDB(_c97, write, _rn83, _rl5, state);
@@ -7811,7 +7636,7 @@ function parser(tokLst) {
                                                 } else {
                                                     var _tokLst_6 = _matchValue8.Fields[0][1];
                                                     var _rl6 = _matchValue8.Fields[0][0];
-                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                         var write = false;
                                                         return function (state) {
                                                             return ldmIA(_c98, write, _rn84, _rl6, state);
@@ -7833,7 +7658,7 @@ function parser(tokLst) {
                                                         } else {
                                                             var _tokLst_7 = _matchValue9.Fields[0][1];
                                                             var _rl7 = _matchValue9.Fields[0][0];
-                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                 var write = true;
                                                                 return function (state) {
                                                                     return ldmIA(_c99, write, _rn85, _rl7, state);
@@ -7876,7 +7701,7 @@ function parser(tokLst) {
                                                     } else {
                                                         var _tokLst_8 = _matchValue10.Fields[0][1];
                                                         var _rl8 = _matchValue10.Fields[0][0];
-                                                        return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                        return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                             var write = false;
                                                             return function (state) {
                                                                 return stmIB(_c100, write, _rn86, _rl8, state);
@@ -7898,7 +7723,7 @@ function parser(tokLst) {
                                                             } else {
                                                                 var _tokLst_9 = _matchValue11.Fields[0][1];
                                                                 var _rl9 = _matchValue11.Fields[0][0];
-                                                                return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                     var write = true;
                                                                     return function (state) {
                                                                         return stmIB(_c101, write, _rn87, _rl9, state);
@@ -7940,7 +7765,7 @@ function parser(tokLst) {
                                                     } else {
                                                         var _tokLst_10 = _matchValue12.Fields[0][1];
                                                         var _rl10 = _matchValue12.Fields[0][0];
-                                                        return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                        return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                             var write = false;
                                                             return function (state) {
                                                                 return stmDA(_c102, write, _rn88, _rl10, state);
@@ -7962,7 +7787,7 @@ function parser(tokLst) {
                                                             } else {
                                                                 var _tokLst_11 = _matchValue13.Fields[0][1];
                                                                 var _rl11 = _matchValue13.Fields[0][0];
-                                                                return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                     var write = true;
                                                                     return function (state) {
                                                                         return stmDA(_c103, write, _rn89, _rl11, state);
@@ -8004,7 +7829,7 @@ function parser(tokLst) {
                                                     } else {
                                                         var _tokLst_12 = _matchValue14.Fields[0][1];
                                                         var _rl12 = _matchValue14.Fields[0][0];
-                                                        return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                        return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                             var write = false;
                                                             return function (state) {
                                                                 return stmDB(_c104, write, _rn90, _rl12, state);
@@ -8026,7 +7851,7 @@ function parser(tokLst) {
                                                             } else {
                                                                 var _tokLst_13 = _matchValue15.Fields[0][1];
                                                                 var _rl13 = _matchValue15.Fields[0][0];
-                                                                return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                                return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                     var write = true;
                                                                     return function (state) {
                                                                         return stmDB(_c105, write, _rn91, _rl13, state);
@@ -8067,7 +7892,7 @@ function parser(tokLst) {
                                                 } else {
                                                     var _tokLst_14 = _matchValue16.Fields[0][1];
                                                     var _rl14 = _matchValue16.Fields[0][0];
-                                                    return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                    return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                         var write = false;
                                                         return function (state) {
                                                             return stmIA(_c106, write, _rn92, _rl14, state);
@@ -8089,7 +7914,7 @@ function parser(tokLst) {
                                                         } else {
                                                             var _tokLst_15 = _matchValue17.Fields[0][1];
                                                             var _rl15 = _matchValue17.Fields[0][0];
-                                                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
+                                                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("Instr", [l, function () {
                                                                 var write = true;
                                                                 return function (state) {
                                                                     return stmIA(_c107, write, _rn93, _rl15, state);
@@ -8129,7 +7954,7 @@ function parser(tokLst) {
                                             var s2 = _arg1.tail.tail.head.Fields[0];
                                             var _t115 = _arg1.tail.tail.tail;
                                             {
-                                                var _matchValue18 = tryFind$1(s2, labels);
+                                                var _matchValue18 = tryFind$$1(s2, labels);
 
                                                 if (_matchValue18 == null) {
                                                     return new _Error("Err", [l, fsFormat("Undefined label: %s.")(function (x) {
@@ -8154,7 +7979,7 @@ function parser(tokLst) {
                         } else if (_arg1.head.Case === "T_END") {
                             var _c108 = _arg1.head.Fields[0];
                             var _t116 = _arg1.tail;
-                            return parseRec(m + 4)(l)(labels)(append$$1(outLst, ofArray([[m, new Instruction("EndRef", [endRef(l)(_c108)])]])))(_t116);
+                            return parseRec(m + 4)(l)(labels)(append$1(outLst, ofArray([[m, new Instruction("EndRef", [endRef(l)(_c108)])]])))(_t116);
                         } else if (_arg1.head.Case === "T_NEWLINE") {
                             var _t117 = _arg1.tail;
                             return parseRec(m)(l + 1)(labels)(outLst)(_t117);
@@ -8175,7 +8000,7 @@ function parser(tokLst) {
 
     var matchValue = parseRec(0)(1)(create(null, new GenericComparer(function (x, y) {
         return x < y ? -1 : x > y ? 1 : 0;
-    })))(new List$1())(tokLst);
+    })))(new List())(tokLst);
 
     if (matchValue.Case === "Err") {
         return new _Error("Err", [matchValue.Fields[0], matchValue.Fields[1]]);
@@ -8242,20 +8067,20 @@ function checkLE(state) {
     }
 }
 
-var _createClass$5 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+var _createClass$3 = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
-function _classCallCheck$5(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+function _classCallCheck$3(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 
 var Token = function () {
     function Token(caseName, fields) {
-        _classCallCheck$5(this, Token);
+        _classCallCheck$3(this, Token);
 
         this.Case = caseName;
         this.Fields = fields;
     }
 
-    _createClass$5(Token, [{
+    _createClass$3(Token, [{
         key: _Symbol.reflection,
         value: function () {
             return {
@@ -9734,101 +9559,109 @@ function stringToToken(_arg1) {
         }
     }
 }
+
 function tokenise(source) {
     return function (list) {
-        return map$1(function (_arg1) {
+        return map$2(function (_arg1) {
             return stringToToken(_arg1);
         }, list);
-    }(filter$$1(function (s) {
+    }(filter$2(function (s) {
         return s !== "";
-    }, filter$$1(function (s) {
+    }, filter$2(function (s) {
         return s != null;
     }, toList(split$1(source, "([,\\[\\]!\\n])|[\\ \\t\\r\\f]+|;.*")))));
 }
 
-function newState(oldState, inString) {
+function newStateAll(oldState, inString) {
     return wrapErr(function (instr) {
         return interpret(oldState, instr);
     }, parser(tokenise(inString)));
 }
 
 (function (args) {
-    var regs = document.getElementById("regs");
-    var errorBox = document.getElementById("errorBox");
-    var compileAllBtn = document.getElementById("compileAllBtn");
-    var saveCodeMirror$$1 = saveCodeMirror;
-    var initializeCodeMirror$$1 = initializeCodeMirror;
-    var cmEditor = initializeCodeMirror$$1();
+    var state = initStateVisual;
+    var code = "MOV R1, 5";
+    var readFromConsole$$1 = readFromConsole;
+    var state_1 = initStateVisual;
+    var nState = newStateAll(state_1, code);
 
-    var getRegisterTable = function getRegisterTable(valid) {
-        return function (regState) {
-            return div(ofArray([table(ofArray([op_PercentEquals("class", "table table-striped table-condensed"), thead(ofArray([tr(ofArray([th(op_Splice("Register")), th(op_Splice("Value"))]))])), tbody(ofArray([op_PercentEquals("class", valid ? "black" : "red"), div(toList(delay(function () {
-                return map$2(function (i) {
-                    return tr(ofArray([th(op_Splice(fsFormat("R%A")(function (x) {
+    var boolString = function boolString(b) {
+        if (b) {
+            return fsFormat("%i")(function (x) {
+                return x;
+            })(1);
+        } else {
+            return fsFormat("%i")(function (x) {
+                return x;
+            })(0);
+        }
+    };
+
+    var stateString = function stateString(state_2) {
+        var getReg = function getReg(state_3) {
+            return function (i) {
+                if (i <= 15) {
+                    return fsFormat("%i")(function (x) {
                         return x;
-                    })(i))), th(valid ? op_Splice(fsFormat("%A")(function (x) {
-                        return x;
-                    })(readReg(i, regState))) : op_Splice(fsFormat("X")(function (x) {
-                        return x;
-                    })))]));
-                }, range(0, 15));
-            })))]))])), br(new List$1()), table(ofArray([op_PercentEquals("class", "table table-striped table-condensed"), thead(ofArray([tr(ofArray([th(op_Splice("Flag")), th(op_Splice("Value"))]))])), tbody(ofArray([op_PercentEquals("class", valid ? "black" : "red"), div(ofArray([tr(ofArray([th(op_Splice(fsFormat("N")(function (x) {
-                return x;
-            }))), th(valid ? op_Splice(fsFormat("%A")(function (x) {
-                return x;
-            })(readNFlag(regState))) : op_Splice(fsFormat("X")(function (x) {
-                return x;
-            })))])), tr(ofArray([th(op_Splice(fsFormat("Z")(function (x) {
-                return x;
-            }))), th(valid ? op_Splice(fsFormat("%A")(function (x) {
-                return x;
-            })(readZFlag(regState))) : op_Splice(fsFormat("X")(function (x) {
-                return x;
-            })))])), tr(ofArray([th(op_Splice(fsFormat("C")(function (x) {
-                return x;
-            }))), th(valid ? op_Splice(fsFormat("%A")(function (x) {
-                return x;
-            })(readCFlag(regState))) : op_Splice(fsFormat("X")(function (x) {
-                return x;
-            })))])), tr(ofArray([th(op_Splice(fsFormat("V")(function (x) {
-                return x;
-            }))), th(valid ? op_Splice(fsFormat("%A")(function (x) {
-                return x;
-            })(readVFlag(regState))) : op_Splice(fsFormat("X")(function (x) {
-                return x;
-            })))]))]))]))]))]));
+                    })(readReg(i, state_3));
+                } else {
+                    var $var1 = null;
+
+                    switch (i) {
+                        case 16:
+                            {
+                                $var1 = boolString(readNFlag(state_3));
+                                break;
+                            }
+
+                        case 17:
+                            {
+                                $var1 = boolString(readZFlag(state_3));
+                                break;
+                            }
+
+                        case 18:
+                            {
+                                $var1 = boolString(readCFlag(state_3));
+                                break;
+                            }
+
+                        case 19:
+                            {
+                                $var1 = boolString(readVFlag(state_3));
+                                break;
+                            }
+
+                        default:
+                            {
+                                $var1 = "ERROR";
+                            }
+                    }
+
+                    return $var1;
+                }
+            };
+        };
+
+        var testList = map$2(getReg(state_2), toList(range(0, 19)));
+        return function () {
+            return toString(testList);
         };
     };
 
-    var compileAll = function compileAll() {
-        var code = saveCodeMirror$$1(cmEditor);
-        var state = initStateVisual;
-        var nState = newState(state, code);
-        var registerString = nState.Case === "Err" ? Html.toString(getRegisterTable(false)(initState)) : function () {
-            var s = nState.Fields[0][1];
-            var i = nState.Fields[0][0];
-            return Html.toString(getRegisterTable(true)(s));
-        }();
-        var errorString = nState.Case === "Err" ? fsFormat("ERROR ON LINE %i\t %s")(function (x) {
-            return x;
-        })(nState.Fields[0])(nState.Fields[1]) : function () {
-            var s = nState.Fields[0][1];
-            var i = nState.Fields[0][0];
-            return fsFormat("Compiled %i lines")(function (x) {
-                return x;
-            })(i);
-        }();
-        fsFormat("%A")(function (x) {
-            console.log(x);
-        })(registerString);
-        regs.innerHTML = registerString;
-        errorBox.innerHTML = errorString;
-    };
-
-    compileAllBtn.addEventListener('click', function (_arg1) {
-        compileAll();
-        return null;
-    });
+    var outputString = nState.Case === "Err" ? function () {
+        return "ERROR";
+    } : function () {
+        var s = nState.Fields[0][1];
+        var i = nState.Fields[0][0];
+        return stateString(s);
+    }();
+    fsFormat("%s")(function (x) {
+        console.log(x);
+    })(outputString());
+    fsFormat("%s")(function (x) {
+        console.log(x);
+    })(readFromConsole$$1());
     return 0;
 })(process.argv.slice(2));
 

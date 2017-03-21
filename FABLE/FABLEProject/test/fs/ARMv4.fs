@@ -7,17 +7,16 @@ namespace Interpret
 module ARMv4 =
     open Common.State
     open Common.Types
-    open Parse.Tokeniser
 
     let shiftI inst r n state =
         match inst with 
         |T_LSL -> if (n>=0)&&(n<=31) then (readReg r state)<<<n
                                      else failwith "Invalid n."
-        |T_LSR -> if (n>=1)&&(n<=32) then (if n=32 then 0 else int((uint32 (readReg r state))/(uint32 (2.0**(float n))))) 
+        |T_LSR -> if (n>=1)&&(n<=32) then (if n=32 then 0 else int((uint32 (readReg r state))/(uint32 (2.0**(float n)))))
                                      else failwith "Invalid n."
-        |T_ASR -> if (n>=1)&&(n<=32) then (readReg r state)/(int (2.0**(float n))) 
+        |T_ASR -> if (n>=1)&&(n<=32) then (readReg r state)/(int (2.0**(float n)))
                                      else failwith "Invalid n."
-        |T_ROR -> if (n>=1)&&(n<=31) then (readReg r state)>>>n 
+        |T_ROR -> if (n>=1)&&(n<=31) then (readReg r state)>>>n
                                      else failwith "Invalid n."
         |T_RRX -> match (readCFlag state) with
                     |true -> (readReg r state)/2 + 1<<<31

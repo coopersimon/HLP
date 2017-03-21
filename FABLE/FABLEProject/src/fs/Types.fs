@@ -3,6 +3,9 @@
 namespace Common
 
 module Types =
+
+    open Error
+    open State
     
     /// Shift tokens.
     type shiftOp =
@@ -23,3 +26,11 @@ module Types =
     type opType =
         | T_I
         | T_R
+
+    /// Wrapper for instructions, including unresolved references.
+    type Instruction = 
+        | LabelRef of (Map<string,int> -> Error<Instruction>)
+        | EndRef of (int -> Instruction)
+        // Instruction contains the line number in addition to the function that transforms the state.
+        | Instr of int*(StateHandle -> StateHandle)
+        | Terminate of int

@@ -14,9 +14,23 @@ let main args =
     let regs = Browser.document.getElementById "regs"
     let errorBox = Browser.document.getElementById "errorBox"
     let compileAllBtn = Browser.document.getElementById "compileAllBtn"
+    let compileNextLineBtn = Browser.document.getElementById "compileNextLineBtn"
+    let resetBtn = Browser.document.getElementById "resetBtn"
     let saveCodeMirror: JsFunc1<_,string> = import "saveCodeMirror" "../js/helper_functions.js"
     let initializeCodeMirror: JsFunc0<_> = import "initializeCodeMirror" "../js/helper_functions.js"
+    let highlightLine: JsFunc3<int,_,int,_> = import "highlightLine" "../js/helper_functions.js"
+    let clearAllLines: JsFunc1<_,_> = import "clearAllLines" "../js/helper_functions.js"
     let cmEditor = initializeCodeMirror.Invoke()
+    let mutable state = initStateVisual
+
+
+    let rec toBinary (value: uint32)=
+        if value < 2u then
+            value.ToString()
+        else
+            let divisor = value/2u
+            let remainder = (value % 2u).ToString()
+            toBinary(divisor) + remainder
 
     let getRegisterTable valid regState = 
         div [
@@ -25,7 +39,9 @@ let main args =
                     thead [                    
                         tr [
                             th %("Register")
-                            th %("Value")
+                            th %("Hex")
+                            th %("Bin")
+                            th %("Dec")
                         ]
                     ]
                     tbody [ 
@@ -38,7 +54,13 @@ let main args =
                                 th %(sprintf "R%A" i)
                                 th ( match valid with
                                         | false -> %(sprintf "X")
-                                        | true -> %(sprintf "%A" (readReg i regState))) 
+                                        | true -> %(sprintf "%08X" (readReg i regState))) 
+                                th ( match valid with
+                                        | false -> %(sprintf "X")
+                                        | true -> %(regState |> readReg i |> uint32 |> toBinary)) 
+                                th ( match valid with
+                                        | false -> %(sprintf "X")
+                                        | true -> %(sprintf "%i" (readReg i regState))) 
                             ]
 
                         ]
@@ -46,7 +68,7 @@ let main args =
                 ]
             br []
             table [
-                    "class"%="table table-striped table-condensed"   
+                    "class"%="table table-condensed"   
                     thead [                    
                             tr [
                                 th %("Flag")
@@ -89,9 +111,10 @@ let main args =
 
             
     let compileAll () = 
+        clearAllLines.Invoke(cmEditor)
         let code = saveCodeMirror.Invoke(cmEditor)
         let state = initStateVisual
-        let nState = newState state code
+        let nState = newStateAll state code
 
         let registerString = 
             match nState with
@@ -100,15 +123,53 @@ let main args =
 
         let errorString = 
             match nState with
-            | Ok(i,s) -> sprintf "Compiled %i lines" i
+            | Ok(i,s) -> sprintf "Ran %i lines" i
             | Err(i,msg) -> sprintf "ERROR ON LINE %i\t %s" i msg
         
+        match nState with
+            | Ok(i,s) -> ()
+            | Err(i,msg) -> highlightLine.Invoke(i,cmEditor,1)
+
         printfn "%A" registerString
         regs.innerHTML <- registerString 
         errorBox.innerHTML <- errorString
+    
+    let compileNextLine () = 
+        clearAllLines.Invoke(cmEditor)
+        let code = saveCodeMirror.Invoke(cmEditor)
+        let nState = newStateSingle state code
 
+        let registerString = 
+            match nState with
+            | Ok(i,s) -> (getRegisterTable true s) |> Html.toString
+            | Err(i,msg) -> (getRegisterTable false initState) |> Html.toString
+
+        let errorString = 
+            match nState with
+            | Ok(i,s) -> sprintf "Ran line %i" i
+            | Err(i,msg) -> sprintf "ERROR ON LINE %i\t %s" i msg
+        
+        state <- 
+            match nState with
+            | Ok(i,s) -> s
+            | Err(i,msg) -> initStateVisual
+        
+        match nState with
+            | Ok(i,s) -> highlightLine.Invoke(i,cmEditor,2)
+            | Err(i,msg) -> highlightLine.Invoke(i,cmEditor,1)
+
+        printfn "%A" registerString
+        regs.innerHTML <- registerString 
+        errorBox.innerHTML <- errorString
+    
+    let resetCompiler () =
+        clearAllLines.Invoke(cmEditor)
+        state <- initStateVisual
+        errorBox.innerHTML <- ""
+        regs.innerHTML <- ((getRegisterTable true state) |> Html.toString)
 
     compileAllBtn.addEventListener_click(fun _ -> compileAll () ; null)
-    
-    //let highlightLine: JsFunc2<int,_,_> = import "highlightLine" "../js/helper_functions.js"
+    compileNextLineBtn.addEventListener_click(fun _ -> compileNextLine () ; null)
+    resetBtn.addEventListener_click(fun _ -> resetCompiler () ; null)
+    resetCompiler ()
     0
