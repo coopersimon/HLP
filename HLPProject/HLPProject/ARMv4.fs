@@ -20,7 +20,6 @@ module ARMv4 =
                     |true -> (readReg r state)>>>1 + 1<<<31
                     |false -> (readReg r state)>>>1
 
-
     let shiftR inst r rn state =
         let m = (readReg rn state)&&&255 //least significant byte
         shiftI inst r m state 
@@ -67,8 +66,6 @@ module ARMv4 =
         let cout = (((conv64 in1)+(conv64 in2))>>>32)%2L
         writeVFlag (cin<>cout) state
      
-
-
 //MOV and MVN (DONE)
 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0068b/CIHCDBCA.html
 
@@ -529,7 +526,7 @@ module ARMv4 =
     //Loads least significant byte from label to rd.
     let ldrBL c rd label state = 
         if c state
-        then writeReg rd ((readMem label state)&&&255) state  
+        then writeReg rd int(readMemByte label state) state  
         else state
         
     //More LDRs (details see ARMv4.md)
@@ -572,10 +569,10 @@ module ARMv4 =
         if c state
         then match inc with 
              | true -> state
-                       |> writeReg rd (readMem (((readReg rn state)+i)&&&255) state)  
+                       |> writeReg rd int(readMemByte ((readReg rn state)+i) state)  
                        |> writeReg rn ((readReg rn state)+i)
              | false -> state
-                        |> writeReg rd (readMem (((readReg rn state)+i)&&&255) state)  
+                        |> writeReg rd int(readMemByte ((readReg rn state)+i) state)
         else state
     
     let ldrBbR c inc rd rn rm rsinst nORrn rstype state = 
@@ -590,7 +587,7 @@ module ARMv4 =
     let ldrBaI c rd rn i state = 
         if c state
         then state
-             |> writeReg rd (readMem ((readReg rn state)&&&255) state)  
+             |> writeReg rd int(readMemByte (readReg rn state) state)  
              |> writeReg rn ((readReg rn state)+i)
         else state
     
@@ -640,16 +637,14 @@ module ARMv4 =
         else state
     
     let strBbI c inc rd rn i state = 
-        let memVal = (readMem ((readReg rn state)+i) state)  
-        let regVal = readReg rd state
-        let writeVal = ((~~~255)&&&memVal)|||(255&&&regVal) 
+        let writeVal = byte(readReg rd state) 
         if c state
         then match inc with 
              | true -> state
-                       |> writeMem ((readReg rn state)+i) writeVal
+                       |> writeMemByte ((readReg rn state)+i) writeVal
                        |> writeReg rn ((readReg rn state)+i)
              | false -> state
-                        |> writeMem ((readReg rn state)+i) writeVal
+                        |> writeMemByte ((readReg rn state)+i) writeVal
         else state
     
     let strBbR c inc rd rn rm rsinst nORrn rstype state = 
@@ -662,12 +657,10 @@ module ARMv4 =
         else state
     
     let strBaI c rd rn i state = 
-        let memVal = (readMem (readReg rn state) state) 
-        let regVal = readReg rd state
-        let writeVal = ((~~~255)&&&memVal)|||(255&&&regVal) 
+        let writeVal = byte(readReg rd state)
         if c state
         then state
-             |> writeMem (readReg rn state) writeVal
+             |> writeMemByte (readReg rn state) writeVal
              |> writeReg rn ((readReg rn state)+i)
         else state
     
