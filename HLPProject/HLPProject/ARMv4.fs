@@ -44,15 +44,15 @@ module ARMv4 =
              then match inst with
                   |T_LSL -> if n<=32 
                             then writeCFlag (((readReg r state)>>>(32-n))%2<>0) state 
-                            else writeCFlag false 
+                            else writeCFlag false state
                   |T_LSR -> if n<=32 
                             then writeCFlag (((readReg r state)>>>(n-1))%2<>0) state 
-                            else writeCFlag false  
+                            else writeCFlag false state 
                   |T_ASR -> if n<=32 
                             then writeCFlag (((readReg r state)>>>(n-1))%2<>0) state 
                             else if n>0 
-                                 then writeCFlag false
-                                 else writeCFlag true
+                                 then writeCFlag false state
+                                 else writeCFlag true state
                   |T_ROR -> writeCFlag (((readReg r state)>>>((n%32)-1))%2<>0) state
                   |T_RRX -> writeCFlag ((readReg r state)%2<>0) state
              else state //don't write carry if no S specified
