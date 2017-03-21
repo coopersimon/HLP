@@ -108,14 +108,9 @@ module Parser =
                 | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, movI c s rd i))]) t
                 | false -> invalidImmRange l i
             | T_MOV (c,s) :: T_REG rd :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: t ->
-                (*match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, movR c s rd rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z*)
                 match shiftMatch z t with
                 | Ok(ir,v,tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, movR c s rd rm z v ir))]) tail
                 | Err(_,s) -> Err(l,s)
-            (*| T_MOV (c,s) :: T_REG rd :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, movR c s rd rm z rs T_R))]) t*)
             | T_MOV (c,s) :: T_REG rd :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, movR c s rd rm T_LSL 0 T_I))]) t
 
@@ -123,12 +118,10 @@ module Parser =
                 match int12 i with
                 | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, mvnI c s rd i))]) t
                 | false -> invalidImmRange l i
-            | T_MVN (c,s) :: T_REG rd :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, mvnR c s rd rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_MVN (c,s) :: T_REG rd :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, mvnR c s rd rm z rs T_R))]) t
+            | T_MVN (c,s) :: T_REG rd :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: t ->
+                match shiftMatch z t with
+                | Ok(ir,v,tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, mvnR c s rd rm z v ir))]) tail
+                | Err(_,s) -> Err(l,s)
             | T_MVN (c,s) :: T_REG rd :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, mvnR c s rd rm T_LSL 0 T_I))]) t
 
@@ -136,12 +129,10 @@ module Parser =
                 match int12 i with
                 | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, addI c s rd rn i))]) t
                 | false -> invalidImmRange l i
-            | T_ADD (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, addR c s rd rn rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_ADD (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, addR c s rd rn rm z rs T_R))]) t
+            | T_ADD (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: t ->
+                match shiftMatch z t with
+                | Ok(ir,v,tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, addR c s rd rn rm z v ir))]) tail
+                | Err(_,s) -> Err(l,s)
             | T_ADD (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, addR c s rd rn rm T_LSL 0 T_I))]) t
 
@@ -149,12 +140,10 @@ module Parser =
                 match int12 i with
                 | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, adcI c s rd rn i))]) t
                 | false -> invalidImmRange l i
-            | T_ADC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, adcR c s rd rn rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_ADC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, adcR c s rd rn rm z rs T_R))]) t
+            | T_ADC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: t ->
+                match shiftMatch z t with
+                | Ok(ir,v,tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, adcR c s rd rn rm z v ir))]) tail
+                | Err(_,s) -> Err(l,s)
             | T_ADC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, adcR c s rd rn rm T_LSL 0 T_I))]) t
 
@@ -162,12 +151,10 @@ module Parser =
                 match int12 i with
                 | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, subI c s rd rn i))]) t
                 | false -> invalidImmRange l i
-            | T_SUB (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, subR c s rd rn rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_SUB (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, subR c s rd rn rm z rs T_R))]) t
+            | T_SUB (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: t ->
+                match shiftMatch z t with
+                | Ok(ir,v,tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, subR c s rd rn rm z v ir))]) tail
+                | Err(_,s) -> Err(l,s)
             | T_SUB (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, subR c s rd rn rm T_LSL 0 T_I))]) t
 
@@ -175,12 +162,10 @@ module Parser =
                 match int12 i with
                 | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, sbcI c s rd rn i))]) t
                 | false -> invalidImmRange l i
-            | T_SBC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, sbcR c s rd rn rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_SBC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, sbcR c s rd rn rm z rs T_R))]) t
+            | T_SBC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: t ->
+                match shiftMatch z t with
+                | Ok(ir,v,tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, sbcR c s rd rn rm z v ir))]) tail
+                | Err(_,s) -> Err(l,s)
             | T_SBC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, sbcR c s rd rn rm T_LSL 0 T_I))]) t
 
@@ -188,12 +173,10 @@ module Parser =
                 match int12 i with
                 | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, rsbI c s rd rn i))]) t
                 | false -> invalidImmRange l i
-            | T_RSB (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, rsbR c s rd rn rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_RSB (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, rsbR c s rd rn rm z rs T_R))]) t
+            | T_RSB (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: t ->
+                match shiftMatch z t with
+                | Ok(ir,v,tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, rsbR c s rd rn rm z v ir))]) tail
+                | Err(_,s) -> Err(l,s)
             | T_RSB (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, rsbR c s rd rn rm T_LSL 0 T_I))]) t
 
@@ -201,12 +184,10 @@ module Parser =
                 match int12 i with
                 | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, rscI c s rd rn i))]) t
                 | false -> invalidImmRange l i
-            | T_RSC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, rscR c s rd rn rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_RSC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, rscR c s rd rn rm z rs T_R))]) t
+            | T_RSC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: t ->
+                match shiftMatch z t with
+                | Ok(ir,v,tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, rscR c s rd rn rm z v ir))]) tail
+                | Err(_,s) -> Err(l,s)
             | T_RSC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, rscR c s rd rn rm T_LSL 0 T_I))]) t
 
@@ -221,12 +202,10 @@ module Parser =
                 match int12 i with
                 | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, andI c s rd rn i))]) t
                 | false -> invalidImmRange l i
-            | T_AND (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, andR c s rd rn rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_AND (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, andR c s rd rn rm z rs T_R))]) t
+            | T_AND (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: t ->
+                match shiftMatch z t with
+                | Ok(ir,v,tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, andR c s rd rn rm z v ir))]) tail
+                | Err(_,s) -> Err(l,s)
             | T_AND (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, andR c s rd rn rm T_LSL 0 T_I))]) t
 
@@ -234,12 +213,10 @@ module Parser =
                 match int12 i with
                 | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, orrI c s rd rn i))]) t
                 | false -> invalidImmRange l i
-            | T_ORR (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, orrR c s rd rn rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_ORR (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, orrR c s rd rn rm z rs T_R))]) t
+            | T_ORR (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: t ->
+                match shiftMatch z t with
+                | Ok(ir,v,tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, orrR c s rd rn rm z v ir))]) tail
+                | Err(_,s) -> Err(l,s)
             | T_ORR (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, orrR c s rd rn rm T_LSL 0 T_I))]) t
 
@@ -247,12 +224,10 @@ module Parser =
                 match int12 i with
                 | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, eorI c s rd rn i))]) t
                 | false -> invalidImmRange l i
-            | T_EOR (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, eorR c s rd rn rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_EOR (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, eorR c s rd rn rm z rs T_R))]) t
+            | T_EOR (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: t ->
+                match shiftMatch z t with
+                | Ok(ir,v,tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, eorR c s rd rn rm z v ir))]) tail
+                | Err(_,s) -> Err(l,s)
             | T_EOR (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, eorR c s rd rn rm T_LSL 0 T_I))]) t
 
@@ -260,12 +235,10 @@ module Parser =
                 match int12 i with
                 | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, bicI c s rd rn i))]) t
                 | false -> invalidImmRange l i
-            | T_BIC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, bicR c s rd rn rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_BIC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, bicR c s rd rn rm z rs T_R))]) t
+            | T_BIC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: t ->
+                match shiftMatch z t with
+                | Ok(ir,v,tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, bicR c s rd rn rm z v ir))]) tail
+                | Err(_,s) -> Err(l,s)
             | T_BIC (c,s) :: T_REG rd :: T_COMMA :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, bicR c s rd rn rm T_LSL 0 T_I))]) t
 
@@ -274,12 +247,10 @@ module Parser =
                 match int12 i with
                 | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, cmpI c rn i))]) t
                 | false -> invalidImmRange l i
-            | T_CMP c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, cmpR c rn rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_CMP c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, cmpR c rn rm z rs T_R))]) t
+            | T_CMP c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: t ->
+                match shiftMatch z t with
+                | Ok(ir,v,tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, cmpR c rn rm z v ir))]) tail
+                | Err(_,s) -> Err(l,s)
             | T_CMP c :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, cmpR c rn rm T_LSL 0 T_I))]) t
 
@@ -287,12 +258,10 @@ module Parser =
                 match int12 i with
                 | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, cmnI c rn i))]) t
                 | false -> invalidImmRange l i
-            | T_CMN c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, cmnR c rn rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_CMN c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, cmnR c rn rm z rs T_R))]) t
+            | T_CMN c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: t ->
+                match shiftMatch z t with
+                | Ok(ir,v,tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, cmnR c rn rm z v ir))]) tail
+                | Err(_,s) -> Err(l,s)
             | T_CMN c :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, cmnR c rn rm T_LSL 0 T_I))]) t
 
@@ -300,12 +269,10 @@ module Parser =
                 match int12 i with
                 | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, tstI c rn i))]) t
                 | false -> invalidImmRange l i
-            | T_TST c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, tstR c rn rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_TST c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, tstR c rn rm z rs T_R))]) t
+            | T_TST c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: t ->
+                match shiftMatch z t with
+                | Ok(ir,v,tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, tstR c rn rm z v ir))]) tail
+                | Err(_,s) -> Err(l,s)
             | T_TST c :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, tstR c rn rm T_LSL 0 T_I))]) t
 
@@ -313,12 +280,10 @@ module Parser =
                 match int12 i with
                 | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, teqI c rn i))]) t
                 | false -> invalidImmRange l i
-            | T_TEQ c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, teqR c rn rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_TEQ c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, teqR c rn rm z rs T_R))]) t
+            | T_TEQ c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: t ->
+                match shiftMatch z t with
+                | Ok(ir,v,tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, teqR c rn rm z v ir))]) tail
+                | Err(_,s) -> Err(l,s)
             | T_TEQ c :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, teqR c rn rm T_LSL 0 T_I))]) t
 
@@ -361,12 +326,10 @@ module Parser =
                 parseRec (m+4) l labels (outLst@[(m, LabelRef(lsaRef l c rd s adr))]) t
 
             // LOAD SINGLE
-            | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWaR c rd rn rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWaR c rd rn rm z rs T_R))]) t
+            | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: t ->
+                match shiftMatch z t with
+                | Ok(ir,v,tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWaR c rd rn rm z v ir))]) tail
+                | Err(_,s) -> Err(l,s)
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_INT i :: t ->
                 match offset i with
                 | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWaI c rd rn i))]) t
@@ -374,12 +337,10 @@ module Parser =
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWaR c rd rn rm T_LSL 0 T_I))]) t
 
-            | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBaR c rd rn rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBaR c rd rn rm z rs T_R))]) t
+            | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: t ->
+                match shiftMatch z t with
+                | Ok(ir,v,tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBaR c rd rn rm z v ir))]) tail
+                | Err(_,s) -> Err(l,s)
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_INT i :: t ->
                 match offset i with
                 | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBaI c rd rn i))]) t
@@ -403,18 +364,13 @@ module Parser =
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWbR c true rd rn rm T_LSL 0 T_I))]) t
             | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_R_BRAC :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWbR c false rd rn rm T_LSL 0 T_I))]) t
-            | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: T_R_BRAC :: T_EXCL :: t ->
-                match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWbR c true rd rn rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: T_R_BRAC :: t ->
-                match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWbR c false rd rn rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: T_R_BRAC :: T_EXCL :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWbR c true rd rn rm z rs T_R))]) t
-            | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: T_R_BRAC :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWbR c false rd rn rm z rs T_R))]) t
+            | T_LDR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: t ->
+                match shiftMatch z t with
+                | Ok(ir,v,T_R_BRAC::T_EXCL::tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWbR c true rd rn rm z v ir))]) tail
+                | Ok(ir,v,T_R_BRAC::tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrWbR c false rd rn rm z v ir))]) tail
+                | Ok(ir,v,tok::tail) -> unexpectedToken l tok tail
+                | Ok(ir,v,[]) -> invalidShiftMatch l
+                | Err(_,s) -> Err(l,s)
 
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_EQUAL :: T_LABEL s :: t ->
                 parseRec (m+4) l labels (outLst@[(m, LabelRef(lsaRef l c rd s ldrBL))]) t
@@ -432,26 +388,19 @@ module Parser =
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBbR c true rd rn rm T_LSL 0 T_I))]) t
             | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_R_BRAC :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBbR c false rd rn rm T_LSL 0 T_I))]) t
-            | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: T_R_BRAC :: T_EXCL :: t ->
-                match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBbR c true rd rn rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: T_R_BRAC :: t ->
-                match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBbR c false rd rn rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: T_R_BRAC :: T_EXCL :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBbR c true rd rn rm z rs T_R))]) t
-            | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: T_R_BRAC :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBbR c false rd rn rm z rs T_R))]) t
+            | T_LDRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: t ->
+                match shiftMatch z t with
+                | Ok(ir,v,T_R_BRAC::T_EXCL::tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBbR c true rd rn rm z v ir))]) tail
+                | Ok(ir,v,T_R_BRAC::tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldrBbR c false rd rn rm z v ir))]) tail
+                | Ok(ir,v,tok::tail) -> unexpectedToken l tok tail
+                | Ok(ir,v,[]) -> invalidShiftMatch l
+                | Err(_,s) -> Err(l,s)
 
             // STORE SINGLE
-            | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, strWaR c rd rn rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, strWaR c rd rn rm z rs T_R))]) t
+            | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: t ->
+                match shiftMatch z t with
+                | Ok(ir,v,tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, strWaR c rd rn rm z v ir))]) tail
+                | Err(_,s) -> Err(l,s)
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_INT i :: t ->
                 match offset i with
                 | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, strWaI c rd rn i))]) t
@@ -459,12 +408,10 @@ module Parser =
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, strWaR c rd rn rm T_LSL 0 T_I))]) t
 
-            | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, strBaR c rd rn rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, strBaR c rd rn rm z rs T_R))]) t
+            | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: t ->
+                match shiftMatch z t with
+                | Ok(ir,v,tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, strBaR c rd rn rm z v ir))]) tail
+                | Err(_,s) -> Err(l,s)
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: T_COMMA :: T_INT i :: t ->
             match offset i with
                 | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, strBaI c rd rn i))]) t
@@ -486,18 +433,13 @@ module Parser =
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, strWbR c true rd rn rm T_LSL 0 T_I))]) t
             | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_R_BRAC :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, strWbR c false rd rn rm T_LSL 0 T_I))]) t
-            | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: T_R_BRAC :: T_EXCL :: t ->
-                match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, strWbR c true rd rn rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: T_R_BRAC :: t ->
-                match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, strWbR c false rd rn rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: T_R_BRAC :: T_EXCL :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, strWbR c true rd rn rm z rs T_R))]) t
-            | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: T_R_BRAC :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, strWbR c false rd rn rm z rs T_R))]) t
+            | T_STR c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: t ->
+                match shiftMatch z t with
+                | Ok(ir,v,T_R_BRAC::T_EXCL::tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, strWbR c true rd rn rm z v ir))]) tail
+                | Ok(ir,v,T_R_BRAC::tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, strWbR c false rd rn rm z v ir))]) tail
+                | Ok(ir,v,tok::tail) -> unexpectedToken l tok tail
+                | Ok(ir,v,[]) -> invalidShiftMatch l
+                | Err(_,s) -> Err(l,s)
 
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_R_BRAC :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, strBbI c false rd rn 0))]) t
@@ -513,18 +455,13 @@ module Parser =
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, strBbR c true rd rn rm T_LSL 0 T_I))]) t
             | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_R_BRAC :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, strBbR c false rd rn rm T_LSL 0 T_I))]) t
-            | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: T_R_BRAC :: T_EXCL :: t ->
-                match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, strBbR c true rd rn rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: T_R_BRAC :: t ->
-                match shint i z with
-                | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, strBbR c false rd rn rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: T_R_BRAC :: T_EXCL :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, strBbR c true rd rn rm z rs T_R))]) t
-            | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: T_R_BRAC :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, strBbR c false rd rn rm z rs T_R))]) t
+            | T_STRB c :: T_REG rd :: T_COMMA :: T_L_BRAC :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: t ->
+                match shiftMatch z t with
+                | Ok(ir,v,T_R_BRAC::T_EXCL::tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, strBbR c true rd rn rm z v ir))]) tail
+                | Ok(ir,v,T_R_BRAC::tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, strBbR c false rd rn rm z v ir))]) tail
+                | Ok(ir,v,tok::tail) -> unexpectedToken l tok tail
+                | Ok(ir,v,[]) -> invalidShiftMatch l
+                | Err(_,s) -> Err(l,s)
 
             // LOAD MULTIPLE
             | T_LDM (c,S_IA) :: T_REG rn :: T_COMMA :: t ->
