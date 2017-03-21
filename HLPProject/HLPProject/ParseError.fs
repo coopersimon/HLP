@@ -41,5 +41,8 @@ module ParseError =
                       | T_RRX -> (1,1)
         Err(l,sprintf "Shift immediate value out of range: %d. Must be between %d and %d" i lo hi)
 
+    /// Shift match ends unexpectedly.
+    let invalidShiftMatch l = Err(l,sprintf "Shift matches improperly.")
+
     /// 12-bit immediate value for memory offset incorrect.
     let invalidMemOffsetRange l i = Err(l,sprintf "12-bit Immediate offset value out of range: %x. Must be between -4095 and +4095." i)
