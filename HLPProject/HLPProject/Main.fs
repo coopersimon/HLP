@@ -13,7 +13,7 @@ let main args =
                             BL      MULT_A
                             BL      MULT_B
                             LDR     R6, [R13], #-4
-                            LDR     R7, [R13], #-8
+                            LDR     R7, [R13], #-4
                             ADR     R10, RETURN
                             B       FINAL
                     RETURN  END
@@ -24,12 +24,12 @@ let main args =
                             ADD     R4, R4, R2
                             SUBS    R3, R3, #1
                             BPL     LOOP
-                            STR     R4, [R13, #4]
+                            STR     R4, [R13, #4]!
                             MOV     PC, LR
 
                     MULT_B
                             MUL     R5, R1, R2 ; instruction mult
-                            STR     R5, [R13, #8]
+                            STR     R5, [R13, #4]!
                             MOV     PC, LR
                     
                     FINAL
