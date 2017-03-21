@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="UTF-8">
-    <title>Hello World!</title>
+    <title>Visual ARM Editor</title>
     <script src="js/jquery-3.2.0.min.js"></script>
     <script>window.jQuery = window.$ = module.exports;</script>
     <script type="text/javascript" src="js/bootstrap.min.js" defer></script>
@@ -16,10 +16,10 @@
   <body>
     <div class="container outerContainer">
       <div class="row">
-        <div class="col-sm-8">
+        <div class="col-sm-7">
           <textarea id="editor"></textarea>
         </div>
-        <div class="col-sm-4">
+        <div class="col-sm-5">
           <div id="regs">
           </div>
         </div>
@@ -34,7 +34,9 @@
       </div>
       <div class="row">
         <div class="col-sm-12">
-            <button id="compileAllBtn" type="button" class="btn btn-success"">Compile</button>
+            <button id="compileAllBtn" type="button" class="btn btn-success"">Run All</button>
+            <button id="compileNextLineBtn" type="button" class="btn btn-success"">Run Next Line</button>
+            <button id="resetBtn" type="button" class="btn btn-danger"">Reset</button>
         </div>
       </div>
     </div>

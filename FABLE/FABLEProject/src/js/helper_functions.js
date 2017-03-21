@@ -1,7 +1,6 @@
 export function saveCodeMirror(myEditor)
 {
 	myEditor.save();
-	myEditor.addLineClass(3, 'background', 'line-error');
 	return document.getElementById("editor").value;
 }
 
@@ -12,8 +11,30 @@ export function initializeCodeMirror() {
 	return editor
 }
 
-export function highlightLine(lineNumber,myEditor) {
-	console.log(lineNumber)
-	myEditor.addLineClass(lineNumber, 'background', 'line-error');
+export function highlightLine(lineNumber,myEditor,colour) {
+	var actualLine = lineNumber - 1
+	if(colour == 1) {
+		var actualLine = lineNumber - 1
+		myEditor.addLineClass(actualLine, 'background', 'error');
+	}
+	if(colour == 2) {
+		var actualLine = lineNumber - 1
+		myEditor.addLineClass(actualLine, 'background', 'select');
+	}
+	myEditor.refresh();
 }
 
+export function clearAllLines(myEditor) {
+	console.log(myEditor.lineCount())
+	for (var i = 0; i < myEditor.lineCount(); i++) {
+		myEditor.removeLineClass(i, 'background', 'error');
+		myEditor.removeLineClass(i, 'background', 'select')
+	}
+	myEditor.refresh();
+}
+
+
+export function readFromConsole() {
+	const readline = require('readline');
+	return readline()
+}

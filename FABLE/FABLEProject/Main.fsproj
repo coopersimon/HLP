@@ -57,7 +57,7 @@
     <Compile Include="src/fs/Interpreter.fs" />
     <Compile Include="src/fs/GetStates.fs" />
     <Compile Include="src/fs/FsHtml.fs" />
-    <Compile Include="src/fs/Main.fs" />
+    <Compile Include="src/fs/Main_test.fs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <Choose>
