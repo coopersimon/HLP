@@ -20,6 +20,28 @@ module Parser =
             | [] -> Ok(outLst)
         resolveRec labels endMem [] instrLst
 
+    /// Check number is 12-bit immediate value (8bit shifted by 5 bits)
+    let private int12 num =
+        //let checkBottom2 n = (n &&& 3u <> 0u)
+        let rec shift n shamt =
+            match (n &&& (0xFFFFFF00u)) = 0u with
+            | true -> true
+            | false when (shamt < 15) -> shift ((n>>>2)|||(n<<<30)) (shamt+1)
+            | _ -> false
+        shift (uint32 num) 0
+
+    /// Check number is valid load/store offset.
+    let private offset num =
+        (num>=(-4095))&&(num<=4095)
+
+    /// Check number range is valid for rotate.
+    let private shint n shiftType =
+        match shiftType with
+        | T_LSL -> (n>=0)&&(n<=31)
+        | T_LSR -> (n>=1)&&(n<=32)
+        | T_ASR -> (n>=1)&&(n<=32)
+        | T_ROR -> (n>=1)&&(n<=31)
+        | T_RRX -> true
 
     /// Make a list of registers for LDM/STM, from token list.
     let private regList tokLst =
@@ -47,30 +69,17 @@ module Parser =
             | [] -> invalidRegRange 0
         regRec [] tokLst
 
-    // Integer validity checks.
+    /// Matches the shift immediate.
+    let private shiftMatch z tokLst =
+        match (z,tokLst) with
+        | (T_RRX, t) -> Ok(T_I,0,t)
+        | (_, T_INT i :: t) -> match shint i z with
+                               | true -> Ok(T_I,i,t)
+                               | false -> invalidShiftImmRange 0 i z
+        | (_, T_REG rs :: t) -> Ok(T_R,rs,t)
+        | (_, tok :: t) -> unexpectedToken 0 tok t
+        | (_, []) -> invalidShiftMatch 0
 
-    /// Check number is 12-bit immediate value (8bit shifted by 5 bits)
-    let private int12 num =
-        //let checkBottom2 n = (n &&& 3u <> 0u)
-        let rec shift n shamt =
-            match (n &&& (0xFFFFFF00u)) = 0u with
-            | true -> true
-            | false when (shamt < 15) -> shift ((n>>>2)|||(n<<<30)) (shamt+1)
-            | _ -> false
-        shift (uint32 num) 0
-
-    /// Check number is valid load/store offset.
-    let private offset num =
-        (num>=(-4095))&&(num<=4095)
-
-    /// Check number range is valid for rotate.
-    let private shint n shiftType =
-        match shiftType with
-        | T_LSL -> (n>=0)&&(n<=31)
-        | T_LSR -> (n>=1)&&(n<=32)
-        | T_ASR -> (n>=1)&&(n<=32)
-        | T_ROR -> (n>=1)&&(n<=31)
-        | T_RRX -> true
 
     /// Parses a list of tokens into a memory map of instructions.
     let parser tokLst =
@@ -98,12 +107,15 @@ module Parser =
                 match int12 i with
                 | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, movI c s rd i))]) t
                 | false -> invalidImmRange l i
-            | T_MOV (c,s) :: T_REG rd :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                match shint i z with
+            | T_MOV (c,s) :: T_REG rd :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: t ->
+                (*match shint i z with
                 | true -> parseRec (m+4) l labels (outLst@[(m, Instr(l, movR c s rd rm z i T_I))]) t
-                | false -> invalidShiftImmRange l i z
-            | T_MOV (c,s) :: T_REG rd :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, movR c s rd rm z rs T_R))]) t
+                | false -> invalidShiftImmRange l i z*)
+                match shiftMatch z t with
+                | Ok(ir,v,tail) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, movR c s rd rm z v ir))]) tail
+                | Err(_,s) -> Err(l,s)
+            (*| T_MOV (c,s) :: T_REG rd :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
+                parseRec (m+4) l labels (outLst@[(m, Instr(l, movR c s rd rm z rs T_R))]) t*)
             | T_MOV (c,s) :: T_REG rd :: T_COMMA :: T_REG rm :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, movR c s rd rm T_LSL 0 T_I))]) t
 

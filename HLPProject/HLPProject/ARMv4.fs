@@ -9,7 +9,7 @@ module ARMv4 =
     open Common.Types
     open Parse.Tokeniser
 
-   let shiftI inst r n state =
+    let shiftI inst r n state =
         let m = n%32
         match inst with 
         |T_LSL -> if n>=32 then 0 else (readReg r state)<<<n
