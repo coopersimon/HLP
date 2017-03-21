@@ -8,26 +8,14 @@ module ARMv4 =
     open Common.State
     open Common.Types
     open Parse.Tokeniser
-(*
-    //Version with limited n range (with errors removed)
-    let shiftI inst r n state =
-        match inst with 
-        |T_LSL -> (readReg r state)<<<n
-        |T_LSR -> (if n=32 then 0 else int((uint32(readReg r state))>>>n))
-        |T_ASR -> (if n=32 then (if (readReg r state)>0 then 0 else -1) else (readReg r state)>>>n)
-        |T_ROR -> int(((uint32(readReg r state))>>>n) + ((uint32(readReg r state))<<<(32-n)))
-        |T_RRX -> match (readCFlag state) with
-                    |true -> (readReg r state)>>>1 + 1<<<31
-                    |false -> (readReg r state)>>>1               
-*)       
-    //Version without limited n (should work for range n=[0,255])
+
     let shiftI inst r n state = 
         let m = n%32
         match inst with 
         |T_LSL -> if n>=32 then 0 else (readReg r state)<<<n
         |T_LSR -> if n>=32 then 0 else int((uint32(readReg r state))>>>n)
         |T_ASR -> if n>=32 then (if (readReg r state)>0 then 0 else -1) else (readReg r state)>>>n
-        |T_ROR -> int(((uint32(readReg r state))>>>m) + ((uint32(readReg r state))<<<(32-m)))
+        |T_ROR -> if n=0 then readReg r state else int(((uint32(readReg r state))>>>m) + ((uint32(readReg r state))<<<(32-m)))
         |T_RRX -> match (readCFlag state) with
                     |true -> (readReg r state)>>>1 + 1<<<31
                     |false -> (readReg r state)>>>1
