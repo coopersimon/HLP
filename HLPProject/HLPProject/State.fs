@@ -108,3 +108,7 @@ module State =
     /// Debug. Returns tuple of (Registers * Flags)
     let readState (S(reg,n,z,c,v,_): StateHandle) =
         (reg, [n;z;c;v])
+
+    /// Debug. Returns tuple of (Registers * Flags* MemMap)
+    let readStateWithMem (S(reg,n,z,c,v,mem): StateHandle) =
+        (reg, [n;z;c;v], mem)
