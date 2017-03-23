@@ -58,12 +58,12 @@ Writes a new value to the flag.
 ### Data Memory
 Note that instruction memory is not represented in the state.
 
-#### readMem
-address: *int* -> in_state: *StateHandle* -> data: *int*
+#### readMem{Byte}
+address: *int* -> in_state: *StateHandle* -> data: *int/byte*
 
 Reads the value in the inputted memory address. If nothing has been written yet it returns 0.
 
-#### writeMem
-address: *int* -> data: *int* -> in_state: *StateHandle* -> out_state: *StateHandle*
+#### writeMem{Byte}
+address: *int* -> data: *int/byte* -> in_state: *StateHandle* -> out_state: *StateHandle*
 
 Writes a new value to a memory address.

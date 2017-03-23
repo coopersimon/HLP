@@ -288,15 +288,8 @@ module Parser =
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, teqR c rn rm T_LSL 0 T_I))]) t
 
             // BITWISE
-            (*| T_CLZ c :: T_REG rn :: T_COMMA :: T_INT i :: t ->
-                // TODO tst->clz
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, clzI c rn i))]) t
-            | T_CLZ c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, tstR c rn rm z i T_I))]) t
-            | T_CLZ c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, tstR c rn rm z rs T_R))]) t
-            | T_CLZ c :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, tstR c rn rm T_LSL 0 T_I))]) t*)
+            | T_CLZ c :: T_REG rd :: T_COMMA :: T_REG rm :: t ->
+                parseRec (m+4) l labels (outLst@[(m, Instr(l, clzR c rd rm))]) t
 
             | T_SHIFT (T_LSL,(c,s)) :: T_REG rd :: T_COMMA :: T_REG rm :: T_COMMA :: T_REG rn :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, lslR c s rd rm rn))]) t
