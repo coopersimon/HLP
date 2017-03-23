@@ -101,3 +101,240 @@ SUBS R7, R5, R6, ROR 9
   <syntax-error line="10">Invalid first operand.</syntax-error>
 </VisUAL>
 ----------------------
+
+>>---SOURCE:
+MOV R0, #1
+                                            MOV R1, #0x4
+                                            STR R0, [R1]
+          MOV R1, #0
+          ADDMI R1, R1, #8
+          ADDEQ R1, R1, #4
+          ADDCS R1, R1, #2
+          ADDVS R1, R1, #1
+       
+-------
+
+>>>>>>>>>>>>>>>>>>>>>>
+
+<VisUAL xmlns="http://bitbucket.org/salmanarif/visual">
+  <line id="1">
+    <code>MOV R0, #1</code>
+    <register name="R0">0x1</register>
+    <register name="R1">0x0</register>
+    <register name="R2">0x0</register>
+    <register name="R3">0x0</register>
+    <register name="R4">0x0</register>
+    <register name="R5">0x0</register>
+    <register name="R6">0x0</register>
+    <register name="R7">0x0</register>
+    <register name="R8">0x0</register>
+    <register name="R9">0x0</register>
+    <register name="R10">0x0</register>
+    <register name="R11">0x0</register>
+    <register name="R12">0x0</register>
+    <register name="R13">0xFF000000</register>
+    <register name="R14">0x0</register>
+    <register name="R15">0x8</register>
+    <cycles>1</cycles>
+  </line>
+  <line id="2">
+    <code>MOV R1, #0x4</code>
+    <register name="R0">0x1</register>
+    <register name="R1">0x4</register>
+    <register name="R2">0x0</register>
+    <register name="R3">0x0</register>
+    <register name="R4">0x0</register>
+    <register name="R5">0x0</register>
+    <register name="R6">0x0</register>
+    <register name="R7">0x0</register>
+    <register name="R8">0x0</register>
+    <register name="R9">0x0</register>
+    <register name="R10">0x0</register>
+    <register name="R11">0x0</register>
+    <register name="R12">0x0</register>
+    <register name="R13">0xFF000000</register>
+    <register name="R14">0x0</register>
+    <register name="R15">0xC</register>
+    <cycles>1</cycles>
+  </line>
+  <runtime-error line="3">Attempting to set word in instruction memory space at address 0x4</runtime-error>
+</VisUAL>
+----------------------
+
+>>---SOURCE:
+MOV R0, #1
+                                            MOV R1, #0x100
+                                            STR R0, [R1]
+          MOV R1, #0
+          ADDMI R1, R1, #8
+          ADDEQ R1, R1, #4
+          ADDCS R1, R1, #2
+          ADDVS R1, R1, #1
+       
+-------
+
+>>>>>>>>>>>>>>>>>>>>>>
+
+<VisUAL xmlns="http://bitbucket.org/salmanarif/visual">
+  <line id="1">
+    <code>MOV R0, #1</code>
+    <register name="R0">0x1</register>
+    <register name="R1">0x0</register>
+    <register name="R2">0x0</register>
+    <register name="R3">0x0</register>
+    <register name="R4">0x0</register>
+    <register name="R5">0x0</register>
+    <register name="R6">0x0</register>
+    <register name="R7">0x0</register>
+    <register name="R8">0x0</register>
+    <register name="R9">0x0</register>
+    <register name="R10">0x0</register>
+    <register name="R11">0x0</register>
+    <register name="R12">0x0</register>
+    <register name="R13">0xFF000000</register>
+    <register name="R14">0x0</register>
+    <register name="R15">0x8</register>
+    <cycles>1</cycles>
+  </line>
+  <line id="2">
+    <code>MOV R1, #0x100</code>
+    <register name="R0">0x1</register>
+    <register name="R1">0x100</register>
+    <register name="R2">0x0</register>
+    <register name="R3">0x0</register>
+    <register name="R4">0x0</register>
+    <register name="R5">0x0</register>
+    <register name="R6">0x0</register>
+    <register name="R7">0x0</register>
+    <register name="R8">0x0</register>
+    <register name="R9">0x0</register>
+    <register name="R10">0x0</register>
+    <register name="R11">0x0</register>
+    <register name="R12">0x0</register>
+    <register name="R13">0xFF000000</register>
+    <register name="R14">0x0</register>
+    <register name="R15">0xC</register>
+    <cycles>1</cycles>
+  </line>
+  <runtime-error line="3">Attempting to set word in instruction memory space at address 0x100</runtime-error>
+</VisUAL>
+----------------------
+
+>>---SOURCE:
+MOV R0, #1
+                                            MOV R1, #0x1000
+                                            STR R0, [R1]
+          MOV R1, #0
+          ADDMI R1, R1, #8
+          ADDEQ R1, R1, #4
+          ADDCS R1, R1, #2
+          ADDVS R1, R1, #1
+       
+-------
+
+>>>>>>>>>>>>>>>>>>>>>>
+
+<VisUAL xmlns="http://bitbucket.org/salmanarif/visual">
+  <line id="1">
+    <code>MOV R0, #1</code>
+    <register name="R0">0x1</register>
+    <register name="R1">0x0</register>
+    <register name="R2">0x0</register>
+    <register name="R3">0x0</register>
+    <register name="R4">0x0</register>
+    <register name="R5">0x0</register>
+    <register name="R6">0x0</register>
+    <register name="R7">0x0</register>
+    <register name="R8">0x0</register>
+    <register name="R9">0x0</register>
+    <register name="R10">0x0</register>
+    <register name="R11">0x0</register>
+    <register name="R12">0x0</register>
+    <register name="R13">0xFF000000</register>
+    <register name="R14">0x0</register>
+    <register name="R15">0x8</register>
+    <cycles>1</cycles>
+  </line>
+  <line id="2">
+    <code>MOV R1, #0x1000</code>
+    <register name="R0">0x1</register>
+    <register name="R1">0x1000</register>
+    <register name="R2">0x0</register>
+    <register name="R3">0x0</register>
+    <register name="R4">0x0</register>
+    <register name="R5">0x0</register>
+    <register name="R6">0x0</register>
+    <register name="R7">0x0</register>
+    <register name="R8">0x0</register>
+    <register name="R9">0x0</register>
+    <register name="R10">0x0</register>
+    <register name="R11">0x0</register>
+    <register name="R12">0x0</register>
+    <register name="R13">0xFF000000</register>
+    <register name="R14">0x0</register>
+    <register name="R15">0xC</register>
+    <cycles>1</cycles>
+  </line>
+  <runtime-error line="3">Attempting to set word in instruction memory space at address 0x1000</runtime-error>
+</VisUAL>
+----------------------
+
+>>---SOURCE:
+MOV R0, #1
+                                            MOV R1, #0x000FF00
+                                            STR R0, [R1]
+                                            EORS R0, R5, #4000
+          MOV R1, #0
+          ADDMI R1, R1, #8
+          ADDEQ R1, R1, #4
+          ADDCS R1, R1, #2
+          ADDVS R1, R1, #1
+       
+-------
+
+>>>>>>>>>>>>>>>>>>>>>>
+
+<VisUAL xmlns="http://bitbucket.org/salmanarif/visual">
+  <line id="1">
+    <code>MOV R0, #1</code>
+    <register name="R0">0x1</register>
+    <register name="R1">0x0</register>
+    <register name="R2">0x0</register>
+    <register name="R3">0x0</register>
+    <register name="R4">0x0</register>
+    <register name="R5">0x0</register>
+    <register name="R6">0x0</register>
+    <register name="R7">0x0</register>
+    <register name="R8">0x0</register>
+    <register name="R9">0x0</register>
+    <register name="R10">0x0</register>
+    <register name="R11">0x0</register>
+    <register name="R12">0x0</register>
+    <register name="R13">0xFF000000</register>
+    <register name="R14">0x0</register>
+    <register name="R15">0x8</register>
+    <cycles>1</cycles>
+  </line>
+  <line id="2">
+    <code>MOV R1, #0x000FF00</code>
+    <register name="R0">0x1</register>
+    <register name="R1">0xFF00</register>
+    <register name="R2">0x0</register>
+    <register name="R3">0x0</register>
+    <register name="R4">0x0</register>
+    <register name="R5">0x0</register>
+    <register name="R6">0x0</register>
+    <register name="R7">0x0</register>
+    <register name="R8">0x0</register>
+    <register name="R9">0x0</register>
+    <register name="R10">0x0</register>
+    <register name="R11">0x0</register>
+    <register name="R12">0x0</register>
+    <register name="R13">0xFF000000</register>
+    <register name="R14">0x0</register>
+    <register name="R15">0xC</register>
+    <cycles>1</cycles>
+  </line>
+  <runtime-error line="3">Attempting to set word in instruction memory space at address 0xFF00</runtime-error>
+</VisUAL>
+----------------------
