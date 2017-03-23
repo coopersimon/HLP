@@ -1,5 +1,6 @@
 ﻿//to be copied over to HLPProject Main.fs for testing
-module Main
+//module Main
+module ys7914MainTests
 open Execute.GetStates
 open Common.State
 open Common.Error
@@ -180,8 +181,26 @@ let main args =
                     printfn " V = %A" (readVFlag s)
     | _          -> printfn "Error"
 
+    let testfn n state = 
+        match n with
+        |1 -> newState inStringSetZ
+        |2 -> newState inStringSetN
+        |3 -> newState inStringSetC
+        |4 -> newState inStringSetCV
+        |5 -> newState inStringLSL
+        |6 -> newState inStringCT2tick
+        |7 -> newState inStringCT3fig3
+        |8 -> newState inStringCT4ticksb
+        |9 -> newState inStringCT5tick
+        |10 -> newState inStringCT5changed
+        |11 -> newState inStringCT6_4
+        |12 -> newState inStringFILL
+        |13 -> newState inStringDCD
+        |14 -> newState inStringLong
+        |_ -> Ok(0,writePC -4 state)
+
     //new state after code execution
-    let nState = newState inStringDCD //choose code to test
+    let nState = testfn 15 oState//choose code to test
     match nState with
     | Ok(_,s) ->    printfn " Resulting values:"
                     printfn " R0 = %A" (readReg 0 s)

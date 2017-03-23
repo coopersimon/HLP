@@ -1,6 +1,6 @@
 ﻿//to be copied over to HLPProject Main.fs for testing
-//module ARMv4Test
-module Main
+module ARMv4Test
+//module Main
 open Interpret.ARMv4
 open Execute.GetStates
 open Common.State
