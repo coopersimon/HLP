@@ -1,6 +1,6 @@
 ﻿//to be copied over to HLPProject Main.fs for testing
 //module Main
-module ys7914MainTests
+module ys7914Main
 open Execute.GetStates
 open Common.State
 open Common.Error
