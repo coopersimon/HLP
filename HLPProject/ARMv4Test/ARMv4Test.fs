@@ -1,6 +1,6 @@
 ﻿//to be copied over to HLPProject Main.fs for testing
-module ARMv4Test
-//module Main
+//module ARMv4Test
+module Main
 open Interpret.ARMv4
 open Execute.GetStates
 open Common.State
@@ -86,10 +86,57 @@ let main args =
               |> movI c s 0 67
               |> orrR c true 2 0 1 T_RRX 1 T_R 
               |> writePC 12  
+        (*
+            ADR		R0, LABLE
+		    LDR		R1, [R0], #4
+    LABLE	DCD		1,2,3,4,5
+        *)
+        |5 -> writeReg 13 0xFF000000 state 
+              |> dcd 256 [(1,'i');(2,'i');(3,'i');(4,'i');(5,'i')]
+              |> adr c 0 256
+              |> ldrWaI c 1 0 4
+              |> writePC 8
+        (*
+            ADR		R0, LABLE
+		    LDMIA	R0!, {R1,R2,R3,R4,R5}
+    LABLE	DCD		1,2,3,4,5
+        *)
+        |6 -> writeReg 13 0xFF000000 state 
+              |> dcd 256 [(1,'i');(2,'i');(3,'i');(4,'i');(5,'i')]
+              |> adr c 0 256
+              |> ldmIA c true 0 [1;2;3;4;5]
+              |> writePC 8
+        (*
+            ADR		R0, LABLE
+		    LDMIB	R0!, {R1,R2,R3,R4,R5,R6,R7,R8}
+    LABLE	FILL	32
+        *)
+        |7 -> writeReg 13 0xFF000000 state 
+              |> fillW 256 32 0
+              |> adr c 0 256
+              |> ldmIB c true 0 [1;2;3;4;5;6;7;8]
+              |> writePC 8
+        (* This is not implemented by ViSUAL
+            ADR		R0, LABLE
+		    LDMIA	R0!, {R1,R2,R3,R4,R5,R6,R7,R8}
+    LABLE	FILL	32, 4
+        *)
+        |8 -> writeReg 13 0xFF000000 state 
+              |> fillW 256 32 4
+              |> adr c 0 256
+              |> ldmIA c true 0 [1;2;3;4;5;6;7;8]
+              |> writePC 8
+        (* This is not implemented by ViSUAL
+    		ADR		R0, val
+    val		EQU		37
+        *)
+        |9 -> writeReg 13 0xFF000000 state 
+              |> adr c 0 (equ (37,'i') state)
+              |> writePC 4
         |_ -> state
 
     //function to test (can pipeline for multiple instructions)
-    let nState = testfn 4 state
+    let nState = testfn 9 state
         
     //resulting state
     match nState with
