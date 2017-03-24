@@ -16,13 +16,15 @@ let main args =
     let compileAllBtn = Browser.document.getElementById "compileAllBtn"
     let compileNextLineBtn = Browser.document.getElementById "compileNextLineBtn"
     let resetBtn = Browser.document.getElementById "resetBtn"
+    let toggleThemeBtn = Browser.document.getElementById "toggleThemeBtn"
     let saveCodeMirror: JsFunc1<_,string> = import "saveCodeMirror" "../js/helper_functions.js"
     let initializeCodeMirror: JsFunc0<_> = import "initializeCodeMirror" "../js/helper_functions.js"
     let highlightLine: JsFunc3<int,_,int,_> = import "highlightLine" "../js/helper_functions.js"
+    let changeCMTheme: JsFunc0<_> = import "changeCMTheme" "../js/helper_functions.js"
     let clearAllLines: JsFunc1<_,_> = import "clearAllLines" "../js/helper_functions.js"
     let cmEditor = initializeCodeMirror.Invoke()
+    printfn "cmEditor = %A" cmEditor
     let mutable state = initStateVisual
-
 
     let rec toBinary (value: uint32)=
         if value < 2u then
@@ -41,7 +43,9 @@ let main args =
                             th %("Register")
                             th %("Hex")
                             th %("Bin")
-                            th %("Dec")
+                            th %("Dec (sig)")
+                            th %("Dec (unsig)")
+
                         ]
                     ]
                     tbody [ 
@@ -60,7 +64,10 @@ let main args =
                                         | true -> %(regState |> readReg i |> uint32 |> toBinary)) 
                                 th ( match valid with
                                         | false -> %(sprintf "X")
-                                        | true -> %(sprintf "%i" (readReg i regState))) 
+                                        | true -> %(sprintf "%i" (readReg i regState)))
+                                th ( match valid with
+                                        | false -> %(sprintf "X")
+                                        | true -> %(sprintf "%i" (regState |> readReg i |> uint32)))  
                             ]
 
                         ]
@@ -68,7 +75,7 @@ let main args =
                 ]
             br []
             table [
-                    "class"%="table table-condensed"   
+                    "class"%="table table-striped table-condensed"   
                     thead [                    
                             tr [
                                 th %("Flag")
@@ -163,13 +170,19 @@ let main args =
         errorBox.innerHTML <- errorString
     
     let resetCompiler () =
+        printfn "cmEditor = %A" cmEditor
         clearAllLines.Invoke(cmEditor)
         state <- initStateVisual
         errorBox.innerHTML <- ""
         regs.innerHTML <- ((getRegisterTable true state) |> Html.toString)
 
+    let toggle () =
+        changeCMTheme.Invoke(cmEditor)
+        //10
+
     compileAllBtn.addEventListener_click(fun _ -> compileAll () ; null)
     compileNextLineBtn.addEventListener_click(fun _ -> compileNextLine () ; null)
     resetBtn.addEventListener_click(fun _ -> resetCompiler () ; null)
+    //toggleThemeBtn.addEventListener_click(fun _ -> toggle () ; null)
     resetCompiler ()
     0

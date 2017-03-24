@@ -8,13 +8,23 @@
     <script type="text/javascript" src="js/bootstrap.min.js" defer></script>
     <script type="text/javascript" src="plugin/codemirror/lib/codemirror.js" defer></script>
     
-    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/bootstrap.css">
     <link rel="stylesheet" href="css/bootstrap-theme.min.css">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" type="text/css" href="plugin/codemirror/lib/codemirror.css">
+    <link rel="stylesheet" type="text/css" href="plugin/codemirror/theme/blackboard.css">
   </head>
   <body>
     <div class="container outerContainer">
+      <div class="row">
+        <div class="col-sm-12">
+            <button id="compileAllBtn" type="button" class="btn btn-success"">Run All</button>
+            <button id="compileNextLineBtn" type="button" class="btn btn-success"">Run Next Line</button>
+            <button id="resetBtn" type="button" class="btn btn-danger">Reset</button>
+            <button id="toggleThemeBtn" type="button" class="btn btn-success"">toggle</button>
+        </div>
+      </div>
+      <div style="height:15px;"></div>
       <div class="row">
         <div class="col-sm-7">
           <textarea id="editor"></textarea>
@@ -24,19 +34,14 @@
           </div>
         </div>
       </div>
+
       <div class="row">
         <div class="col-sm-12">
             <div class="panel panel-default">
               <div class="panel-body" id="errorBox">
               </div>
             </div>
-        </div>
-      </div>
-      <div class="row">
-        <div class="col-sm-12">
-            <button id="compileAllBtn" type="button" class="btn btn-success"">Run All</button>
-            <button id="compileNextLineBtn" type="button" class="btn btn-success"">Run Next Line</button>
-            <button id="resetBtn" type="button" class="btn btn-danger"">Reset</button>
+          </div>
         </div>
       </div>
     </div>

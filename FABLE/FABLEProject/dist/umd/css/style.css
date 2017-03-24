@@ -1,5 +1,13 @@
 .table th {
-   text-align: center !important;   
+	text-align: center !important;   
+}
+
+tbody th {
+	font-size: 10px !important;
+}
+
+thead th {
+	font-size: 15px !important;	
 }
 
 .red {
@@ -17,16 +25,14 @@
 .CodeMirror {
 	float:left;
 	display: inline-block !important;
-    height: auto !important;
+    height: 590px !important;
 	width: 100% !important;
 }
 
 .error {
-	background: #FBC2C4 !important;
-	color: #8a1f11 !important;
+	background: #990000 !important;
 }
 
 .select {
-	background: #99ff99 !important;
-	color: #336600 !important;
+	background: #009933 !important;
 }

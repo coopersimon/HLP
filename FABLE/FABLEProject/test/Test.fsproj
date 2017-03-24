@@ -30,6 +30,7 @@
     <Compile Include="fs/Types.fs" />
     <Compile Include="fs/Tokeniser.fs" />
     <Compile Include="fs/ARMv4.fs" />
+    <Compile Include="fs/ParseError.fs" />
     <Compile Include="fs/Parser.fs" />
     <Compile Include="fs/Interpreter.fs" />
     <Compile Include="fs/GetStates.fs" />

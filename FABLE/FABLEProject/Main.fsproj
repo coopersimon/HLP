@@ -53,11 +53,12 @@
     <Compile Include="src/fs/Types.fs" />
     <Compile Include="src/fs/Tokeniser.fs" />
     <Compile Include="src/fs/ARMv4.fs" />
+    <Compile Include="src/fs/ParseError.fs" />
     <Compile Include="src/fs/Parser.fs" />
     <Compile Include="src/fs/Interpreter.fs" />
     <Compile Include="src/fs/GetStates.fs" />
     <Compile Include="src/fs/FsHtml.fs" />
-    <Compile Include="src/fs/Main_test.fs" />
+    <Compile Include="src/fs/Main.fs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <Choose>
