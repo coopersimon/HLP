@@ -8,19 +8,17 @@ module Parser =
     open Interpret.ARMv4
     open Common.Error
     open Common.Types
-    open Common.State
 
     /// Replaces placeholder branch and end references with correct instructions.
     let private resolveRefs labels endMem instrLst =
-        let rec resolveRec labels endMem state outLst = function
+        let rec resolveRec labels endMem outLst = function
             | (m, LabelRef(f))::t -> match f labels with
-                                       | Ok(h) -> resolveRec labels endMem state (outLst@[(m, h)]) t
+                                       | Ok(h) -> resolveRec labels endMem (outLst@[(m, h)]) t
                                        | Err(l,s) -> Err(l,s)
-            | (m, EndRef(f))::t -> resolveRec labels endMem state (outLst@[(m, f endMem)]) t
-            | (m, DataRef(f))::t -> resolveRec labels endMem (f state) outLst t
-            | h::t -> resolveRec labels endMem state (outLst@[h]) t
-            | [] -> Ok(state, outLst)
-        resolveRec labels endMem initStateVisual [] instrLst
+            | (m, EndRef(f))::t -> resolveRec labels endMem (outLst@[(m, f endMem)]) t
+            | h::t -> resolveRec labels endMem (outLst@[h]) t
+            | [] -> Ok(outLst)
+        resolveRec labels endMem [] instrLst
 
     /// Check number is 12-bit immediate value (8bit shifted by 5 bits)
     let private int12 num =
@@ -96,12 +94,6 @@ module Parser =
             match Map.tryFind s labels with
             | Some(memLoc) -> Ok(Instr(l, inst c rd memLoc))
             | None -> undefinedLabel l s
-
-        /// Function that fills memory for dcd/fill
-        let rec fillRef m v a state =
-            match a with
-            | 0 -> state
-            | _ -> fillRef (m+4) v (a-1) (writeMem m v state)
 
         /// Function that resolves end.
         let endRef l c endMem =
@@ -296,8 +288,15 @@ module Parser =
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, teqR c rn rm T_LSL 0 T_I))]) t
 
             // BITWISE
-            | T_CLZ c :: T_REG rd :: T_COMMA :: T_REG rm :: t ->
-                parseRec (m+4) l labels (outLst@[(m, Instr(l, clzR c rd rm))]) t
+            (*| T_CLZ c :: T_REG rn :: T_COMMA :: T_INT i :: t ->
+                // TODO tst->clz
+                parseRec (m+4) l labels (outLst@[(m, Instr(l, clzI c rn i))]) t
+            | T_CLZ c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_INT i :: t ->
+                parseRec (m+4) l labels (outLst@[(m, Instr(l, tstR c rn rm z i T_I))]) t
+            | T_CLZ c :: T_REG rn :: T_COMMA :: T_REG rm :: T_COMMA :: T_SHIFT (z,_) :: T_REG rs :: t ->
+                parseRec (m+4) l labels (outLst@[(m, Instr(l, tstR c rn rm z rs T_R))]) t
+            | T_CLZ c :: T_REG rn :: T_COMMA :: T_REG rm :: t ->
+                parseRec (m+4) l labels (outLst@[(m, Instr(l, tstR c rn rm T_LSL 0 T_I))]) t*)
 
             | T_SHIFT (T_LSL,(c,s)) :: T_REG rd :: T_COMMA :: T_REG rm :: T_COMMA :: T_REG rn :: t ->
                 parseRec (m+4) l labels (outLst@[(m, Instr(l, lslR c s rd rm rn))]) t
@@ -465,69 +464,69 @@ module Parser =
                 | Err(_,s) -> Err(l,s)
 
             // LOAD MULTIPLE
-            | T_LDM (c,S_IA) :: T_REG rn :: T_COMMA :: T_L_CBR :: t ->
+            | T_LDM (c,S_IA) :: T_REG rn :: T_COMMA :: t ->
                 match regList t with
                 | Ok(rl, tokLst) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldmIA c false rn rl))]) tokLst
                 | Err(_,s) -> Err(l,s)
-            | T_LDM (c,S_IA) :: T_REG rn :: T_EXCL :: T_COMMA :: T_L_CBR :: t ->
+            | T_LDM (c,S_IA) :: T_REG rn :: T_EXCL :: T_COMMA :: t ->
                 match regList t with
                 | Ok(rl, tokLst) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldmIA c true rn rl))]) tokLst
                 | Err(_,s) -> Err(l,s)
-            | T_LDM (c,S_IB) :: T_REG rn :: T_COMMA :: T_L_CBR :: t ->
+            | T_LDM (c,S_IB) :: T_REG rn :: T_COMMA :: t ->
                 match regList t with
                 | Ok(rl, tokLst) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldmIB c false rn rl))]) tokLst
                 | Err(_,s) -> Err(l,s)
-            | T_LDM (c,S_IB) :: T_REG rn :: T_EXCL :: T_COMMA :: T_L_CBR :: t ->
+            | T_LDM (c,S_IB) :: T_REG rn :: T_EXCL :: T_COMMA :: t ->
                 match regList t with
                 | Ok(rl, tokLst) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldmIB c true rn rl))]) tokLst
                 | Err(_,s) -> Err(l,s)
-            | T_LDM (c,S_DA) :: T_REG rn :: T_COMMA :: T_L_CBR :: t ->
+            | T_LDM (c,S_DA) :: T_REG rn :: T_COMMA :: t ->
                 match regList t with
                 | Ok(rl, tokLst) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldmDA c false rn rl))]) tokLst
                 | Err(_,s) -> Err(l,s)
-            | T_LDM (c,S_DA) :: T_REG rn :: T_EXCL :: T_COMMA :: T_L_CBR :: t ->
+            | T_LDM (c,S_DA) :: T_REG rn :: T_EXCL :: T_COMMA :: t ->
                 match regList t with
                 | Ok(rl, tokLst) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldmDA c true rn rl))]) tokLst
                 | Err(_,s) -> Err(l,s)
-            | T_LDM (c,S_DB) :: T_REG rn :: T_COMMA :: T_L_CBR :: t ->
+            | T_LDM (c,S_DB) :: T_REG rn :: T_COMMA :: t ->
                 match regList t with
                 | Ok(rl, tokLst) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldmDB c false rn rl))]) tokLst
                 | Err(_,s) -> Err(l,s)
-            | T_LDM (c,S_DB) :: T_REG rn :: T_EXCL :: T_COMMA :: T_L_CBR :: t ->
+            | T_LDM (c,S_DB) :: T_REG rn :: T_EXCL :: T_COMMA :: t ->
                 match regList t with
                 | Ok(rl, tokLst) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, ldmDB c true rn rl))]) tokLst
                 | Err(_,s) -> Err(l,s)
 
             // STORE MULTIPLE
-            | T_STM (c,S_IA) :: T_REG rn :: T_COMMA :: T_L_CBR :: t ->
+            | T_STM (c,S_IA) :: T_REG rn :: T_COMMA :: t ->
                 match regList t with
                 | Ok(rl, tokLst) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, stmIA c false rn rl))]) tokLst
                 | Err(_,s) -> Err(l,s)
-            | T_STM (c,S_IA) :: T_REG rn :: T_EXCL :: T_COMMA :: T_L_CBR :: t ->
+            | T_STM (c,S_IA) :: T_REG rn :: T_EXCL :: T_COMMA :: t ->
                 match regList t with
                 | Ok(rl, tokLst) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, stmIA c true rn rl))]) tokLst
                 | Err(_,s) -> Err(l,s)
-            | T_STM (c,S_IB) :: T_REG rn :: T_COMMA :: T_L_CBR :: t ->
+            | T_STM (c,S_IB) :: T_REG rn :: T_COMMA :: t ->
                 match regList t with
                 | Ok(rl, tokLst) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, stmIB c false rn rl))]) tokLst
                 | Err(_,s) -> Err(l,s)
-            | T_STM (c,S_IB) :: T_REG rn :: T_EXCL :: T_COMMA :: T_L_CBR :: t ->
+            | T_STM (c,S_IB) :: T_REG rn :: T_EXCL :: T_COMMA :: t ->
                 match regList t with
                 | Ok(rl, tokLst) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, stmIB c true rn rl))]) tokLst
                 | Err(_,s) -> Err(l,s)
-            | T_STM (c,S_DA) :: T_REG rn :: T_COMMA :: T_L_CBR :: t ->
+            | T_STM (c,S_DA) :: T_REG rn :: T_COMMA :: t ->
                 match regList t with
                 | Ok(rl, tokLst) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, stmDA c false rn rl))]) tokLst
                 | Err(_,s) -> Err(l,s)
-            | T_STM (c,S_DA) :: T_REG rn :: T_EXCL :: T_COMMA :: T_L_CBR :: t ->
+            | T_STM (c,S_DA) :: T_REG rn :: T_EXCL :: T_COMMA :: t ->
                 match regList t with
                 | Ok(rl, tokLst) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, stmDA c true rn rl))]) tokLst
                 | Err(_,s) -> Err(l,s)
-            | T_STM (c,S_DB) :: T_REG rn :: T_COMMA :: T_L_CBR :: t ->
+            | T_STM (c,S_DB) :: T_REG rn :: T_COMMA :: t ->
                 match regList t with
                 | Ok(rl, tokLst) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, stmDB c false rn rl))]) tokLst
                 | Err(_,s) -> Err(l,s)
-            | T_STM (c,S_DB) :: T_REG rn :: T_EXCL :: T_COMMA :: T_L_CBR :: t ->
+            | T_STM (c,S_DB) :: T_REG rn :: T_EXCL :: T_COMMA :: t ->
                 match regList t with
                 | Ok(rl, tokLst) -> parseRec (m+4) l labels (outLst@[(m, Instr(l, stmDB c true rn rl))]) tokLst
                 | Err(_,s) -> Err(l,s)
@@ -540,11 +539,7 @@ module Parser =
                 | Some(n) -> parseRec m l (Map.add s1 n labels) outLst t
                 | None -> undefinedLabel l s2
 
-            | T_LABEL s :: T_DCD :: T_INT i :: t ->
-                parseRec m l (Map.add s (100+l*4) labels) (outLst@[(m, DataRef(fillRef (100+l*4) i 1))]) t
-
-            | T_LABEL s :: T_FILL :: T_INT v :: T_COMMA :: T_INT a :: t ->
-                parseRec m l (Map.add s (200+l*4) labels) (outLst@[(m, DataRef(fillRef (200+l*4) v a))]) t
+            //| T_LABEL 
 
             | T_END c :: t ->
                 parseRec (m+4) l labels (outLst@[(m, EndRef(endRef l c))]) t
@@ -559,5 +554,5 @@ module Parser =
             | tok :: t -> unexpectedToken l tok t
         // Convert output list to map for interpretation.
         match parseRec 0 1 Map.empty [] tokLst with
-        | Ok(state, i) -> Ok(state, Map.ofList i)
+        | Ok(i) -> Ok(Map.ofList i)
         | Err(l,s) -> Err(l,s)

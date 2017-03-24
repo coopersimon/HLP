@@ -24,7 +24,7 @@ let main args =
     let clearAllLines: JsFunc1<_,_> = import "clearAllLines" "../js/helper_functions.js"
     let cmEditor = initializeCodeMirror.Invoke()
     printfn "cmEditor = %A" cmEditor
-    let mutable currentLineState = initStateVisual
+    let mutable state = initStateVisual
 
     let rec toBinary (value: uint32)=
         if value < 2u then
@@ -120,7 +120,8 @@ let main args =
     let compileAll () = 
         clearAllLines.Invoke(cmEditor)
         let code = saveCodeMirror.Invoke(cmEditor)
-        let nState = newStateAll code
+        let state = initStateVisual
+        let nState = newStateAll state code
 
         let registerString = 
             match nState with
@@ -143,10 +144,7 @@ let main args =
     let compileNextLine () = 
         clearAllLines.Invoke(cmEditor)
         let code = saveCodeMirror.Invoke(cmEditor)
-        match currentLineState with 
-        | initStateVisual -> (currentLineState <- getParsedState code)
-        | _ -> ()
-        let nState = newStateSingle currentLineState
+        let nState = newStateSingle state code
 
         let registerString = 
             match nState with
@@ -157,6 +155,11 @@ let main args =
             match nState with
             | Ok(i,s) -> sprintf "Ran line %i" i
             | Err(i,msg) -> sprintf "ERROR ON LINE %i\t %s" i msg
+        
+        state <- 
+            match nState with
+            | Ok(i,s) -> s
+            | Err(i,msg) -> initStateVisual
         
         match nState with
             | Ok(i,s) -> highlightLine.Invoke(i,cmEditor,2)
@@ -169,9 +172,9 @@ let main args =
     let resetCompiler () =
         printfn "cmEditor = %A" cmEditor
         clearAllLines.Invoke(cmEditor)
-        currentLineState <- None
+        state <- initStateVisual
         errorBox.innerHTML <- ""
-        regs.innerHTML <- ((getRegisterTable true initStateVisual) |> Html.toString)
+        regs.innerHTML <- ((getRegisterTable true state) |> Html.toString)
 
     let toggle () =
         changeCMTheme.Invoke(cmEditor)

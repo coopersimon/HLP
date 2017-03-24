@@ -803,14 +803,12 @@ module ARMv4 =
             | _ -> failwith "Invalid data type."
         loop label valList state
     
-    let equ value state = 
-        let name =
-            match value with
-            | (i,'i') -> i
-            | (r,'r') -> readReg r state
-            | (m,'m') -> readMem m state
-            | _ -> 0
-        name
+    let equ name value state = 
+        match value with
+        | (i,'i') -> writeMem name i state
+        | (r,'r') -> writeMem name (readReg r state) state
+        | (m,'m') -> writeMem name (readMem m state) state
+        | _ -> failwith "Invalid data type."
 
     let fillW label data value state = 
         let rec loop mem n val2 state = 
