@@ -6,5 +6,6 @@ open Common.Error
 
 module GetStates =
 
-    let newStateAll oldState inString = inString |> Tokeniser.tokenise |> Parser.parser |> wrapErr (Interpreter.interpret oldState)
-    let newStateSingle oldState inString = inString |> Tokeniser.tokenise |> Parser.parser |> wrapErr (Interpreter.interpretLine oldState)
+    let newState inString = match inString |> Tokeniser.tokenise |> Parser.parser with
+                            | Ok(state,instr) -> Interpreter.interpret state instr
+                            | Err(l,s) -> Err(l,s)

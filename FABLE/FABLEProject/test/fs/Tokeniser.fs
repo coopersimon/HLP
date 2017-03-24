@@ -269,7 +269,7 @@ module Tokeniser =
 
     
     /// Match input string to token.
-    let private stringToToken = function
+    let stringToToken = function
         // registers & aliases
         | REG_MATCH i -> T_REG i
         | TOKEN_MATCH @"^a1$" -> T_REG 0
@@ -363,7 +363,7 @@ module Tokeniser =
 
     /// Take in string and output list of tokens.
     let tokenise (source: string) =
-        Regex.Split(source, @"([,\[\]!\n])|[\ \t\r\f]+|;.*")
+        Regex.Split(source, @"([,\[\]!\n={}-])|[\ \t\r\f]+|;.*")
         |> Array.toList
         |> List.filter (fun s -> s <> null)
         |> List.filter (fun s -> s <> "")
