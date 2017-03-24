@@ -30,6 +30,7 @@ module Types =
     /// Wrapper for instructions, including unresolved references.
     type Instruction = 
         | LabelRef of (Map<string,int> -> Error<Instruction>)
+        | DataRef of (StateHandle -> StateHandle)
         | EndRef of (int -> Instruction)
         // Instruction contains the line number in addition to the function that transforms the state.
         | Instr of int*(StateHandle -> StateHandle)

@@ -363,7 +363,7 @@ he initial runtime contents of the memory.
 
 **equ**
 
-name:*int* -> value:*int\*char* -> state:*StateHandle* -> output:*StateHandle*
+value:*int\*char* -> state:*StateHandle* -> output:*int*
 *Note: val is a (intORmem, vtype) tuple*
 
 Gives a symbolic name *name* to a numeric constant - *i* where *val=(i,'i')*, a register-relative value - value in register *r* where *val=(r,'r')* or a PC-relative value - value stored in address *m* where *val=(m,'m')*. In VISUAL, only *val=(i,'i')* is implemented. *i* is evaluated from a numeric expression in the assembly code.
