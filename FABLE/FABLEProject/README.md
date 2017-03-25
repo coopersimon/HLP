@@ -1,4 +1,4 @@
-Fable Quick Start
+Fable Quick Start
 =================
 
 It can be difficult to figure out how to properly setup [Fable](http://fable.io/).

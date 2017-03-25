@@ -2,9 +2,10 @@
 open Common.State
 open Parse
 open Interpret
-open Common.Conditions
 open Common.Error
 
 module GetStates =
-    let oldState = initState
-    let newState inString = inString |> Tokeniser.tokenise |> Parser.parser |> wrapErr (Interpreter.interpret oldState)
+
+    let newState inString = match inString |> Tokeniser.tokenise |> Parser.parser with
+                            | Ok(state,instr) -> Interpreter.interpret state instr
+                            | Err(l,s) -> Err(l,s)

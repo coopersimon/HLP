@@ -15,7 +15,7 @@ module Tokeniser =
         (stringToToken "R3", T_REG 3);
         (stringToToken "R10", T_REG 10);
         (stringToToken "R13", T_REG 13);
-        (stringToToken "R25", T_ERROR);
+        (stringToToken "R25", T_LABEL "R25");
         (stringToToken "mov", T_MOV (checkAL,false));
         (stringToToken "32", T_INT 32);
         (stringToToken "#150", T_INT 150);

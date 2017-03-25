@@ -15,6 +15,14 @@ module State =
         let regs = Array.create 16 0
         S(regs, false, false, false, false, Map.empty)
 
+    /// Creates state for testing with visual - R13 initialized to 0xFF00000.
+    let initStateVisual =
+        let regs0to12 = Array.create 13 0
+        let regs13to15 = [|0xFF000000;0;0|]
+        let regs = Array.concat [regs0to12; regs13to15]
+
+        S(regs, false, false, false, false, Map.empty)
+
     /// Read a register in the state.
     let readReg r (S(reg,_,_,_,_,_): StateHandle) =
         reg.[r]
@@ -83,6 +91,24 @@ module State =
         let newMem = Map.add addr v mem
         S(reg,n,z,c,s,newMem)
 
+    /// Read a byte from a memory address.
+    let readMemByte addr (S(_,_,_,_,_,mem): StateHandle) =
+        match Map.tryFind (addr&&&0xFFFFFFFC) mem with
+        | Some(v) -> byte ((v>>>(8*(addr%4)))&&&255)
+        | None -> byte 0
+
+    /// Write a byte to a memory address.
+    let writeMemByte addr (b: byte) (S(reg,n,z,c,s,mem): StateHandle) =
+        let mask = 0xFFFFFFFF ^^^ (0xFF <<< (addr%4))
+        let newMem = match Map.tryFind (addr&&&0xFFFFFFFC) mem with
+                     | Some(v) -> Map.add addr ((mask&&&v) ||| (int (b<<<(8*(addr%4))))) mem
+                     | None -> Map.add addr (int (b<<<(8*(addr%4)))) mem
+        S(reg,n,z,c,s,newMem)
+
     /// Debug. Returns tuple of (Registers * Flags)
     let readState (S(reg,n,z,c,v,_): StateHandle) =
         (reg, [n;z;c;v])
+
+    /// Debug. Returns tuple of (Registers * Flags* MemMap)
+    let readStateWithMem (S(reg,n,z,c,v,mem): StateHandle) =
+        (reg, [n;z;c;v], mem)

@@ -60,8 +60,10 @@
     <Compile Include="Error.fs" />
     <Compile Include="State.fs" />
     <Compile Include="Conditions.fs" />
+    <Compile Include="Types.fs" />
     <Compile Include="Tokeniser.fs" />
     <Compile Include="ARMv4.fs" />
+    <Compile Include="ParseError.fs" />
     <Compile Include="Parser.fs" />
     <Compile Include="Interpreter.fs" />
     <Compile Include="GetStates.fs" />
