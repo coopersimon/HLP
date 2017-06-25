@@ -40,6 +40,6 @@ export function clearAllLines(myEditor) {
 
 export function getJSON() {
 	const FS = require('fs');
-	var testsString = FS.readFileSync("/Users/raviwoods/Google_Drive/ICComp/Uni_Year_3/HLP/HLP/FABLE/FABLEProject/src/js/tests.json", 'utf8');
+	var testsString = FS.readFileSync("./tests.json", 'utf8');
 	return testsString;
 }
