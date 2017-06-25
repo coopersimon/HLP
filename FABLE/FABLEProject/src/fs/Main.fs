@@ -8,6 +8,7 @@ open Fable.Core
 open Fable.Import
 open FsHtml
 open Fable.Core.JsInterop
+open Test.Tester
 
 [<EntryPoint>]    
 let main args = 
@@ -16,14 +17,13 @@ let main args =
     let compileAllBtn = Browser.document.getElementById "compileAllBtn"
     let compileNextLineBtn = Browser.document.getElementById "compileNextLineBtn"
     let resetBtn = Browser.document.getElementById "resetBtn"
-    let toggleThemeBtn = Browser.document.getElementById "toggleThemeBtn"
     let saveCodeMirror: JsFunc1<_,string> = import "saveCodeMirror" "../js/helper_functions.js"
     let initializeCodeMirror: JsFunc0<_> = import "initializeCodeMirror" "../js/helper_functions.js"
     let highlightLine: JsFunc3<int,_,int,_> = import "highlightLine" "../js/helper_functions.js"
     let changeCMTheme: JsFunc0<_> = import "changeCMTheme" "../js/helper_functions.js"
     let clearAllLines: JsFunc1<_,_> = import "clearAllLines" "../js/helper_functions.js"
+    let getJSON: JsFunc0<_> = import "getJSON" "../js/helper_functions.js"
     let cmEditor = initializeCodeMirror.Invoke()
-    printfn "cmEditor = %A" cmEditor
     let mutable state = initStateVisual
 
     let rec toBinary (value: uint32)=
@@ -137,7 +137,6 @@ let main args =
             | Ok(i,s) -> ()
             | Err(i,msg) -> highlightLine.Invoke(i,cmEditor,1)
 
-        printfn "%A" registerString
         regs.innerHTML <- registerString 
         errorBox.innerHTML <- errorString
     
@@ -165,24 +164,21 @@ let main args =
             | Ok(i,s) -> highlightLine.Invoke(i,cmEditor,2)
             | Err(i,msg) -> highlightLine.Invoke(i,cmEditor,1)
 
-        printfn "%A" registerString
         regs.innerHTML <- registerString 
         errorBox.innerHTML <- errorString
     
     let resetCompiler () =
-        printfn "cmEditor = %A" cmEditor
         clearAllLines.Invoke(cmEditor)
         state <- initStateVisual
         errorBox.innerHTML <- ""
         regs.innerHTML <- ((getRegisterTable true state) |> Html.toString)
 
-    let toggle () =
-        changeCMTheme.Invoke(cmEditor)
-        //10
+    let jsonString = getJSON.Invoke()
+    let json = ofJson<Tests> jsonString
+    runTests json |> printf "%A"
 
     compileAllBtn.addEventListener_click(fun _ -> compileAll () ; null)
     compileNextLineBtn.addEventListener_click(fun _ -> compileNextLine () ; null)
     resetBtn.addEventListener_click(fun _ -> resetCompiler () ; null)
-    //toggleThemeBtn.addEventListener_click(fun _ -> toggle () ; null)
     resetCompiler ()
     0

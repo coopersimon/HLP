@@ -5,17 +5,15 @@ export function saveCodeMirror(myEditor)
 }
 
 export function initializeCodeMirror() {
-	console.log("initializeCodeMirror")
 	var editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
 			lineNumbers: true,
 			theme: 'blackboard'
 		});
-	console.log(editor)
 	return editor
 }
 
 export function changeCMTheme(cmEditor) {
-	console.log("changeCMTheme")
+	//console.log("changeCMTheme")
 	//myEditor.refresh();
 }
 
@@ -33,10 +31,15 @@ export function highlightLine(lineNumber,myEditor,colour) {
 }
 
 export function clearAllLines(myEditor) {
-	console.log("clearAllLines")
 	for (var i = 0; i < myEditor.lineCount(); i++) {
 		myEditor.removeLineClass(i, 'background', 'error');
 		myEditor.removeLineClass(i, 'background', 'select')
 	}
 	myEditor.refresh();
+}
+
+export function getJSON() {
+	const FS = require('fs');
+	var testsString = FS.readFileSync("/Users/raviwoods/Google_Drive/ICComp/Uni_Year_3/HLP/HLP/FABLE/FABLEProject/src/js/tests.json", 'utf8');
+	return testsString;
 }
